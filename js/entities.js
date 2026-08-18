@@ -1,4 +1,4 @@
-// --- 3D MATERIALIEN & ENTITIES ---
+// --- 3D MATERIALS & ENTITIES ---
 const rottenMat = new THREE.MeshStandardMaterial({ roughness: 1.0, metalness: 0.0, vertexColors: true });
 const snoutMat = new THREE.MeshStandardMaterial({ color: 0xc4788c, roughness: 1.0 }); 
 const eyeMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 1.0, metalness: 0.0 }); 

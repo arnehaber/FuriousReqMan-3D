@@ -1,4 +1,4 @@
-// --- GAMEPLAY UND HAUPTSCHLEIFE ---
+// --- GAMEPLAY AND MAIN LOOP ---
 const container = document.getElementById('game-container'), scoreDisplay = document.getElementById('score-display'), timerDisplay = document.getElementById('timer-display'), ammoDisplay = document.getElementById('ammo-display'), gameOverScreen = document.getElementById('game-over'), loadingScreen = document.getElementById('loading-screen'), finalScoreDisplay = document.getElementById('final-score'), highscoreForm = document.getElementById('highscore-form'), playerNameInput = document.getElementById('player-name'), loadingHighscoreBody = document.getElementById('loading-highscore-body'), gameoverHighscoreBody = document.getElementById('gameover-highscore-body'), instructionsOverlay = document.getElementById('instructions-overlay'), healthValueDisplay = document.getElementById('health-value'), gameOverTitle = document.getElementById('game-over-title'), damageVignette = document.getElementById('damage-vignette'), scoreCalcText = document.getElementById('score-calc-text');
 const statsHpCount = document.getElementById('stats-hp-count'), statsTimeCount = document.getElementById('stats-time-count'), statsCoffeeCount = document.getElementById('stats-coffee-count'), statsLightningCount = document.getElementById('stats-lightning-count'), statsFreezeCount = document.getElementById('stats-freeze-count');
 const activePowerupsDisplay = document.getElementById('active-powerups-display');
@@ -6,7 +6,7 @@ const keysPressed = { w: false, a: false, s: false, d: false };
 let isJumping = false, jumpVelocity = 0, playerCurrentGroundY = 0;
 let collectedHp = 0, collectedTime = 0, collectedCoffee = 0, collectedLightning = 0, collectedFreeze = 0;
 
-// Hilfsfunktion für sauberes Memory Management
+// Helper function for clean memory management
 function dispose3dObject(obj) {
     if (!obj) return;
     obj.traverse(child => {
@@ -19,9 +19,9 @@ function dispose3dObject(obj) {
 function saveRawData(value) { try { localStorage.setItem(HIGHSCORE_KEY, btoa(encodeURIComponent(value))); } catch(e) {} }
 function loadRawData() { try { return localStorage.getItem(HIGHSCORE_KEY); } catch(e) { return null; } }
 function loadHighscores() { const raw = loadRawData(); if (!raw) return []; try { return JSON.parse(decodeURIComponent(atob(raw))); } catch (e) { try { localStorage.removeItem(HIGHSCORE_KEY); } catch(c) {} return []; } }
-function saveHighscore(name, score) { const highscores = loadHighscores(); const now = new Date(); const dateString = now.toLocaleDateString('de-DE') + ' ' + now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); highscores.push({ name: name || 'Unbekannt', score: score, date: dateString }); highscores.sort((a, b) => b.score - a.score); saveRawData(JSON.stringify(highscores.slice(0, 10))); displayHighscores(); }
+function saveHighscore(name, score) { const highscores = loadHighscores(); const now = new Date(); const dateString = now.toLocaleDateString('en-US') + ' ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); highscores.push({ name: name || 'Unknown', score: score, date: dateString }); highscores.sort((a, b) => b.score - a.score); saveRawData(JSON.stringify(highscores.slice(0, 10))); displayHighscores(); }
 function checkHighscoreEligibility(score) { const highscores = loadHighscores(); return highscores.length < 10 || score > highscores[highscores.length - 1].score; }
-function displayHighscores() { const highscores = loadHighscores(); const htmlContent = highscores.length === 0 ? '<tr><td colspan="4" style="text-align:center; color:#888;">Noch keine Einträge!</td></tr>' : highscores.map((entry, index) => `<tr><td class="rank-col">#${index + 1}</td><td>${escapeHtml(entry.name)}</td><td class="score-col">${entry.score}</td><td>${entry.date}</td></tr>`).join(''); loadingHighscoreBody.innerHTML = htmlContent; gameoverHighscoreBody.innerHTML = htmlContent; }
+function displayHighscores() { const highscores = loadHighscores(); const htmlContent = highscores.length === 0 ? '<tr><td colspan="4" style="text-align:center; color:#888;">No entries yet!</td></tr>' : highscores.map((entry, index) => `<tr><td class="rank-col">#${index + 1}</td><td>${escapeHtml(entry.name)}</td><td class="score-col">${entry.score}</td><td>${entry.date}</td></tr>`).join(''); loadingHighscoreBody.innerHTML = htmlContent; gameoverHighscoreBody.innerHTML = htmlContent; }
 function submitHighscore() { saveHighscore(playerNameInput.value.trim(), score); highscoreForm.style.display = 'none'; }
 function escapeHtml(text) { if (!text) return text; return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
@@ -107,20 +107,20 @@ function animate3D() {
                 if (pup.type === 'hp') {
                     hp += HP_HEAL_AMOUNT; if (hp > MAX_OVERHEAL_HP) hp = MAX_OVERHEAL_HP;
                     healthValueDisplay.innerText = `HP: ${hp}`; collectedHp++;
-                    popup.innerText = `GESUNDHEIT +${HP_HEAL_AMOUNT}`; popup.style.color = "#ff3333";
+                    popup.innerText = `HEALTH +${HP_HEAL_AMOUNT}`; popup.style.color = "#ff3333";
                     let alphaValue = Math.max(0, (1 - (hp / 100)) * RED_FILTER_MAX_OPACITY); damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${alphaValue})`;
                     if (hp > 90) clearTimeout(heartbeatTimeout);
                 } else if (pup.type === 'time') {
-                    timeLeft += TIME_BONUS_AMOUNT; timerDisplay.innerText = `RESTZEIT: ${timeLeft}`;
-                    collectedTime++; popup.innerText = `BONUS-ZEIT +${TIME_BONUS_AMOUNT}s`; popup.style.color = "#00ffaa";
+                    timeLeft += TIME_BONUS_AMOUNT; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`;
+                    collectedTime++; popup.innerText = `BONUS TIME +${TIME_BONUS_AMOUNT}s`; popup.style.color = "#00ffaa";
                 } else if (pup.type === 'speed') {
                     coffeeEndTime = performance.now() + (COFFEE_TIMER * 1000); 
                     currentSpeedMultiplier = COFFEE_SPEED_MULTI; collectedCoffee++;
-                    camera.fov = 90; camera.updateProjectionMatrix(); popup.innerText = `KAFFEE-OVERCLOCK!`; popup.style.color = "#ffffff";
+                    camera.fov = 90; camera.updateProjectionMatrix(); popup.innerText = `COFFEE OVERCLOCK!`; popup.style.color = "#ffffff";
                 } else if (pup.type === 'infinite') {
                     infiniteAmmoEndTime = performance.now() + (INFINITE_AMMO_TIMER * 1000); 
                     currentAmmo = MAX_AMMO; updateAmmoUI(); collectedLightning++;
-                    popup.innerText = `UNENDLICH MUNITION!`; popup.style.color = "#ffcc00";
+                    popup.innerText = `INFINITE AMMO!`; popup.style.color = "#ffcc00";
                 } else if (pup.type === 'freeze') {
                     freezeEndTime = performance.now() + (FREEZE_TIME * 1000); 
                     collectedFreeze++; popup.innerText = `TASK-KILLER (FREEZE)!`; popup.style.color = "#00ccff";
@@ -271,7 +271,7 @@ function hit3DPig(pig, isHeadshot) {
     let shotDistance = camera.position.distanceTo(pig.mesh.position);
     let basePoints = Math.round(shotDistance * pig.speed * 4500); if (basePoints < 100) basePoints = 100; 
     let finalPoints = isHeadshot ? basePoints : Math.round(basePoints / 5);
-    playAudio('hit'); score += finalPoints; scoreDisplay.innerText = `SCHWEINE ABGEKNALLT: ${score}`;
+    playAudio('hit'); score += finalPoints; scoreDisplay.innerText = `PIGS BLASTED: ${score}`;
     const popup = document.createElement('div'); popup.className = 'score-popup'; popup.innerText = isHeadshot ? `HEADSHOT +${finalPoints}` : `BODYSHOT +${finalPoints}`; 
     if(isHeadshot) popup.style.color = "#ffcc00"; popup.style.left = '50%'; popup.style.top = '45%'; container.appendChild(popup); 
     setTimeout(() => popup.remove(), SCORE_POPUP_TIME);
@@ -312,9 +312,10 @@ function startGame() {
     coffeeEndTime = 0; infiniteAmmoEndTime = 0; freezeEndTime = 0; activePowerupsDisplay.innerHTML = '';
     currentSpeedMultiplier = 1.0; camera.fov = 75; camera.updateProjectionMatrix();
     
-    scoreDisplay.innerText = `SCHWEINE ABGEKNALLT: ${score}`; timerDisplay.innerText = `RESTZEIT: ${timeLeft}`; healthValueDisplay.innerText = `HP: ${hp}`; updateAmmoUI();
+    scoreDisplay.innerText = `PIGS BLASTED: ${score}`; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`; healthValueDisplay.innerText = `HP: ${hp}`; updateAmmoUI();
     damageVignette.style.backgroundColor = `rgba(255, 0, 0, 0)`; gameOverScreen.style.display = 'none'; highscoreForm.style.display = 'none'; instructionsOverlay.style.display = 'none';
     
+    // Clean up remnants from the last game
     pigs3D.forEach(p => { dispose3dObject(p.mesh); scene.remove(p.mesh); }); 
     pigs3D = [];
     powerups3D.forEach(pup => { dispose3dObject(pup.mesh); scene.remove(pup.mesh); }); 
@@ -326,14 +327,14 @@ function startGame() {
 }
 
 function restartAndPlay() { initAudio(); gameOverScreen.style.display = 'none'; loadingScreen.style.display = 'none'; document.body.requestPointerLock(); startGame(); }
-function updateTimer() { timeLeft--; if(timeLeft < 0) timeLeft = 0; timerDisplay.innerText = `RESTZEIT: ${timeLeft}`; if (timeLeft <= 0) endGame(false); }
+function updateTimer() { timeLeft--; if(timeLeft < 0) timeLeft = 0; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`; if (timeLeft <= 0) endGame(false); }
 
 function endGame(diedFromHp) { 
     clearTimeout(heartbeatTimeout); clearInterval(gameInterval); clearInterval(spawnInterval); clearInterval(reloadInterval); clearInterval(powerupInterval);
     document.exitPointerLock(); 
     
     let hpMultiplier = hp / 100; let finalCalculatedScore = Math.round(score * hpMultiplier);
-    scoreCalcText.innerText = `Erzielte Punkte: ${score} | End-Gesundheit: ${hp}% (Faktor x${hpMultiplier.toFixed(2)})`;
+    scoreCalcText.innerText = `Points Scored: ${score} | Final Health: ${hp}% (Multiplier x${hpMultiplier.toFixed(2)})`;
     finalScoreDisplay.innerText = finalCalculatedScore;
     
     statsHpCount.innerText = `x${collectedHp}`;
@@ -343,10 +344,10 @@ function endGame(diedFromHp) {
     statsFreezeCount.innerText = `x${collectedFreeze}`;
 
     if(diedFromHp) {
-        gameOverTitle.innerText = "SPRINT FEHLGESCHLAGEN!"; gameOverTitle.style.textShadow = "4px 4px 4px #000, 0 0 25px #ff0000";
+        gameOverTitle.innerText = "SPRINT FAILED!"; gameOverTitle.style.textShadow = "4px 4px 4px #000, 0 0 25px #ff0000";
         damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${RED_FILTER_MAX_OPACITY})`; 
     } else {
-        gameOverTitle.innerText = "PROJEKTABSCHLUSS!"; gameOverTitle.style.textShadow = "4px 4px 4px #000, 0 0 25px #5cb85c";
+        gameOverTitle.innerText = "PROJECT COMPLETED!"; gameOverTitle.style.textShadow = "4px 4px 4px #000, 0 0 25px #5cb85c";
     }
     gameOverScreen.style.display = 'flex'; displayHighscores(); 
     if (finalCalculatedScore > 0 && checkHighscoreEligibility(finalCalculatedScore)) { 
@@ -355,7 +356,7 @@ function endGame(diedFromHp) {
     } 
 }
 
-// --- DYNAMISCHES HANDBUCH UPDATE ---
+// --- DYNAMIC MANUAL UPDATE ---
 function updateHelpValues() {
     document.getElementById('help-val-hp').innerText = HP_HEAL_AMOUNT;
     document.getElementById('help-val-hpmax').innerText = MAX_OVERHEAL_HP;
@@ -366,6 +367,7 @@ function updateHelpValues() {
     document.getElementById('help-val-freezetime').innerText = FREEZE_TIME;
 }
 
+// Initial start of the system
 updateHelpValues(); 
 init3D(); 
 animate3D(); 

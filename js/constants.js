@@ -1,4 +1,4 @@
-// --- SPIEL KONSTANTEN ---
+// --- GAME CONSTANTS ---
 const MAX_AMMO = 10;
 const RELOAD_TIME = 250;
 const SCORE_POPUP_TIME = 750;
@@ -19,7 +19,7 @@ const COFFEE_SPEED_MULTI = 1.4;
 const INFINITE_AMMO_TIMER = 6.0;
 const FREEZE_TIME = 6.0;
 
-// Umgebung & Physik
+// Environment & Physics
 const MAP_MIN_X = -120;
 const MAP_MAX_X = 120;
 const MAP_MIN_Z = -200;
@@ -29,7 +29,7 @@ const gravity = 0.015;
 const playerBaseY = 2; 
 const playerHeightOffset = 2; 
 
-// Globale Spiel-Zustände (von allen Modulen genutzt)
+// Global Game States (used by all modules)
 let score = 0, timeLeft = 60, currentAmmo = MAX_AMMO, hp = 100;
 let isReloading = false, isPaused = false;
 let gameInterval, spawnInterval, reloadInterval;

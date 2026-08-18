@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Furious Requirement Manager 3D: Ultimate Power-Up Edition</title>
-    <!-- Three.js Basis -->
+    <!-- Three.js Base -->
     <script src="./lib/three.min-r128.js"></script>
     <style>
         body { margin: 0; padding: 0; font-family: 'Arial Black', sans-serif; overflow: hidden; user-select: none; background: #000; color: #fff; }
@@ -94,12 +94,12 @@
     <div id="loading-screen">
         <h1>Furious Requirement Manager 3D</h1>
         <h2>Attack of the Zombie Pigs</h2>
-        <button onclick="pressStartButton(event)" style="margin-top: 10px; font-size: 24px; padding: 15px 45px;">SPRINT STARTEN</button>
-        <div style="margin-top: 10px; color: #f0ad4e; font-size: 16px;">[F1] für das Handbuch</div>
+        <button onclick="pressStartButton(event)" style="margin-top: 10px; font-size: 24px; padding: 15px 45px;">START SPRINT</button>
+        <div style="margin-top: 10px; color: #f0ad4e; font-size: 16px;">[F1] for the manual</div>
         <div class="highscore-container">
-            <h3>Aktuelle Top 10 Sprints</h3>
+            <h3>Current Top 10 Sprints</h3>
             <table class="highscore-table">
-                <thead><tr><th class="rank-col">Rang</th><th>Name</th><th class="score-col">Score</th><th>Datum</th></tr></thead>
+                <thead><tr><th class="rank-col">Rank</th><th>Name</th><th class="score-col">Score</th><th>Date</th></tr></thead>
                 <tbody id="loading-highscore-body"></tbody>
             </table>
         </div>
@@ -117,28 +117,28 @@
     </div>
     
     <div id="ui-panel">
-        <div id="score-display" class="score-box">SCHWEINE ABGEKNALLT: 0</div>
-        <div class="help-hint">F1 für Hilfe</div>
-        <div id="timer-display" class="timer-box">RESTZEIT: 60</div>
+        <div id="score-display" class="score-box">PIGS BLASTED: 0</div>
+        <div class="help-hint">F1 for Help</div>
+        <div id="timer-display" class="timer-box">TIME LEFT: 60</div>
     </div>
     <div id="ammo-display"></div>
 
     <div id="instructions-overlay">
-        <h1>Sprint-Handbuch & Features</h1>
+        <h1>Sprint Manual & Features</h1>
         <div class="scrollable-feature-container">
-            <div class="lore-text">"Das Projekt stand kurz vor dem Release, als das Unfassbare geschah. Unkontrollierte Feature-Requests und unvollständige User Stories mutierten im Legacy-Code zu einer unaufhaltsamen Seuche. Die Anforderungen erwachten zum Leben – in Form von unersättlichen, untoten Zombie-Schweinen... Sortiere die Fehler aus. Radikal. Präzise. Bevor der finale Sprint abläuft..."</div>
+            <div class="lore-text">"The project was close to release, when the unthinkable happened. Uncontrolled feature requests and incomplete user stories mutated into an unstoppable plague within the legacy code. The requirements came to life – in the form of insatiable, undead zombie pigs... Sort out the bugs. Radically. Precisely. Before the final sprint runs out..."</div>
             
             <div class="feature-list-section">
-                <h3>Steuerung</h3>
+                <h3>Controls</h3>
                 <table class="control-table">
-                    <thead><tr><th>Aktion</th><th>Taste / Eingabe</th></tr></thead>
+                    <thead><tr><th>Action</th><th>Key / Input</th></tr></thead>
                     <tbody>
-                        <tr><td>Taktische Bewegung</td><td><strong>W, A, S, D</strong></td></tr>
-                        <tr><td>Umschauen & Zielen</td><td><strong>Mausbewegung</strong></td></tr>
-                        <tr><td>Waffenschuss abgeben</td><td><strong>Linksklick (Maus)</strong></td></tr>
-                        <tr><td>Magazin nachladen</td><td><strong>Taste R</strong> oder <strong>Rechtsklick</strong></td></tr>
-                        <tr><td>Super-Sprung (High-Jump)</td><td><strong>Leertaste (Space)</strong></td></tr>
-                        <tr><td>Handbuch öffnen / Pause</td><td><strong>Taste F1</strong></td></tr>
+                        <tr><td>Tactical Movement</td><td><strong>W, A, S, D</strong></td></tr>
+                        <tr><td>Look Around & Aim</td><td><strong>Mouse Movement</strong></td></tr>
+                        <tr><td>Fire Weapon</td><td><strong>Left Click</strong></td></tr>
+                        <tr><td>Reload Magazine</td><td><strong>Key R</strong> or <strong>Right Click</strong></td></tr>
+                        <tr><td>Super Jump</td><td><strong>Spacebar</strong></td></tr>
+                        <tr><td>Open Manual / Pause</td><td><strong>Key F1</strong></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -146,20 +146,20 @@
             <div class="feature-list-section">
                 <h3>Features & Power-Ups</h3>
                 <ul>
-                    <li><strong>HP Kreuz (+):</strong> Heilt dich um <span id="help-val-hp"></span> HP bis max. <span id="help-val-hpmax"></span> HP Overheal.</li>
-                    <li><strong>Bonus-Zeit (🕒):</strong> Fügt der Spielzeit sofort <span id="help-val-time"></span> Sekunden hinzu.</li>
-                    <li><strong>Kaffee-Overclock (☕):</strong> +<span id="help-val-speed"></span>% Movement Speed & FOV-Rausch für <span id="help-val-coffeetime"></span> Sekunden.</li>
-                    <li><strong>Infinite Ammo (⚡):</strong> Unendliche Schrotmunition ohne Nachladen für <span id="help-val-ammotime"></span> Sekunden.</li>
-                    <li><strong>Task-Killer (🧯):</strong> Friert alle Schweine auf der Karte für <span id="help-val-freezetime"></span> Sekunden komplett ein.</li>
+                    <li><strong>HP Cross (+):</strong> Heals you for <span id="help-val-hp"></span> HP up to max. <span id="help-val-hpmax"></span> HP overheal.</li>
+                    <li><strong>Bonus Time (🕒):</strong> Instantly adds <span id="help-val-time"></span> seconds to the timer.</li>
+                    <li><strong>Coffee Overclock (☕):</strong> +<span id="help-val-speed"></span>% Movement Speed & FOV rush for <span id="help-val-coffeetime"></span> seconds.</li>
+                    <li><strong>Infinite Ammo (⚡):</strong> Infinite shotgun ammo without reloading for <span id="help-val-ammotime"></span> seconds.</li>
+                    <li><strong>Task-Killer (🧯):</strong> Freezes all pigs on the map for <span id="help-val-freezetime"></span> seconds.</li>
                 </ul>
             </div>
         </div>
-        <button class="close-btn" onclick="toggleHelp()">ZURÜCK (F1)</button>
+        <button class="close-btn" onclick="toggleHelp()">BACK (F1)</button>
     </div>
     
     <div id="game-over">
-        <h1 id="game-over-title">PROJEKTABSCHLUSS!</h1>
-        <p class="score-calculation" id="score-calc-text">Erzielte Punkte: 0 | Verbleibende HP: 100%</p>
+        <h1 id="game-over-title">PROJECT COMPLETED!</h1>
+        <p class="score-calculation" id="score-calc-text">Points Scored: 0 | Remaining HP: 100%</p>
         <div class="powerup-stats-container">
             <div class="stat-item"><span class="icon-cross-ui">+</span> <span id="stats-hp-count">x0</span></div>
             <div class="stat-item"><span class="icon-clock-ui">🕒</span> <span id="stats-time-count">x0</span></div>
@@ -167,24 +167,24 @@
             <div class="stat-item"><span class="icon-lightning-ui">⚡</span> <span id="stats-lightning-count">x0</span></div>
             <div class="stat-item"><span class="icon-freeze-ui">🧯</span> <span id="stats-freeze-count">x0</span></div>
         </div>
-        <p>Finaler Score: <span id="final-score">0</span></p>
+        <p>Final Score: <span id="final-score">0</span></p>
         <div id="highscore-form" style="display: none;">
-            <p>Glückwunsch! Du bist in den Top 10.</p>
-            <input type="text" id="player-name" placeholder="Dein Name" maxlength="20" onkeydown="if(event.key==='Enter') submitHighscore()">
-            <button onclick="submitHighscore()">Eintragen</button>
+            <p>Congratulations! You made the Top 10.</p>
+            <input type="text" id="player-name" placeholder="Your Name" maxlength="20" onkeydown="if(event.key==='Enter') submitHighscore()">
+            <button onclick="submitHighscore()">Submit</button>
         </div>
-        <button onclick="restartAndPlay()">NEUER SPRINT</button>
+        <button onclick="restartAndPlay()">NEW SPRINT</button>
         <div class="highscore-container">
             <h3>Hall of Fame</h3>
             <table class="highscore-table">
-                <thead><tr><th class="rank-col">Rang</th><th>Name</th><th class="score-col">Score</th><th>Datum</th></tr></thead>
+                <thead><tr><th class="rank-col">Rank</th><th>Name</th><th class="score-col">Score</th><th>Date</th></tr></thead>
                 <tbody id="gameover-highscore-body"></tbody>
             </table>
         </div>
     </div>
 </div>
 
-<!-- Module in korrekter Reihenfolge laden -->
+<!-- Load modules in correct order -->
 <script src="js/constants.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/entities.js"></script>
