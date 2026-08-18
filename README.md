@@ -1,5 +1,8 @@
 # Furious Requirement Manager 3D: Ultimate Power-Up Edition
-Vibe-coded 3D Zombie Pig Shooter vibe coded with google gemini. Gemini itself describes it as follows:
+Vibe-coded 3D Zombie Pig Shooter vibe coded with google gemini. 
+Bleeding-edge version can be found [here](https://arnehaber.github.io/FuriousReqMan-3D/).
+
+Gemini itself describes this glorious game as follows:
 
 An action-packed, browser-based 3D shooter, developed with **Three.js** and pure JavaScript. Fight against the unstoppable flood of mutated feature requests and save the sprint!
 
