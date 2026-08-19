@@ -1,5 +1,5 @@
 // --- GAMEPLAY AND MAIN LOOP ---
-const clock = new THREE.Clock(); // NEU: Delta-Time Clock
+const clock = new THREE.Clock(); // Delta-Time Clock
 
 const container = document.getElementById('game-container'), scoreDisplay = document.getElementById('score-display'), timerDisplay = document.getElementById('timer-display'), ammoDisplay = document.getElementById('ammo-display'), gameOverScreen = document.getElementById('game-over'), loadingScreen = document.getElementById('loading-screen'), finalScoreDisplay = document.getElementById('final-score'), highscoreForm = document.getElementById('highscore-form'), playerNameInput = document.getElementById('player-name'), loadingHighscoreBody = document.getElementById('loading-highscore-body'), gameoverHighscoreBody = document.getElementById('gameover-highscore-body'), instructionsOverlay = document.getElementById('instructions-overlay'), healthValueDisplay = document.getElementById('health-value'), gameOverTitle = document.getElementById('game-over-title'), damageVignette = document.getElementById('damage-vignette'), scoreCalcText = document.getElementById('score-calc-text');
 const statsHpCount = document.getElementById('stats-hp-count'), statsTimeCount = document.getElementById('stats-time-count'), statsCoffeeCount = document.getElementById('stats-coffee-count'), statsLightningCount = document.getElementById('stats-lightning-count'), statsFreezeCount = document.getElementById('stats-freeze-count');
@@ -84,7 +84,7 @@ function init3D() {
 function animate3D() {
     requestAnimationFrame(animate3D); 
     
-    // NEU: Delta-Time Berechnung
+    // Delta-Time Berechnung
     const dt = clock.getDelta();
     // Kappt die Zeit auf max. 0.1s (verhindert gigantische Physik-Sprünge nach Minimieren des Browsers)
     const clampedDt = Math.min(dt, 0.1); 
@@ -125,15 +125,18 @@ function animate3D() {
                     timeLeft += TIME_BONUS_AMOUNT; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`;
                     collectedTime++; popup.innerText = `BONUS TIME +${TIME_BONUS_AMOUNT}s`; popup.style.color = "#00ffaa";
                 } else if (pup.type === 'speed') {
-                    coffeeEndTime = performance.now() + (COFFEE_TIMER * 1000); 
+                    // STACKING LOGIC: Math.max takes the future time (if active) or current time (if expired) and adds to it.
+                    coffeeEndTime = Math.max(coffeeEndTime, performance.now()) + (COFFEE_TIMER * 1000); 
                     currentSpeedMultiplier = COFFEE_SPEED_MULTI; collectedCoffee++;
                     camera.fov = 90; camera.updateProjectionMatrix(); popup.innerText = `COFFEE OVERCLOCK!`; popup.style.color = "#ffffff";
                 } else if (pup.type === 'infinite') {
-                    infiniteAmmoEndTime = performance.now() + (INFINITE_AMMO_TIMER * 1000); 
+                    // STACKING LOGIC
+                    infiniteAmmoEndTime = Math.max(infiniteAmmoEndTime, performance.now()) + (INFINITE_AMMO_TIMER * 1000); 
                     currentAmmo = MAX_AMMO; updateAmmoUI(); collectedLightning++;
                     popup.innerText = `INFINITE AMMO!`; popup.style.color = "#ffcc00";
                 } else if (pup.type === 'freeze') {
-                    freezeEndTime = performance.now() + (FREEZE_TIME * 1000); 
+                    // STACKING LOGIC
+                    freezeEndTime = Math.max(freezeEndTime, performance.now()) + (FREEZE_TIME * 1000); 
                     collectedFreeze++; popup.innerText = `TASK-KILLER (FREEZE)!`; popup.style.color = "#00ccff";
                 }
                 container.appendChild(popup); setTimeout(() => popup.remove(), SCORE_POPUP_TIME);
@@ -395,7 +398,6 @@ function endGame(diedFromHp) {
     } 
 }
 
-// --- DYNAMIC MANUAL UPDATE ---
 function updateHelpValues() {
     document.getElementById('help-val-hp').innerText = HP_HEAL_AMOUNT;
     document.getElementById('help-val-hpmax').innerText = MAX_OVERHEAL_HP;
