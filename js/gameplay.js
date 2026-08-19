@@ -94,13 +94,21 @@ function animate3D() {
 
     if (!isPaused && timeLeft > 0 && hp > 0 && loadingScreen.style.display === 'none' && instructionsOverlay.style.display !== 'flex') {
         
-        const now = performance.now();
+		const now = performance.now();
         let activeHtml = '';
+
+        const crosshairElem = document.getElementById('crosshair'); // Referenz zum Fadenkreuz
 
         if (coffeeEndTime > now) { activeHtml += `<div class="active-buff buff-coffee">☕ ${Math.ceil((coffeeEndTime - now)/1000)}s</div>`; } 
         else if (currentSpeedMultiplier !== 1.0) { currentSpeedMultiplier = 1.0; camera.fov = 75; camera.updateProjectionMatrix(); }
         
-        if (infiniteAmmoEndTime > now) { activeHtml += `<div class="active-buff buff-lightning">⚡ ${Math.ceil((infiniteAmmoEndTime - now)/1000)}s</div>`; }
+        if (infiniteAmmoEndTime > now) { 
+            activeHtml += `<div class="active-buff buff-lightning">⚡ ${Math.ceil((infiniteAmmoEndTime - now)/1000)}s</div>`; 
+            if (crosshairElem && !crosshairElem.classList.contains('infinite-ammo')) crosshairElem.classList.add('infinite-ammo');
+        } else {
+            if (crosshairElem && crosshairElem.classList.contains('infinite-ammo')) crosshairElem.classList.remove('infinite-ammo');
+        }
+
         if (freezeEndTime > now) { activeHtml += `<div class="active-buff buff-freeze">🧯 ${Math.ceil((freezeEndTime - now)/1000)}s</div>`; }
 
         if (activePowerupsDisplay.innerHTML !== activeHtml) { activePowerupsDisplay.innerHTML = activeHtml; }
