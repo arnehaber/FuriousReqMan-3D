@@ -1,5 +1,5 @@
 // --- GAMEPLAY AND MAIN LOOP ---
-const clock = new THREE.Clock(); // NEU: Delta-Time Clock
+const clock = new THREE.Clock(); // Delta-Time Clock
 
 const container = document.getElementById('game-container'), scoreDisplay = document.getElementById('score-display'), timerDisplay = document.getElementById('timer-display'), ammoDisplay = document.getElementById('ammo-display'), gameOverScreen = document.getElementById('game-over'), loadingScreen = document.getElementById('loading-screen'), finalScoreDisplay = document.getElementById('final-score'), highscoreForm = document.getElementById('highscore-form'), playerNameInput = document.getElementById('player-name'), loadingHighscoreBody = document.getElementById('loading-highscore-body'), gameoverHighscoreBody = document.getElementById('gameover-highscore-body'), instructionsOverlay = document.getElementById('instructions-overlay'), healthValueDisplay = document.getElementById('health-value'), gameOverTitle = document.getElementById('game-over-title'), damageVignette = document.getElementById('damage-vignette'), scoreCalcText = document.getElementById('score-calc-text');
 const statsHpCount = document.getElementById('stats-hp-count'), statsTimeCount = document.getElementById('stats-time-count'), statsCoffeeCount = document.getElementById('stats-coffee-count'), statsLightningCount = document.getElementById('stats-lightning-count'), statsFreezeCount = document.getElementById('stats-freeze-count');
@@ -84,7 +84,7 @@ function init3D() {
 function animate3D() {
     requestAnimationFrame(animate3D); 
     
-    // NEU: Delta-Time Berechnung
+    // Delta-Time Berechnung
     const dt = clock.getDelta();
     // Kappt die Zeit auf max. 0.1s (verhindert gigantische Physik-Sprünge nach Minimieren des Browsers)
     const clampedDt = Math.min(dt, 0.1); 
@@ -94,13 +94,21 @@ function animate3D() {
 
     if (!isPaused && timeLeft > 0 && hp > 0 && loadingScreen.style.display === 'none' && instructionsOverlay.style.display !== 'flex') {
         
-        const now = performance.now();
+		const now = performance.now();
         let activeHtml = '';
+
+        const crosshairElem = document.getElementById('crosshair'); // Referenz zum Fadenkreuz
 
         if (coffeeEndTime > now) { activeHtml += `<div class="active-buff buff-coffee">☕ ${Math.ceil((coffeeEndTime - now)/1000)}s</div>`; } 
         else if (currentSpeedMultiplier !== 1.0) { currentSpeedMultiplier = 1.0; camera.fov = 75; camera.updateProjectionMatrix(); }
         
-        if (infiniteAmmoEndTime > now) { activeHtml += `<div class="active-buff buff-lightning">⚡ ${Math.ceil((infiniteAmmoEndTime - now)/1000)}s</div>`; }
+        if (infiniteAmmoEndTime > now) { 
+            activeHtml += `<div class="active-buff buff-lightning">⚡ ${Math.ceil((infiniteAmmoEndTime - now)/1000)}s</div>`; 
+            if (crosshairElem && !crosshairElem.classList.contains('infinite-ammo')) crosshairElem.classList.add('infinite-ammo');
+        } else {
+            if (crosshairElem && crosshairElem.classList.contains('infinite-ammo')) crosshairElem.classList.remove('infinite-ammo');
+        }
+
         if (freezeEndTime > now) { activeHtml += `<div class="active-buff buff-freeze">🧯 ${Math.ceil((freezeEndTime - now)/1000)}s</div>`; }
 
         if (activePowerupsDisplay.innerHTML !== activeHtml) { activePowerupsDisplay.innerHTML = activeHtml; }
@@ -111,30 +119,35 @@ function animate3D() {
             pup.mesh.rotation.y += 0.04 * timeScale; // Rotation time-scaled
             let distToPup = playerPos2D.distanceTo(new THREE.Vector3(pup.mesh.position.x, 0, pup.mesh.position.z));
             
-            if (distToPup < pup.radius + 0.5) {
+			if (distToPup < pup.radius + 0.5) {
                 playPowerupAudio(pup.type);
+                
+                // NEU: Globaler Punkte-Bonus für jeden Booster
+                score += POWERUP_SCORE_BONUS;
+                scoreDisplay.innerText = `PIGS BLASTED: ${score}`;
+
                 const popup = document.createElement('div'); popup.className = 'score-popup'; popup.style.left = '50%'; popup.style.top = '40%';
 
                 if (pup.type === 'hp') {
                     hp += HP_HEAL_AMOUNT; if (hp > MAX_OVERHEAL_HP) hp = MAX_OVERHEAL_HP;
                     healthValueDisplay.innerText = `HP: ${hp}`; collectedHp++;
-                    popup.innerText = `HEALTH +${HP_HEAL_AMOUNT}`; popup.style.color = "#ff3333";
+                    popup.innerText = `HEALTH +${HP_HEAL_AMOUNT} (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#ff3333";
                     let alphaValue = Math.max(0, (1 - (hp / 100)) * RED_FILTER_MAX_OPACITY); damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${alphaValue})`;
                     if (hp > 90) clearTimeout(heartbeatTimeout);
                 } else if (pup.type === 'time') {
                     timeLeft += TIME_BONUS_AMOUNT; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`;
-                    collectedTime++; popup.innerText = `BONUS TIME +${TIME_BONUS_AMOUNT}s`; popup.style.color = "#00ffaa";
+                    collectedTime++; popup.innerText = `BONUS TIME +${TIME_BONUS_AMOUNT}s (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#00ffaa";
                 } else if (pup.type === 'speed') {
-                    coffeeEndTime = performance.now() + (COFFEE_TIMER * 1000); 
+                    coffeeEndTime = Math.max(coffeeEndTime, performance.now()) + (COFFEE_TIMER * 1000); 
                     currentSpeedMultiplier = COFFEE_SPEED_MULTI; collectedCoffee++;
-                    camera.fov = 90; camera.updateProjectionMatrix(); popup.innerText = `COFFEE OVERCLOCK!`; popup.style.color = "#ffffff";
+                    camera.fov = 90; camera.updateProjectionMatrix(); popup.innerText = `COFFEE OVERCLOCK! (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#ffffff";
                 } else if (pup.type === 'infinite') {
-                    infiniteAmmoEndTime = performance.now() + (INFINITE_AMMO_TIMER * 1000); 
+                    infiniteAmmoEndTime = Math.max(infiniteAmmoEndTime, performance.now()) + (INFINITE_AMMO_TIMER * 1000); 
                     currentAmmo = MAX_AMMO; updateAmmoUI(); collectedLightning++;
-                    popup.innerText = `INFINITE AMMO!`; popup.style.color = "#ffcc00";
+                    popup.innerText = `INFINITE AMMO! (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#ffcc00";
                 } else if (pup.type === 'freeze') {
-                    freezeEndTime = performance.now() + (FREEZE_TIME * 1000); 
-                    collectedFreeze++; popup.innerText = `TASK-KILLER (FREEZE)!`; popup.style.color = "#00ccff";
+                    freezeEndTime = Math.max(freezeEndTime, performance.now()) + (FREEZE_TIME * 1000); 
+                    collectedFreeze++; popup.innerText = `TASK-KILLER (FREEZE)! (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#00ccff";
                 }
                 container.appendChild(popup); setTimeout(() => popup.remove(), SCORE_POPUP_TIME);
                 
@@ -142,7 +155,7 @@ function animate3D() {
                 scene.remove(pup.mesh); 
                 powerups3D.splice(k, 1);
             }
-        }
+		}
 
         for (let i = pigs3D.length - 1; i >= 0; i--) {
             let pig = pigs3D[i]; let distToPlayer = playerPos2D.distanceTo(new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z));
@@ -395,7 +408,6 @@ function endGame(diedFromHp) {
     } 
 }
 
-// --- DYNAMIC MANUAL UPDATE ---
 function updateHelpValues() {
     document.getElementById('help-val-hp').innerText = HP_HEAL_AMOUNT;
     document.getElementById('help-val-hpmax').innerText = MAX_OVERHEAL_HP;

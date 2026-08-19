@@ -18,6 +18,7 @@ const COFFEE_TIMER = 7.0;
 const COFFEE_SPEED_MULTI = 1.4;
 const INFINITE_AMMO_TIMER = 6.0;
 const FREEZE_TIME = 6.0;
+const POWERUP_SCORE_BONUS = 1000; 
 
 // Environment & Physics
 const MAP_MIN_X = -120;
