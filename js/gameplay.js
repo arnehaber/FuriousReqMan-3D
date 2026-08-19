@@ -119,33 +119,35 @@ function animate3D() {
             pup.mesh.rotation.y += 0.04 * timeScale; // Rotation time-scaled
             let distToPup = playerPos2D.distanceTo(new THREE.Vector3(pup.mesh.position.x, 0, pup.mesh.position.z));
             
-            if (distToPup < pup.radius + 0.5) {
+			if (distToPup < pup.radius + 0.5) {
                 playPowerupAudio(pup.type);
+                
+                // NEU: Globaler Punkte-Bonus für jeden Booster
+                score += POWERUP_SCORE_BONUS;
+                scoreDisplay.innerText = `PIGS BLASTED: ${score}`;
+
                 const popup = document.createElement('div'); popup.className = 'score-popup'; popup.style.left = '50%'; popup.style.top = '40%';
 
                 if (pup.type === 'hp') {
                     hp += HP_HEAL_AMOUNT; if (hp > MAX_OVERHEAL_HP) hp = MAX_OVERHEAL_HP;
                     healthValueDisplay.innerText = `HP: ${hp}`; collectedHp++;
-                    popup.innerText = `HEALTH +${HP_HEAL_AMOUNT}`; popup.style.color = "#ff3333";
+                    popup.innerText = `HEALTH +${HP_HEAL_AMOUNT} (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#ff3333";
                     let alphaValue = Math.max(0, (1 - (hp / 100)) * RED_FILTER_MAX_OPACITY); damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${alphaValue})`;
                     if (hp > 90) clearTimeout(heartbeatTimeout);
                 } else if (pup.type === 'time') {
                     timeLeft += TIME_BONUS_AMOUNT; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`;
-                    collectedTime++; popup.innerText = `BONUS TIME +${TIME_BONUS_AMOUNT}s`; popup.style.color = "#00ffaa";
+                    collectedTime++; popup.innerText = `BONUS TIME +${TIME_BONUS_AMOUNT}s (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#00ffaa";
                 } else if (pup.type === 'speed') {
-                    // STACKING LOGIC: Math.max takes the future time (if active) or current time (if expired) and adds to it.
                     coffeeEndTime = Math.max(coffeeEndTime, performance.now()) + (COFFEE_TIMER * 1000); 
                     currentSpeedMultiplier = COFFEE_SPEED_MULTI; collectedCoffee++;
-                    camera.fov = 90; camera.updateProjectionMatrix(); popup.innerText = `COFFEE OVERCLOCK!`; popup.style.color = "#ffffff";
+                    camera.fov = 90; camera.updateProjectionMatrix(); popup.innerText = `COFFEE OVERCLOCK! (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#ffffff";
                 } else if (pup.type === 'infinite') {
-                    // STACKING LOGIC
                     infiniteAmmoEndTime = Math.max(infiniteAmmoEndTime, performance.now()) + (INFINITE_AMMO_TIMER * 1000); 
                     currentAmmo = MAX_AMMO; updateAmmoUI(); collectedLightning++;
-                    popup.innerText = `INFINITE AMMO!`; popup.style.color = "#ffcc00";
+                    popup.innerText = `INFINITE AMMO! (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#ffcc00";
                 } else if (pup.type === 'freeze') {
-                    // STACKING LOGIC
                     freezeEndTime = Math.max(freezeEndTime, performance.now()) + (FREEZE_TIME * 1000); 
-                    collectedFreeze++; popup.innerText = `TASK-KILLER (FREEZE)!`; popup.style.color = "#00ccff";
+                    collectedFreeze++; popup.innerText = `TASK-KILLER (FREEZE)! (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#00ccff";
                 }
                 container.appendChild(popup); setTimeout(() => popup.remove(), SCORE_POPUP_TIME);
                 
@@ -153,7 +155,7 @@ function animate3D() {
                 scene.remove(pup.mesh); 
                 powerups3D.splice(k, 1);
             }
-        }
+		}
 
         for (let i = pigs3D.length - 1; i >= 0; i--) {
             let pig = pigs3D[i]; let distToPlayer = playerPos2D.distanceTo(new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z));
