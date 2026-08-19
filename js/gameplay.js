@@ -255,12 +255,21 @@ function perform3DShoot() {
     pigs3D.forEach(p => p.mesh.updateMatrixWorld(true));
     let allPigMeshes = []; pigs3D.forEach(p => { p.mesh.traverse(child => { if(child.isMesh) { child.userDataPig = p; allPigMeshes.push(child); } }); });
     const intersects = raycaster.intersectObjects(allPigMeshes, false);
+    
     if (intersects.length > 0) {
         let hitPart = intersects[0].object; let pigData = hitPart.userDataPig;
         if (pigData) { 
             let isHeadshot = false;
-            if (hitPart.geometry.type === "SphereGeometry" && hitPart.scale.x === 1 && hitPart.scale.y === 1 && hitPart.scale.z === 1) { isHeadshot = true; } 
-            else if (hitPart.position.y > 1.2) { isHeadshot = true; }
+            
+            // Präzise Hitbox-Berechnung über lokale Koordinaten des Meshs
+            let localHit = intersects[0].point.clone();
+            pigData.mesh.worldToLocal(localHit);
+            
+            // Jede Schweine-Klasse hat den Kopf an einer leicht anderen lokalen Höhe (y)
+            if (pigData.type === 1 && localHit.y > 0.1 && localHit.z < -0.5) isHeadshot = true;
+            if (pigData.type === 2 && localHit.y > 1.2) isHeadshot = true;
+            if (pigData.type === 3 && localHit.y > 1.1) isHeadshot = true;
+            
             hit3DPig(pigData, isHeadshot); return; 
         }
     }
