@@ -107,6 +107,15 @@
 		    50% { opacity: 0.9; transform: translate(calc(-50% + var(--rand-x)), calc(-50% + var(--rand-y))) scale(1.4); }
 		    100% { opacity: 0; transform: translate(calc(-50% + var(--rand-x) * 1.5), calc(-50% + var(--rand-y) * 1.5 + 20px)) scale(0.8); }
 		}
+		/* Hervorhebung des eigenen neuen Highscores */
+		.highscore-table tr.highlighted-score {
+		    background-color: rgba(92, 184, 92, 0.25);
+		    font-weight: bold;
+		    color: #5cb85c;
+		}
+		.highscore-table tr.highlighted-score td {
+		    border-bottom: 1px solid #5cb85c;
+		}
     </style>
 </head>
 <body>

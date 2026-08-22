@@ -18,13 +18,51 @@ function dispose3dObject(obj) {
     });
 }
 
+// Variable, um den frisch eingetragenen Highscore zu markieren
+let lastSavedScoreKey = null;
+
 function saveRawData(value) { try { localStorage.setItem(HIGHSCORE_KEY, btoa(encodeURIComponent(value))); } catch(e) {} }
 function loadRawData() { try { return localStorage.getItem(HIGHSCORE_KEY); } catch(e) { return null; } }
 function loadHighscores() { const raw = loadRawData(); if (!raw) return []; try { return JSON.parse(decodeURIComponent(atob(raw))); } catch (e) { try { localStorage.removeItem(HIGHSCORE_KEY); } catch(c) {} return []; } }
-function saveHighscore(name, score) { const highscores = loadHighscores(); const now = new Date(); const dateString = now.toLocaleDateString('en-US') + ' ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); highscores.push({ name: name || 'Unknown', score: score, date: dateString }); highscores.sort((a, b) => b.score - a.score); saveRawData(JSON.stringify(highscores.slice(0, 10))); displayHighscores(); }
+
+function saveHighscore(name, score) { 
+    const highscores = loadHighscores(); 
+    const now = new Date(); 
+    const dateString = now.toLocaleDateString('en-US') + ' ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); 
+    
+    const cleanName = name || 'Unknown';
+    highscores.push({ name: cleanName, score: score, date: dateString }); 
+    highscores.sort((a, b) => b.score - a.score); 
+    
+    const topHighscores = highscores.slice(0, 10);
+    saveRawData(JSON.stringify(topHighscores)); 
+    
+    // Merken, welcher genaue Eintrag (Name + Score + Datum) hervorgehoben werden soll
+    lastSavedScoreKey = `${cleanName}_${score}_${dateString}`;
+    
+    displayHighscores(); 
+}
+
 function checkHighscoreEligibility(score) { const highscores = loadHighscores(); return highscores.length < 10 || score > highscores[highscores.length - 1].score; }
-function displayHighscores() { const highscores = loadHighscores(); const htmlContent = highscores.length === 0 ? '<tr><td colspan="4" style="text-align:center; color:#888;">No entries yet!</td></tr>' : highscores.map((entry, index) => `<tr><td class="rank-col">#${index + 1}</td><td>${escapeHtml(entry.name)}</td><td class="score-col">${entry.score}</td><td>${entry.date}</td></tr>`).join(''); loadingHighscoreBody.innerHTML = htmlContent; gameoverHighscoreBody.innerHTML = htmlContent; }
-function submitHighscore() { saveHighscore(playerNameInput.value.trim(), score); highscoreForm.style.display = 'none'; }
+
+function displayHighscores() { 
+    const highscores = loadHighscores(); 
+    const htmlContent = highscores.length === 0 ? '<tr><td colspan="4" style="text-align:center; color:#888;">No entries yet!</td></tr>' : highscores.map((entry, index) => {
+        const entryKey = `${entry.name}_${entry.score}_${entry.date}`;
+        const isHighlighted = (entryKey === lastSavedScoreKey);
+        const rowClass = isHighlighted ? ' class="highlighted-score"' : '';
+        
+        return `<tr${rowClass}><td class="rank-col">#${index + 1}</td><td>${escapeHtml(entry.name)}</td><td class="score-col">${entry.score}</td><td>${entry.date}</td></tr>`;
+    }).join(''); 
+    
+    loadingHighscoreBody.innerHTML = htmlContent; 
+    gameoverHighscoreBody.innerHTML = htmlContent; 
+}
+
+function submitHighscore() { 
+    saveHighscore(playerNameInput.value.trim(), finalCalculatedScore); 
+    highscoreForm.style.display = 'none'; 
+}
 function escapeHtml(text) { if (!text) return text; return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
 function init3D() {
