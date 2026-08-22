@@ -322,11 +322,46 @@ function hit3DPig(pig, isHeadshot) {
     let shotDistance = camera.position.distanceTo(pig.mesh.position);
     let basePoints = Math.round(shotDistance * pig.speed * 4500); if (basePoints < 100) basePoints = 100; 
     let finalPoints = isHeadshot ? basePoints : Math.round(basePoints / 5);
-    playAudio('hit'); score += finalPoints; scoreDisplay.innerText = `PIGS BLASTED: ${score}`;
-    const popup = document.createElement('div'); popup.className = 'score-popup'; popup.innerText = isHeadshot ? `HEADSHOT +${finalPoints}` : `BODYSHOT +${finalPoints}`; 
-    if(isHeadshot) popup.style.color = "#ffcc00"; popup.style.left = '50%'; popup.style.top = '45%'; container.appendChild(popup); 
+    
+    playAudio('hit'); 
+    playPigSqueakAudio(); // NEU: Schweine-Quieken beim Treffer!
+
+    score += finalPoints; 
+    scoreDisplay.innerText = `PIGS BLASTED: ${score}`;
+    
+    const popup = document.createElement('div'); 
+    popup.className = 'score-popup'; 
+    popup.innerText = isHeadshot ? `HEADSHOT +${finalPoints}` : `BODYSHOT +${finalPoints}`; 
+    if(isHeadshot) popup.style.color = "#ffcc00"; 
+    popup.style.left = '50%'; popup.style.top = '45%'; 
+    container.appendChild(popup); 
     setTimeout(() => popup.remove(), SCORE_POPUP_TIME);
     
+	// NEU: Noch kleinere Bluttropfen bei großer Entfernung (Minimalgröße auf 0.08 gesenkt)
+    let distanceScale = Math.max(0.08, 1.5 / (0.5 + shotDistance * 0.08));
+
+    for (let i = 0; i < 7; i++) {
+        const blood = document.createElement('div');
+        blood.className = 'blood-splatter';
+        blood.style.left = '50%';
+        blood.style.top = '50%';
+        
+        // Skaliere die Basisgröße je nach Entfernung
+        let bWidth = 12 * distanceScale;
+        let bHeight = 16 * distanceScale;
+        blood.style.width = `${bWidth}px`;
+        blood.style.height = `${bHeight}px`;
+        
+        // Auch den Streuungsradius (Spread) entsprechend verkleinern
+        const randX = ((Math.random() - 0.5) * 160 * distanceScale) + 'px';
+        const randY = ((Math.random() - 0.5) * 160 * distanceScale) + 'px';
+        blood.style.setProperty('--rand-x', randX);
+        blood.style.setProperty('--rand-y', randY);
+        
+        container.appendChild(blood);
+        setTimeout(() => blood.remove(), 500);
+    }
+
     dispose3dObject(pig.mesh);
     scene.remove(pig.mesh); 
     pigs3D = pigs3D.filter(p => p !== pig);

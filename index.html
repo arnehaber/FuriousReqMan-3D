@@ -88,6 +88,25 @@
         .score-col { width: 25%; font-weight: bold; color: #5cb85c; }
         #crosshair.infinite-ammo::before, #crosshair.infinite-ammo::after { background: rgba(255, 204, 0, 0.9); box-shadow: 0 0 6px #ffcc00; }
 		#crosshair.infinite-ammo .crosshair-center { background: #ffcc00; box-shadow: 0 0 6px #ffcc00; }
+		
+		/* Bluttropfen-Effekt beim Treffer */
+		.blood-splatter {
+		    position: absolute;
+		    width: 12px;
+		    height: 16px;
+		    background: #cc0000;
+		    border-radius: 50% 50% 40% 40%;
+		    pointer-events: none;
+		    z-index: 150;
+		    transform: translate(-50%, -50%);
+		    animation: bloodSplash 0.5s forwards ease-out;
+		    box-shadow: 0 0 6px #ff0000;
+		}
+		@keyframes bloodSplash {
+		    0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+		    50% { opacity: 0.9; transform: translate(calc(-50% + var(--rand-x)), calc(-50% + var(--rand-y))) scale(1.4); }
+		    100% { opacity: 0; transform: translate(calc(-50% + var(--rand-x) * 1.5), calc(-50% + var(--rand-y) * 1.5 + 20px)) scale(0.8); }
+		}
     </style>
 </head>
 <body>

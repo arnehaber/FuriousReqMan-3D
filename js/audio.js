@@ -97,6 +97,26 @@ function playDamageAudio() {
     osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.32);
 }
 
+function playPigSqueakAudio() {
+    if (!audioCtx || isPaused) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    
+    // Typischer abfallender Quietsche-Ton für Schweine
+    osc.frequency.setValueAtTime(450, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(220, audioCtx.currentTime + 0.15);
+    osc.frequency.exponentialRampToValueAtTime(350, audioCtx.currentTime + 0.3);
+
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.32);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.33);
+}
+
 function playPowerupAudio(type) {
     if (!audioCtx || isPaused) return;
     const osc = audioCtx.createOscillator(), gain = audioCtx.createGain(); osc.type = 'sine';
