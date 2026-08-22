@@ -1,6 +1,7 @@
 # Furious Requirement Manager 3D: Ultimate Power-Up Edition
 Vibe-coded 3D Zombie Pig Shooter vibe coded with google gemini. 
-Bleeding-edge version can be found [here](https://arnehaber.github.io/FuriousReqMan-3D/).
+Bleeding-edge hosted version can be found [here](https://arnehaber.github.io/FuriousReqMan-3D/).
+Latest release can be downloaded [here](https://github.com/arnehaber/FuriousReqMan-3D/releases/latest).
 
 Gemini itself describes this glorious game as follows:
 
