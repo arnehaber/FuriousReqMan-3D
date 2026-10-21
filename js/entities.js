@@ -5,6 +5,9 @@ const eyeMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 1.0,
 const browMat = new THREE.MeshBasicMaterial({ color: 0x701818 }); 
 const darkMat = new THREE.MeshBasicMaterial({ color: 0x110202 });
 
+let levelMaxCols = 0;
+let levelMaxRows = 0;
+
 // --- MESH MERGER (DRAW CALL REDUKTION) ---
 function mergeMeshesIntoSingleGeometry(meshes) {
     let totalVertices = 0, totalIndices = 0;
@@ -203,40 +206,42 @@ function spawnSchwein() {
 function buildLevelFromData(levelData) {
     levelWallHitboxes = [];
     levelTeleporters = [];
+    levelMaxCols = 0;
+    levelMaxRows = 0;
     
     if (levelData.configuration.timeLeft) timeLeft = levelData.configuration.timeLeft;
     
     const wallGeo = new THREE.BoxGeometry(TILE_SIZE, LAYER_HEIGHT, TILE_SIZE);
     const wallMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 }); 
-    
     const floorGeo = new THREE.BoxGeometry(TILE_SIZE, 0.4, TILE_SIZE);
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a }); // Decke ist etwas dunkler
+    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a }); 
+
+    // NEU: Zuerst die maximale Größe des gesamten Levels ermitteln (erzwingt exaktes Übereinanderliegen!)
+    levelData.layers.forEach(layer => {
+        levelMaxRows = Math.max(levelMaxRows, layer.length);
+        layer.forEach(rowStr => levelMaxCols = Math.max(levelMaxCols, rowStr.length));
+    });
 
     levelData.layers.forEach((layer, layerIndex) => {
         const yOffset = layerIndex * LAYER_HEIGHT;
-        const layerWidth = layer[0].length;
-        const layerHeight = layer.length;
         
-        for (let row = 0; row < layerHeight; row++) {
+        for (let row = 0; row < layer.length; row++) {
             for (let col = 0; col < layer[row].length; col++) {
                 const cell = layer[row][col];
                 if (cell === undefined) continue;
                 
-                const xPos = col * TILE_SIZE - (layerWidth * TILE_SIZE) / 2;
-                const zPos = row * TILE_SIZE - (layerHeight * TILE_SIZE) / 2;
+                // NEU: Globale Zentrierung basierend auf den Maximalwerten des ganzen Levels
+                const xPos = col * TILE_SIZE - (levelMaxCols * TILE_SIZE) / 2;
+                const zPos = row * TILE_SIZE - (levelMaxRows * TILE_SIZE) / 2;
 
-                // 1. BODENPLATTE (Überall außer an Abgängen)
                 if (cell !== '-') {
                     const floorTile = new THREE.Mesh(floorGeo, floorMat);
                     floorTile.position.set(xPos, yOffset - 0.2, zPos);
                     scene.add(floorTile);
                 }
 
-                // 2. DECKENPLATTE (Überall außer an Aufgängen)
                 if (cell !== '+') {
-                    // Cleverer Check: Hat die Ebene direkt über uns an dieser Stelle schon einen Boden? 
-                    // Falls ja, brauchen wir keine extra Decke spawnen (verhindert Textur-Flackern).
                     let hasFloorAbove = false;
                     if (layerIndex + 1 < levelData.layers.length) {
                         const lAbove = levelData.layers[layerIndex + 1];
