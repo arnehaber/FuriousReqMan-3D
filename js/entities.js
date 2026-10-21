@@ -203,39 +203,59 @@ function spawnSchwein() {
 function buildLevelFromData(levelData) {
     levelWallHitboxes = [];
     levelTeleporters = [];
-
-    // Konfiguration anwenden
+    
     if (levelData.configuration.timeLeft) timeLeft = levelData.configuration.timeLeft;
-
+    
     const wallGeo = new THREE.BoxGeometry(TILE_SIZE, LAYER_HEIGHT, TILE_SIZE);
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 });
-
-    // NEU: Statt PlaneGeometry nutzen wir BoxGeometry für Böden/Decken mit 40cm Dicke!
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 }); 
+    
     const floorGeo = new THREE.BoxGeometry(TILE_SIZE, 0.4, TILE_SIZE);
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a }); // Decke ist etwas dunkler
 
     levelData.layers.forEach((layer, layerIndex) => {
         const yOffset = layerIndex * LAYER_HEIGHT;
-
-        for (let row = 0;row < layer.length;row++) {
-            for (let col = 0;col < layer[row].length;col++) {
+        const layerWidth = layer[0].length;
+        const layerHeight = layer.length;
+        
+        for (let row = 0; row < layerHeight; row++) {
+            for (let col = 0; col < layer[row].length; col++) {
                 const cell = layer[row][col];
-                const xPos = col * TILE_SIZE - (layer[row].length * TILE_SIZE) / 2;
-                const zPos = row * TILE_SIZE - (layer.length * TILE_SIZE) / 2;
+                if (cell === undefined) continue;
+                
+                const xPos = col * TILE_SIZE - (layerWidth * TILE_SIZE) / 2;
+                const zPos = row * TILE_SIZE - (layerHeight * TILE_SIZE) / 2;
 
-                // Bodenplatte nur setzen, wenn KEIN Schacht/Teleporter dort ist
-                if (cell !== '+' && cell !== '-') {
+                // 1. BODENPLATTE (Überall außer an Abgängen)
+                if (cell !== '-') {
                     const floorTile = new THREE.Mesh(floorGeo, floorMat);
-                    // NEU: Leicht nach unten versetzt (-0.2), damit die Lauffläche exakt bei yOffset = 0 liegt
                     floorTile.position.set(xPos, yOffset - 0.2, zPos);
                     scene.add(floorTile);
                 }
 
+                // 2. DECKENPLATTE (Überall außer an Aufgängen)
+                if (cell !== '+') {
+                    // Cleverer Check: Hat die Ebene direkt über uns an dieser Stelle schon einen Boden? 
+                    // Falls ja, brauchen wir keine extra Decke spawnen (verhindert Textur-Flackern).
+                    let hasFloorAbove = false;
+                    if (layerIndex + 1 < levelData.layers.length) {
+                        const lAbove = levelData.layers[layerIndex + 1];
+                        if (lAbove[row] && lAbove[row][col] !== undefined && lAbove[row][col] !== '-') {
+                            hasFloorAbove = true;
+                        }
+                    }
+                    if (!hasFloorAbove) {
+                        const ceilingTile = new THREE.Mesh(floorGeo, ceilingMat);
+                        ceilingTile.position.set(xPos, yOffset + LAYER_HEIGHT - 0.2, zPos);
+                        scene.add(ceilingTile);
+                    }
+                }
+
                 if (cell === '|') {
                     const wall = new THREE.Mesh(wallGeo, wallMat);
-                    wall.position.set(xPos, yOffset + LAYER_HEIGHT / 2, zPos);
+                    wall.position.set(xPos, yOffset + LAYER_HEIGHT/2, zPos);
                     scene.add(wall);
-                    levelWallHitboxes.push({ x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2 });
+                    levelWallHitboxes.push({ x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE/2 });
                 }
                 else if (cell === 'P') {
                     camera.position.set(xPos, yOffset + playerBaseY, zPos);
@@ -244,7 +264,7 @@ function buildLevelFromData(levelData) {
                 else if (cell === '1' || cell === '2' || cell === '3') {
                     let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : createPigKlasse3());
                     pigData.mesh.position.set(xPos, yOffset + (pigData.type === 1 ? 1.1 : 1.0), zPos);
-                    scene.add(pigData.mesh);
+                    scene.add(pigData.mesh); 
                     pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
                     pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0);
                     pigs3D.push(pigData);
@@ -254,12 +274,11 @@ function buildLevelFromData(levelData) {
                     spawnSpecificPowerUp(xPos, yOffset + 1.3, zPos, type);
                 }
                 else if (cell === '+' || cell === '-') {
-                    // Simpler Teleporter als grünes/rotes Pad
                     const padMat = new THREE.MeshBasicMaterial({ color: cell === '+' ? 0x00ff00 : 0xff0000, transparent: true, opacity: 0.5 });
-                    const pad = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE * 0.8, 0.2, TILE_SIZE * 0.8), padMat);
+                    const pad = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE*0.8, 0.2, TILE_SIZE*0.8), padMat);
                     pad.position.set(xPos, yOffset + 0.1, zPos);
                     scene.add(pad);
-
+                    
                     const targetY = cell === '+' ? yOffset + LAYER_HEIGHT : yOffset - LAYER_HEIGHT;
                     levelTeleporters.push({ x: xPos, z: zPos, y: yOffset, targetY: targetY });
                 }

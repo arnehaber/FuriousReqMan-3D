@@ -265,26 +265,41 @@ function animate3D() {
 function handlePlayerMovement(timeScale) {
     if (document.pointerLockElement !== document.body || isPaused || instructionsOverlay.style.display === 'flex' || hp <= 0) return;
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion); const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion); forward.y = 0; forward.normalize(); right.y = 0; right.normalize();
-
+    
     let moveVector = new THREE.Vector3(0, 0, 0);
-    // Multiply base speed with timeScale
     let dynamicSpeed = playerBaseSpeed * currentSpeedMultiplier * timeScale;
-
+    
     if (keysPressed.w) moveVector.addScaledVector(forward, dynamicSpeed); if (keysPressed.s) moveVector.addScaledVector(forward, -dynamicSpeed); if (keysPressed.d) moveVector.addScaledVector(right, dynamicSpeed); if (keysPressed.a) moveVector.addScaledVector(right, -dynamicSpeed);
-    let targetX = camera.position.x + moveVector.x; let targetZ = camera.position.z + moveVector.z; 	// WICHTIG: Im Level Modus bleibt der Boden auf der aktuellen Etagen-Höhe
-    let targetGroundY = currentGameMode === 'LEVEL' ? playerCurrentGroundY : 0;
-    let playerRadius = 0.6; let collisionBlocked = false;
+    let targetX = camera.position.x + moveVector.x; let targetZ = camera.position.z + moveVector.z; let targetGroundY = currentGameMode === 'LEVEL' ? playerCurrentGroundY : 0; let playerRadius = 0.6; let collisionBlocked = false;
 
-    // ... [Dein bisheriger Obstacle und PigPen Check bleibt hier bestehen] ...
-    for (let i = 0;i < obstacles.length;i++) {
+    // Freier Modus: Felsen & Gehege
+    for(let i = 0; i < obstacles.length; i++) {
         let obs = obstacles[i]; let dx = targetX - obs.x; let dz = targetZ - obs.z;
         if (Math.sqrt(dx * dx + dz * dz) < obs.radius + playerRadius) { if ((isJumping || camera.position.y - playerHeightOffset > obs.height - 0.5) && obs.type === 'rock') { targetGroundY = obs.height; } else { collisionBlocked = true; } }
     }
     pigPens.forEach(pen => { let dx = targetX - pen.x; let dz = targetZ - pen.z; if (Math.sqrt(dx * dx + dz * dz) < pen.radius + playerRadius) { if (!(dz > 1.8 && Math.abs(dx) < 1.1)) collisionBlocked = true; } });
     if (targetX < MAP_MIN_X + 1.2 || targetX > MAP_MAX_X - 1.2 || targetZ < MAP_MIN_Z + 1.2 || targetZ > MAP_MAX_Z - 1.2) { collisionBlocked = true; }
-
-    // NEU: Wandkollision & Teleporter für den LEVEL-Modus
+    
     if (currentGameMode === 'LEVEL') {
+        const activeLevel = episodes[activeEpisodeIndex].levels[activeLevelIndex];
+        const layerIdx = Math.round(playerCurrentGroundY / LAYER_HEIGHT);
+        const layer = activeLevel.layers[layerIdx];
+        
+        if (layer) {
+            const layerWidth = layer[0].length;
+            const layerHeight = layer.length;
+            
+            // 1. Raster-Begrenzung: Exakte Berechnung, in welcher Zelle der Spieler landen wird
+            const col = Math.round((targetX + (layerWidth * TILE_SIZE) / 2) / TILE_SIZE);
+            const row = Math.round((targetZ + (layerHeight * TILE_SIZE) / 2) / TILE_SIZE);
+            
+            // Blockieren, wenn der Spieler versucht, das Spielfeld/Raster der Ebene zu verlassen
+            if (row < 0 || row >= layerHeight || col < 0 || col >= layerWidth || layer[row][col] === undefined) {
+                collisionBlocked = true;
+            }
+        }
+
+        // 2. Wandkollision (Kollision mit '|')
         levelWallHitboxes.forEach(wall => {
             if (Math.abs(wall.y - playerCurrentGroundY) < 1.0) {
                 let dx = targetX - wall.x; let dz = targetZ - wall.z;
@@ -294,47 +309,49 @@ function handlePlayerMovement(timeScale) {
             }
         });
 
+        // 3. Teleporter / Ebenenwechsel
         levelTeleporters.forEach(tp => {
             if (Math.abs(tp.y - playerCurrentGroundY) < 1.0) {
                 let dx = camera.position.x - tp.x; let dz = camera.position.z - tp.z;
-                if (Math.sqrt(dx * dx + dz * dz) < 1.2) {
+                if (Math.sqrt(dx*dx + dz*dz) < 1.2) { 
                     playerCurrentGroundY = tp.targetY;
                     targetGroundY = tp.targetY;
                     camera.position.y = playerCurrentGroundY + playerHeightOffset;
                 }
             }
         });
-
+        
+        // Level beenden, wenn alles erledigt ist
         if (pigs3D.length === 0) endGame(false);
     }
 
     if (!collisionBlocked) { camera.position.x = targetX; camera.position.z = targetZ; playerCurrentGroundY = targetGroundY; }
 
-    // NEU: Deckenkollision blockiert Sprünge in die nächste Ebene
-    if (isJumping) {
-        camera.position.y += jumpVelocity * timeScale;
-        jumpVelocity -= gravity * timeScale;
-
+    if (isJumping) { 
+        camera.position.y += jumpVelocity * timeScale; 
+        jumpVelocity -= gravity * timeScale; 
+        
+        // NEU: Strikte Deckenkollision (Kopfstoß-Mechanik)
         if (currentGameMode === 'LEVEL') {
             let ceilingLimit = playerCurrentGroundY + LAYER_HEIGHT - 0.5;
             if (camera.position.y > ceilingLimit) {
                 camera.position.y = ceilingLimit;
-                if (jumpVelocity > 0) jumpVelocity = -0.05; // Kopfstoß an die Decke!
+                if (jumpVelocity > 0) jumpVelocity = -0.05; // Kopfstoß und direkter Fall nach unten!
             }
         }
 
-        let checkGround = playerCurrentGroundY + playerHeightOffset;
-        if (camera.position.y <= checkGround) {
-            camera.position.y = checkGround; isJumping = false; jumpVelocity = 0;
-        }
-    } else {
-        let targetEyeHeight = playerCurrentGroundY + playerHeightOffset;
-        if (camera.position.y > targetEyeHeight) {
-            camera.position.y -= 0.2 * timeScale;
-            if (camera.position.y < targetEyeHeight) camera.position.y = targetEyeHeight;
-        } else {
-            camera.position.y = targetEyeHeight;
-        }
+        let checkGround = playerCurrentGroundY + playerHeightOffset; 
+        if (camera.position.y <= checkGround) { 
+            camera.position.y = checkGround; isJumping = false; jumpVelocity = 0; 
+        } 
+    } else { 
+        let targetEyeHeight = playerCurrentGroundY + playerHeightOffset; 
+        if(camera.position.y > targetEyeHeight) { 
+            camera.position.y -= 0.2 * timeScale; 
+            if(camera.position.y < targetEyeHeight) camera.position.y = targetEyeHeight; 
+        } else { 
+            camera.position.y = targetEyeHeight; 
+        } 
     }
     camera.position.x = Math.max(MAP_MIN_X + 1.2, Math.min(MAP_MAX_X - 1.2, camera.position.x)); camera.position.z = Math.max(MAP_MIN_Z + 1.2, Math.min(MAP_MAX_Z - 1.2, camera.position.z));
 }
