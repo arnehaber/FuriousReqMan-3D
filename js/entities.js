@@ -203,45 +203,48 @@ function spawnSchwein() {
 function buildLevelFromData(levelData) {
     levelWallHitboxes = [];
     levelTeleporters = [];
-    
+
     // Konfiguration anwenden
     if (levelData.configuration.timeLeft) timeLeft = levelData.configuration.timeLeft;
-    
+
     const wallGeo = new THREE.BoxGeometry(TILE_SIZE, LAYER_HEIGHT, TILE_SIZE);
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 }); // Simpler Beton
-    const floorGeo = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 });
+
+    // NEU: Statt PlaneGeometry nutzen wir BoxGeometry für Böden/Decken mit 40cm Dicke!
+    const floorGeo = new THREE.BoxGeometry(TILE_SIZE, 0.4, TILE_SIZE);
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
 
     levelData.layers.forEach((layer, layerIndex) => {
         const yOffset = layerIndex * LAYER_HEIGHT;
-        
-        for (let row = 0; row < layer.length; row++) {
-            for (let col = 0; col < layer[row].length; col++) {
+
+        for (let row = 0;row < layer.length;row++) {
+            for (let col = 0;col < layer[row].length;col++) {
                 const cell = layer[row][col];
                 const xPos = col * TILE_SIZE - (layer[row].length * TILE_SIZE) / 2;
                 const zPos = row * TILE_SIZE - (layer.length * TILE_SIZE) / 2;
 
-                // Bodenplatte für jedes Feld
-                const floorTile = new THREE.Mesh(floorGeo, floorMat);
-                floorTile.rotation.x = -Math.PI / 2;
-                floorTile.position.set(xPos, yOffset, zPos);
-                scene.add(floorTile);
+                // Bodenplatte nur setzen, wenn KEIN Schacht/Teleporter dort ist
+                if (cell !== '+' && cell !== '-') {
+                    const floorTile = new THREE.Mesh(floorGeo, floorMat);
+                    // NEU: Leicht nach unten versetzt (-0.2), damit die Lauffläche exakt bei yOffset = 0 liegt
+                    floorTile.position.set(xPos, yOffset - 0.2, zPos);
+                    scene.add(floorTile);
+                }
 
                 if (cell === '|') {
                     const wall = new THREE.Mesh(wallGeo, wallMat);
-                    wall.position.set(xPos, yOffset + LAYER_HEIGHT/2, zPos);
+                    wall.position.set(xPos, yOffset + LAYER_HEIGHT / 2, zPos);
                     scene.add(wall);
-                    levelWallHitboxes.push({ x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE/2 });
+                    levelWallHitboxes.push({ x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2 });
                 }
                 else if (cell === 'P') {
-                    // Spieler Startposition
                     camera.position.set(xPos, yOffset + playerBaseY, zPos);
                     playerCurrentGroundY = yOffset;
                 }
                 else if (cell === '1' || cell === '2' || cell === '3') {
                     let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : createPigKlasse3());
                     pigData.mesh.position.set(xPos, yOffset + (pigData.type === 1 ? 1.1 : 1.0), zPos);
-                    scene.add(pigData.mesh); 
+                    scene.add(pigData.mesh);
                     pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
                     pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0);
                     pigs3D.push(pigData);
@@ -253,10 +256,10 @@ function buildLevelFromData(levelData) {
                 else if (cell === '+' || cell === '-') {
                     // Simpler Teleporter als grünes/rotes Pad
                     const padMat = new THREE.MeshBasicMaterial({ color: cell === '+' ? 0x00ff00 : 0xff0000, transparent: true, opacity: 0.5 });
-                    const pad = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE*0.8, 0.2, TILE_SIZE*0.8), padMat);
+                    const pad = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE * 0.8, 0.2, TILE_SIZE * 0.8), padMat);
                     pad.position.set(xPos, yOffset + 0.1, zPos);
                     scene.add(pad);
-                    // Ziel Y-Höhe (eine Ebene rauf oder runter)
+
                     const targetY = cell === '+' ? yOffset + LAYER_HEIGHT : yOffset - LAYER_HEIGHT;
                     levelTeleporters.push({ x: xPos, z: zPos, y: yOffset, targetY: targetY });
                 }

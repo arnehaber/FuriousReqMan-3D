@@ -271,50 +271,58 @@ function handlePlayerMovement(timeScale) {
     let dynamicSpeed = playerBaseSpeed * currentSpeedMultiplier * timeScale;
 
     if (keysPressed.w) moveVector.addScaledVector(forward, dynamicSpeed); if (keysPressed.s) moveVector.addScaledVector(forward, -dynamicSpeed); if (keysPressed.d) moveVector.addScaledVector(right, dynamicSpeed); if (keysPressed.a) moveVector.addScaledVector(right, -dynamicSpeed);
-    let targetX = camera.position.x + moveVector.x; let targetZ = camera.position.z + moveVector.z; let targetGroundY = 0; let playerRadius = 0.6; let collisionBlocked = false;
+    let targetX = camera.position.x + moveVector.x; let targetZ = camera.position.z + moveVector.z; 	// WICHTIG: Im Level Modus bleibt der Boden auf der aktuellen Etagen-Höhe
+    let targetGroundY = currentGameMode === 'LEVEL' ? playerCurrentGroundY : 0;
+    let playerRadius = 0.6; let collisionBlocked = false;
 
+    // ... [Dein bisheriger Obstacle und PigPen Check bleibt hier bestehen] ...
     for (let i = 0;i < obstacles.length;i++) {
         let obs = obstacles[i]; let dx = targetX - obs.x; let dz = targetZ - obs.z;
         if (Math.sqrt(dx * dx + dz * dz) < obs.radius + playerRadius) { if ((isJumping || camera.position.y - playerHeightOffset > obs.height - 0.5) && obs.type === 'rock') { targetGroundY = obs.height; } else { collisionBlocked = true; } }
     }
     pigPens.forEach(pen => { let dx = targetX - pen.x; let dz = targetZ - pen.z; if (Math.sqrt(dx * dx + dz * dz) < pen.radius + playerRadius) { if (!(dz > 1.8 && Math.abs(dx) < 1.1)) collisionBlocked = true; } });
-	
+    if (targetX < MAP_MIN_X + 1.2 || targetX > MAP_MAX_X - 1.2 || targetZ < MAP_MIN_Z + 1.2 || targetZ > MAP_MAX_Z - 1.2) { collisionBlocked = true; }
+
+    // NEU: Wandkollision & Teleporter für den LEVEL-Modus
     if (currentGameMode === 'LEVEL') {
-        // Wandkollision
         levelWallHitboxes.forEach(wall => {
-            // Nur Wände auf gleicher Ebene prüfen
             if (Math.abs(wall.y - playerCurrentGroundY) < 1.0) {
                 let dx = targetX - wall.x; let dz = targetZ - wall.z;
-                // Simple Box-Kollision (AABB)
                 if (Math.abs(dx) < (wall.radius + playerRadius) && Math.abs(dz) < (wall.radius + playerRadius)) {
                     collisionBlocked = true;
                 }
             }
         });
 
-        // Teleporter (Ebenenwechsel)
         levelTeleporters.forEach(tp => {
             if (Math.abs(tp.y - playerCurrentGroundY) < 1.0) {
                 let dx = camera.position.x - tp.x; let dz = camera.position.z - tp.z;
-                if (Math.sqrt(dx * dx + dz * dz) < 1.5) { // Wenn man drauf steht
+                if (Math.sqrt(dx * dx + dz * dz) < 1.2) {
                     playerCurrentGroundY = tp.targetY;
+                    targetGroundY = tp.targetY;
                     camera.position.y = playerCurrentGroundY + playerHeightOffset;
                 }
             }
         });
 
-        // Level Abschluss prüfen (Alle Schweine tot)
-        if (pigs3D.length === 0) {
-            endGame(false); // Gewonnen!
-        }
+        if (pigs3D.length === 0) endGame(false);
     }
-		
-    if (targetX < MAP_MIN_X + 1.2 || targetX > MAP_MAX_X - 1.2 || targetZ < MAP_MIN_Z + 1.2 || targetZ > MAP_MAX_Z - 1.2) { collisionBlocked = true; }
+
     if (!collisionBlocked) { camera.position.x = targetX; camera.position.z = targetZ; playerCurrentGroundY = targetGroundY; }
 
+    // NEU: Deckenkollision blockiert Sprünge in die nächste Ebene
     if (isJumping) {
         camera.position.y += jumpVelocity * timeScale;
         jumpVelocity -= gravity * timeScale;
+
+        if (currentGameMode === 'LEVEL') {
+            let ceilingLimit = playerCurrentGroundY + LAYER_HEIGHT - 0.5;
+            if (camera.position.y > ceilingLimit) {
+                camera.position.y = ceilingLimit;
+                if (jumpVelocity > 0) jumpVelocity = -0.05; // Kopfstoß an die Decke!
+            }
+        }
+
         let checkGround = playerCurrentGroundY + playerHeightOffset;
         if (camera.position.y <= checkGround) {
             camera.position.y = checkGround; isJumping = false; jumpVelocity = 0;
