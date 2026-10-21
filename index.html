@@ -124,14 +124,15 @@
     <div id="loading-screen">
         <h1>Furious Requirement Manager 3D</h1>
         <h2>Attack of the Zombie Pigs</h2>
-        <button onclick="pressStartButton(event)" style="margin-top: 10px; font-size: 24px; padding: 15px 45px;">START SPRINT</button>
-        <div style="margin-top: 10px; color: #f0ad4e; font-size: 16px;">[F1] for the manual</div>
-        <div class="highscore-container">
-            <h3>Current Top 10 Sprints</h3>
-            <table class="highscore-table">
-                <thead><tr><th class="rank-col">Rank</th><th>Name</th><th class="score-col">Score</th><th>Date</th></tr></thead>
-                <tbody id="loading-highscore-body"></tbody>
-            </table>
+        <div style="display: flex; gap: 20px; margin-top: 10px;">
+            <button onclick="startFreeMode(event)" style="font-size: 20px; padding: 15px 30px; background: #5cb85c;">FREE SPRINT (ARCADE)</button>
+            <button onclick="startLevelMode(event)" style="font-size: 20px; padding: 15px 30px; background: #337ab7;">KAMPAGNE (LEVELS)</button>
+        </div>
+        <div id="level-ui" style="display: none; margin-top: 20px; color: #fff;">
+            <h3 id="episode-name" style="color: #f0ad4e;"></h3>
+            <p id="episode-desc"></p>
+            <h4 id="level-name"></h4>
+            <button onclick="pressStartButton(event)" style="margin-top: 10px;">LEVEL STARTEN</button>
         </div>
     </div>
 
@@ -217,6 +218,7 @@
 <!-- Load modules in correct order -->
 <script src="js/constants.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/levels.js"></script>
 <script src="js/entities.js"></script>
 <script src="js/gameplay.js"></script>
 

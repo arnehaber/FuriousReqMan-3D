@@ -8,6 +8,24 @@ const keysPressed = { w: false, a: false, s: false, d: false };
 let isJumping = false, jumpVelocity = 0, playerCurrentGroundY = 0;
 let collectedHp = 0, collectedTime = 0, collectedCoffee = 0, collectedLightning = 0, collectedFreeze = 0;
 
+function startFreeMode(e) {
+    if(e) e.preventDefault();
+    currentGameMode = 'FREE';
+    document.getElementById('level-ui').style.display = 'none';
+    pressStartButton();
+}
+
+function startLevelMode(e) {
+    if(e) e.preventDefault();
+    currentGameMode = 'LEVEL';
+    const ep = episodes[activeEpisodeIndex];
+    const lvl = ep.levels[activeLevelIndex];
+    document.getElementById('episode-name').innerText = ep.name;
+    document.getElementById('episode-desc').innerText = ep.description;
+    document.getElementById('level-name').innerText = lvl.name;
+    document.getElementById('level-ui').style.display = 'block';
+}
+
 // Helper function for clean memory management
 function dispose3dObject(obj) {
     if (!obj) return;
@@ -247,37 +265,68 @@ function animate3D() {
 function handlePlayerMovement(timeScale) {
     if (document.pointerLockElement !== document.body || isPaused || instructionsOverlay.style.display === 'flex' || hp <= 0) return;
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion); const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion); forward.y = 0; forward.normalize(); right.y = 0; right.normalize();
-    
+
     let moveVector = new THREE.Vector3(0, 0, 0);
     // Multiply base speed with timeScale
     let dynamicSpeed = playerBaseSpeed * currentSpeedMultiplier * timeScale;
-    
+
     if (keysPressed.w) moveVector.addScaledVector(forward, dynamicSpeed); if (keysPressed.s) moveVector.addScaledVector(forward, -dynamicSpeed); if (keysPressed.d) moveVector.addScaledVector(right, dynamicSpeed); if (keysPressed.a) moveVector.addScaledVector(right, -dynamicSpeed);
     let targetX = camera.position.x + moveVector.x; let targetZ = camera.position.z + moveVector.z; let targetGroundY = 0; let playerRadius = 0.6; let collisionBlocked = false;
 
-    for(let i = 0; i < obstacles.length; i++) {
+    for (let i = 0;i < obstacles.length;i++) {
         let obs = obstacles[i]; let dx = targetX - obs.x; let dz = targetZ - obs.z;
         if (Math.sqrt(dx * dx + dz * dz) < obs.radius + playerRadius) { if ((isJumping || camera.position.y - playerHeightOffset > obs.height - 0.5) && obs.type === 'rock') { targetGroundY = obs.height; } else { collisionBlocked = true; } }
     }
     pigPens.forEach(pen => { let dx = targetX - pen.x; let dz = targetZ - pen.z; if (Math.sqrt(dx * dx + dz * dz) < pen.radius + playerRadius) { if (!(dz > 1.8 && Math.abs(dx) < 1.1)) collisionBlocked = true; } });
+	
+    if (currentGameMode === 'LEVEL') {
+        // Wandkollision
+        levelWallHitboxes.forEach(wall => {
+            // Nur Wände auf gleicher Ebene prüfen
+            if (Math.abs(wall.y - playerCurrentGroundY) < 1.0) {
+                let dx = targetX - wall.x; let dz = targetZ - wall.z;
+                // Simple Box-Kollision (AABB)
+                if (Math.abs(dx) < (wall.radius + playerRadius) && Math.abs(dz) < (wall.radius + playerRadius)) {
+                    collisionBlocked = true;
+                }
+            }
+        });
+
+        // Teleporter (Ebenenwechsel)
+        levelTeleporters.forEach(tp => {
+            if (Math.abs(tp.y - playerCurrentGroundY) < 1.0) {
+                let dx = camera.position.x - tp.x; let dz = camera.position.z - tp.z;
+                if (Math.sqrt(dx * dx + dz * dz) < 1.5) { // Wenn man drauf steht
+                    playerCurrentGroundY = tp.targetY;
+                    camera.position.y = playerCurrentGroundY + playerHeightOffset;
+                }
+            }
+        });
+
+        // Level Abschluss prüfen (Alle Schweine tot)
+        if (pigs3D.length === 0) {
+            endGame(false); // Gewonnen!
+        }
+    }
+		
     if (targetX < MAP_MIN_X + 1.2 || targetX > MAP_MAX_X - 1.2 || targetZ < MAP_MIN_Z + 1.2 || targetZ > MAP_MAX_Z - 1.2) { collisionBlocked = true; }
     if (!collisionBlocked) { camera.position.x = targetX; camera.position.z = targetZ; playerCurrentGroundY = targetGroundY; }
 
-    if (isJumping) { 
-        camera.position.y += jumpVelocity * timeScale; 
-        jumpVelocity -= gravity * timeScale; 
-        let checkGround = playerCurrentGroundY + playerHeightOffset; 
-        if (camera.position.y <= checkGround) { 
-            camera.position.y = checkGround; isJumping = false; jumpVelocity = 0; 
-        } 
-    } else { 
-        let targetEyeHeight = playerCurrentGroundY + playerHeightOffset; 
-        if(camera.position.y > targetEyeHeight) { 
-            camera.position.y -= 0.2 * timeScale; 
-            if(camera.position.y < targetEyeHeight) camera.position.y = targetEyeHeight; 
-        } else { 
-            camera.position.y = targetEyeHeight; 
-        } 
+    if (isJumping) {
+        camera.position.y += jumpVelocity * timeScale;
+        jumpVelocity -= gravity * timeScale;
+        let checkGround = playerCurrentGroundY + playerHeightOffset;
+        if (camera.position.y <= checkGround) {
+            camera.position.y = checkGround; isJumping = false; jumpVelocity = 0;
+        }
+    } else {
+        let targetEyeHeight = playerCurrentGroundY + playerHeightOffset;
+        if (camera.position.y > targetEyeHeight) {
+            camera.position.y -= 0.2 * timeScale;
+            if (camera.position.y < targetEyeHeight) camera.position.y = targetEyeHeight;
+        } else {
+            camera.position.y = targetEyeHeight;
+        }
     }
     camera.position.x = Math.max(MAP_MIN_X + 1.2, Math.min(MAP_MAX_X - 1.2, camera.position.x)); camera.position.z = Math.max(MAP_MIN_Z + 1.2, Math.min(MAP_MAX_Z - 1.2, camera.position.z));
 }
@@ -435,20 +484,32 @@ function startGame() {
     collectedHp = 0; collectedTime = 0; collectedCoffee = 0; collectedLightning = 0; collectedFreeze = 0;
     coffeeEndTime = 0; infiniteAmmoEndTime = 0; freezeEndTime = 0; activePowerupsDisplay.innerHTML = '';
     currentSpeedMultiplier = 1.0; camera.fov = 75; camera.updateProjectionMatrix();
-    
+
     scoreDisplay.innerText = `PIGS BLASTED: ${score}`; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`; healthValueDisplay.innerText = `HP: ${hp}`; updateAmmoUI();
     damageVignette.style.backgroundColor = `rgba(255, 0, 0, 0)`; gameOverScreen.style.display = 'none'; highscoreForm.style.display = 'none'; instructionsOverlay.style.display = 'none';
-    
+
     // Clean up remnants from the last game
-    pigs3D.forEach(p => { dispose3dObject(p.mesh); scene.remove(p.mesh); }); 
-    pigs3D = [];
-    powerups3D.forEach(pup => { dispose3dObject(pup.mesh); scene.remove(pup.mesh); }); 
-    powerups3D = [];
-    
-    clearTimeout(heartbeatTimeout); clearInterval(gameInterval); clearInterval(spawnInterval); clearInterval(powerupInterval);
-    initAudio(); gameInterval = setInterval(updateTimer, 1000); spawnInterval = setInterval(spawnSchwein, 1000);
-    powerupInterval = setInterval(spawnPowerUpPair, POWERUP_SPAWN_INTERVAL);
-    clock.getDelta(); // Reset Delta Time immediately before gameplay loop starts
+    pigs3D.forEach(p => { dispose3dObject(p.mesh); scene.remove(p.mesh); }); pigs3D = [];
+    powerups3D.forEach(pup => { dispose3dObject(pup.mesh); scene.remove(pup.mesh); }); powerups3D = [];
+
+    // ALTE Welt leeren (Optional: Fences und Trees entfernen)
+    // Wir überlagern es hier der Einfachheit halber oder löschen vorher alles aus der Scene.
+
+    if (currentGameMode === 'FREE') {
+        powerupInterval = setInterval(spawnPowerUpPair, POWERUP_SPAWN_INTERVAL);
+        spawnInterval = setInterval(spawnSchwein, 1000);
+        // Startpos Free Mode
+        camera.position.set(0, playerBaseY, 0);
+    } else {
+        // LEVEL MODE
+        clearInterval(powerupInterval); // Keine zufälligen Spawns
+        clearInterval(spawnInterval);   // Schweine spawnen nur über die Map
+        buildLevelFromData(episodes[activeEpisodeIndex].levels[activeLevelIndex]);
+    }
+
+    clearTimeout(heartbeatTimeout); clearInterval(gameInterval);
+    initAudio(); gameInterval = setInterval(updateTimer, 1000);
+    clock.getDelta();
 }
 
 function restartAndPlay() { initAudio(); gameOverScreen.style.display = 'none'; loadingScreen.style.display = 'none'; document.body.requestPointerLock(); startGame(); }

@@ -198,3 +198,81 @@ function spawnSchwein() {
     scene.add(pigData.mesh); pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
     pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0); pigs3D.push(pigData);
 }
+
+// --- LEVEL MAP PARSER ---
+function buildLevelFromData(levelData) {
+    levelWallHitboxes = [];
+    levelTeleporters = [];
+    
+    // Konfiguration anwenden
+    if (levelData.configuration.timeLeft) timeLeft = levelData.configuration.timeLeft;
+    
+    const wallGeo = new THREE.BoxGeometry(TILE_SIZE, LAYER_HEIGHT, TILE_SIZE);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 }); // Simpler Beton
+    const floorGeo = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+
+    levelData.layers.forEach((layer, layerIndex) => {
+        const yOffset = layerIndex * LAYER_HEIGHT;
+        
+        for (let row = 0; row < layer.length; row++) {
+            for (let col = 0; col < layer[row].length; col++) {
+                const cell = layer[row][col];
+                const xPos = col * TILE_SIZE - (layer[row].length * TILE_SIZE) / 2;
+                const zPos = row * TILE_SIZE - (layer.length * TILE_SIZE) / 2;
+
+                // Bodenplatte für jedes Feld
+                const floorTile = new THREE.Mesh(floorGeo, floorMat);
+                floorTile.rotation.x = -Math.PI / 2;
+                floorTile.position.set(xPos, yOffset, zPos);
+                scene.add(floorTile);
+
+                if (cell === '|') {
+                    const wall = new THREE.Mesh(wallGeo, wallMat);
+                    wall.position.set(xPos, yOffset + LAYER_HEIGHT/2, zPos);
+                    scene.add(wall);
+                    levelWallHitboxes.push({ x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE/2 });
+                }
+                else if (cell === 'P') {
+                    // Spieler Startposition
+                    camera.position.set(xPos, yOffset + playerBaseY, zPos);
+                    playerCurrentGroundY = yOffset;
+                }
+                else if (cell === '1' || cell === '2' || cell === '3') {
+                    let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : createPigKlasse3());
+                    pigData.mesh.position.set(xPos, yOffset + (pigData.type === 1 ? 1.1 : 1.0), zPos);
+                    scene.add(pigData.mesh); 
+                    pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
+                    pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0);
+                    pigs3D.push(pigData);
+                }
+                else if (['H', 'T', 'C', 'I', 'F'].includes(cell)) {
+                    let type = cell === 'H' ? 'hp' : (cell === 'T' ? 'time' : (cell === 'C' ? 'speed' : (cell === 'I' ? 'infinite' : 'freeze')));
+                    spawnSpecificPowerUp(xPos, yOffset + 1.3, zPos, type);
+                }
+                else if (cell === '+' || cell === '-') {
+                    // Simpler Teleporter als grünes/rotes Pad
+                    const padMat = new THREE.MeshBasicMaterial({ color: cell === '+' ? 0x00ff00 : 0xff0000, transparent: true, opacity: 0.5 });
+                    const pad = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE*0.8, 0.2, TILE_SIZE*0.8), padMat);
+                    pad.position.set(xPos, yOffset + 0.1, zPos);
+                    scene.add(pad);
+                    // Ziel Y-Höhe (eine Ebene rauf oder runter)
+                    const targetY = cell === '+' ? yOffset + LAYER_HEIGHT : yOffset - LAYER_HEIGHT;
+                    levelTeleporters.push({ x: xPos, z: zPos, y: yOffset, targetY: targetY });
+                }
+            }
+        }
+    });
+}
+
+function spawnSpecificPowerUp(x, y, z, type) {
+    const pGroup = new THREE.Group(); pGroup.position.set(x, y, z);
+    let model; let lightColor = 0xffffff;
+    if(type === 'hp') { model = buildHpCrossMesh(); lightColor = 0xff0000; } 
+    else if(type === 'time') { model = buildTimeClockMesh(); lightColor = 0x00ffaa; } 
+    else if(type === 'speed') { model = buildCoffeeCupMesh(); lightColor = 0xffffff; } 
+    else if(type === 'infinite') { model = buildLightningAmmoMesh(); lightColor = 0xffcc00; } 
+    else { model = buildExtinguisherMesh(); lightColor = 0x00ccff; }
+    pGroup.add(model); const pLight = new THREE.PointLight(lightColor, 2.0, 15); pLight.position.set(0, 0.5, 0); pGroup.add(pLight);
+    scene.add(pGroup); powerups3D.push({ mesh: pGroup, type: type, radius: 1.5 });
+}
