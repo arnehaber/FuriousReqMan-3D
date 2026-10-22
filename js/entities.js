@@ -358,14 +358,44 @@ function buildLevelFromData(levelData) {
                     levelTeleporters.push({ x: xPos, z: zPos, y: yOffset, targetY: targetY });
                 }
                 else if (cell === 'E') {
-                    const exitMat = new THREE.MeshBasicMaterial({ color: 0x0088ff, transparent: true, opacity: 0.8 });
-                    const exitPad = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE*0.8, 0.4, TILE_SIZE*0.8), exitMat);
-                    exitPad.position.set(xPos, yOffset + 0.2, zPos);
-                    scene.add(exitPad); levelEnvironmentMeshes.push(exitPad);
-                    
-                    const exitLight = new THREE.PointLight(0x0088ff, 2.0, 10);
-                    exitLight.position.set(xPos, yOffset + 2.0, zPos);
-                    scene.add(exitLight); levelEnvironmentMeshes.push(exitLight);
+                    // NEU: Ein dreiteiliges Tor (zwei Säulen + ein blauer Leuchtbalken oben)
+                    const gateGroup = new THREE.Group();
+
+                    const postMat = new THREE.MeshStandardMaterial({ color: 0x334455, roughness: 0.5, metalness: 0.8 });
+                    const glowMat = new THREE.MeshBasicMaterial({ color: 0x0088ff });
+
+                    // Linke Säule
+                    const leftPost = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.0, 0.4), postMat);
+                    leftPost.position.set(-1.2, 1.5, 0);
+                    gateGroup.add(leftPost);
+
+                    // Rechte Säule
+                    const rightPost = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.0, 0.4), postMat);
+                    rightPost.position.set(1.2, 1.5, 0);
+                    gateGroup.add(rightPost);
+
+                    // Oberer Querbalken (Leuchtend)
+                    const topBeam = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.5, 0.5), glowMat);
+                    topBeam.position.set(0, 2.8, 0);
+                    gateGroup.add(topBeam);
+
+                    // Plattform am Boden (als Markierung)
+                    const padMat = new THREE.MeshBasicMaterial({ color: 0x0044aa, transparent: true, opacity: 0.6 });
+                    const exitPad = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE * 0.8, 0.2, TILE_SIZE * 0.8), padMat);
+                    exitPad.position.set(0, 0.1, 0);
+                    gateGroup.add(exitPad);
+
+                    // Lichtquelle direkt im Tor
+                    const exitLight = new THREE.PointLight(0x0088ff, 3.0, 12);
+                    exitLight.position.set(0, 2.0, 0);
+                    gateGroup.add(exitLight);
+
+                    // Tor an exakter Position platzieren
+                    gateGroup.position.set(xPos, yOffset, zPos);
+                    scene.add(gateGroup);
+                    levelEnvironmentMeshes.push(gateGroup);
+
+                    // Kollisionspunkt für den Spieler hinterlegen
                     levelExits.push({ x: xPos, z: zPos, y: yOffset });
                 }
             }
