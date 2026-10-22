@@ -72,11 +72,22 @@ function dispose3dObject(obj) {
     });
 }
 
+// --- HIGHSCORE MANAGEMENT ---
 let lastSavedScoreKey = null;
 
 function saveRawData(value) { try { localStorage.setItem(HIGHSCORE_KEY, btoa(encodeURIComponent(value))); } catch(e) {} }
 function loadRawData() { try { return localStorage.getItem(HIGHSCORE_KEY); } catch(e) { return null; } }
-function loadHighscores() { const raw = loadRawData(); if (!raw) return []; try { return JSON.parse(decodeURIComponent(atob(raw))); } catch (e) { try { localStorage.removeItem(HIGHSCORE_KEY); } catch(c) {} return []; } }
+function loadHighscores() { 
+    const raw = loadRawData(); 
+    if (!raw) return []; 
+    try { 
+        const parsed = JSON.parse(decodeURIComponent(atob(raw))); 
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (e) { 
+        try { localStorage.removeItem(HIGHSCORE_KEY); } catch(c) {} 
+        return []; 
+    } 
+}
 
 function saveHighscore(name, score) { 
     const highscores = loadHighscores(); 
@@ -95,18 +106,25 @@ function checkHighscoreEligibility(score) { const highscores = loadHighscores();
 
 function displayHighscores() { 
     const highscores = loadHighscores(); 
-    const htmlContent = highscores.length === 0 ? '<tr><td colspan="4" style="text-align:center; color:#888;">No entries yet!</td></tr>' : highscores.map((entry, index) => {
-        const entryKey = `${entry.name}_${entry.score}_${entry.date}`;
-        const isHighlighted = (entryKey === lastSavedScoreKey);
-        const rowClass = isHighlighted ? ' class="highlighted-score"' : '';
-        return `<tr${rowClass}><td class="rank-col">#${index + 1}</td><td>${escapeHtml(entry.name)}</td><td class="score-col">${entry.score}</td><td>${entry.date}</td></tr>`;
-    }).join(''); 
-    loadingHighscoreBody.innerHTML = htmlContent; 
-    gameoverHighscoreBody.innerHTML = htmlContent; 
+    const htmlContent = (!Array.isArray(highscores) || highscores.length === 0) 
+        ? '<tr><td colspan="4" style="text-align:center; color:#888;">No entries yet!</td></tr>' 
+        : highscores.map((entry, index) => {
+            const entryName = entry && entry.name ? String(entry.name) : 'Unknown';
+            const entryScore = entry && entry.score ? entry.score : 0;
+            const entryDate = entry && entry.date ? entry.date : '';
+            const entryKey = `${entryName}_${entryScore}_${entryDate}`;
+            const isHighlighted = (entryKey === lastSavedScoreKey);
+            const rowClass = isHighlighted ? ' class="highlighted-score"' : '';
+            return `<tr${rowClass}><td class="rank-col">#${index + 1}</td><td>${escapeHtml(entryName)}</td><td class="score-col">${entryScore}</td><td>${entryDate}</td></tr>`;
+        }).join(''); 
+    
+    // NULL-CHECKS: Verhindert Abstürze, falls ein HTML-Element fehlt oder umbenannt wurde!
+    if (loadingHighscoreBody) loadingHighscoreBody.innerHTML = htmlContent; 
+    if (gameoverHighscoreBody) gameoverHighscoreBody.innerHTML = htmlContent; 
 }
 
-function submitHighscore() { saveHighscore(playerNameInput.value.trim(), finalCalculatedScore); highscoreForm.style.display = 'none'; }
-function escapeHtml(text) { if (!text) return text; return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function escapeHtml(text) { if (!text) return text; return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+// ----------------------------
 
 function animate3D() {
     requestAnimationFrame(animate3D); 
