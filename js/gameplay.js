@@ -1,3 +1,5 @@
+
+
 // --- GAMEPLAY AND MAIN LOOP ---
 const clock = new THREE.Clock(); // Delta-Time Clock
 
@@ -7,7 +9,7 @@ const activePowerupsDisplay = document.getElementById('active-powerups-display')
 const keysPressed = { w: false, a: false, s: false, d: false };
 let isJumping = false, jumpVelocity = 0, playerCurrentGroundY = 0;
 let collectedHp = 0, collectedTime = 0, collectedCoffee = 0, collectedLightning = 0, collectedFreeze = 0;
-let lastTeleportTime = 0; // Verhindert Endlos-Teleports
+let lastTeleportTime = 0; 
 let isTransitioningLevel = false;
 let levelBannerTimeout = null;
 
@@ -34,12 +36,10 @@ function transitionToNextLevel() {
     const ep = episodes[activeEpisodeIndex];
     
     if (activeLevelIndex < ep.levels.length) {
-        // Nächstes Level bauen
         buildLevelFromData(ep.levels[activeLevelIndex]);
         showLevelBanner(ep.levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
         setTimeout(() => isTransitioningLevel = false, 1000);
     } else {
-        // Gesamte Episode geschafft!
         endGame(false); 
         isTransitioningLevel = false;
     }
@@ -63,7 +63,6 @@ function startLevelMode(e) {
     document.getElementById('level-ui').style.display = 'block';
 }
 
-// Helper function for clean memory management
 function dispose3dObject(obj) {
     if (!obj) return;
     obj.traverse(child => {
@@ -73,7 +72,6 @@ function dispose3dObject(obj) {
     });
 }
 
-// Variable, um den frisch eingetragenen Highscore zu markieren
 let lastSavedScoreKey = null;
 
 function saveRawData(value) { try { localStorage.setItem(HIGHSCORE_KEY, btoa(encodeURIComponent(value))); } catch(e) {} }
@@ -84,17 +82,12 @@ function saveHighscore(name, score) {
     const highscores = loadHighscores(); 
     const now = new Date(); 
     const dateString = now.toLocaleDateString('en-US') + ' ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); 
-    
     const cleanName = name || 'Unknown';
     highscores.push({ name: cleanName, score: score, date: dateString }); 
     highscores.sort((a, b) => b.score - a.score); 
-    
     const topHighscores = highscores.slice(0, 10);
     saveRawData(JSON.stringify(topHighscores)); 
-    
-    // Merken, welcher genaue Eintrag (Name + Score + Datum) hervorgehoben werden soll
     lastSavedScoreKey = `${cleanName}_${score}_${dateString}`;
-    
     displayHighscores(); 
 }
 
@@ -106,91 +99,27 @@ function displayHighscores() {
         const entryKey = `${entry.name}_${entry.score}_${entry.date}`;
         const isHighlighted = (entryKey === lastSavedScoreKey);
         const rowClass = isHighlighted ? ' class="highlighted-score"' : '';
-        
         return `<tr${rowClass}><td class="rank-col">#${index + 1}</td><td>${escapeHtml(entry.name)}</td><td class="score-col">${entry.score}</td><td>${entry.date}</td></tr>`;
     }).join(''); 
-    
     loadingHighscoreBody.innerHTML = htmlContent; 
     gameoverHighscoreBody.innerHTML = htmlContent; 
 }
 
-function submitHighscore() { 
-    saveHighscore(playerNameInput.value.trim(), finalCalculatedScore); 
-    highscoreForm.style.display = 'none'; 
-}
+function submitHighscore() { saveHighscore(playerNameInput.value.trim(), finalCalculatedScore); highscoreForm.style.display = 'none'; }
 function escapeHtml(text) { if (!text) return text; return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-
-function init3D() {
-    scene = new THREE.Scene(); scene.background = new THREE.Color(0x050404); scene.fog = new THREE.FogExp2(0x050404, 0.012);
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, playerBaseY, 0); camera.rotation.order = "YXZ"; camera.lookAt(0, 2, -30);
-
-    renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight);
-    container.insertBefore(renderer.domElement, container.firstChild);
-
-    ambientLight = new THREE.AmbientLight(0xffffff, 0.22); scene.add(ambientLight);
-    dirLight = new THREE.DirectionalLight(0xffcccc, 0.75); dirLight.position.set(10, 20, -10); scene.add(dirLight);
-
-    const floorGeo = new THREE.PlaneGeometry(600, 600);
-    const floorMat = new THREE.MeshStandardMaterial({ map: generateProceduralGrassTexture(), roughness: 1.0, metalness: 0.0 });
-    const floor = new THREE.Mesh(floorGeo, floorMat); floor.rotation.x = -Math.PI / 2; scene.add(floor);
-
-    create2DFenceWall({ x: MAP_MIN_X, z: MAP_MIN_Z }, { x: MAP_MAX_X, z: MAP_MIN_Z }); 
-    create2DFenceWall({ x: MAP_MAX_X, z: MAP_MIN_Z }, { x: MAP_MAX_X, z: MAP_MAX_Z }); 
-    create2DFenceWall({ x: MAP_MAX_X, z: MAP_MAX_Z }, { x: MAP_MIN_X, z: MAP_MAX_Z }); 
-    create2DFenceWall({ x: MAP_MIN_X, z: MAP_MAX_Z }, { x: MAP_MIN_X, z: MAP_MIN_Z }); 
-
-    pigPens = [];
-    const penPositions = [{ x: -45, z: -130 }, { x: 50, z: -70 }, { x: -10, z: -170 }];
-    penPositions.forEach(pos => buildProceduralPigPen(pos.x, pos.z));
-
-    obstacles = [];
-    for (let i = 0; i < 90; i++) {
-        const rock = createProceduralRock(); const tree = createProceduralDeadTree();
-        let x = (Math.random() - 0.5) * (MAP_MAX_X - MAP_MIN_X * 0.9), z = MAP_MIN_Z + Math.random() * (MAP_MAX_Z - MAP_MIN_Z);
-        if (Math.abs(x) < 5 && z > -20) x += (x >= 0 ? 8 : -8);
-        let insidePen = false;
-        pigPens.forEach(pen => { let dx = x - pen.x; let dz = z - pen.z; if(Math.sqrt(dx*dx + dz*dz) < pen.radius + 5) insidePen = true; });
-
-        if (!insidePen) {
-            rock.position.set(x, 0, z); scene.add(rock); obstacles.push({ x: x, z: z, radius: 2.0, type: 'rock', height: 1.8 }); 
-            let tx = x + (Math.random() - 0.5) * 12, tz = z - (Math.random() * 12 + 4);
-            if (tx > MAP_MIN_X + 2 && tx < MAP_MAX_X - 2 && tz > MAP_MIN_Z + 2 && tz < MAP_MAX_Z - 2) { tree.position.set(tx, 0, tz); scene.add(tree); obstacles.push({ x: tx, z: tz, radius: 0.8, type: 'tree', height: 5.0 }); }
-        }
-    }
-
-    window.addEventListener('resize', onWindowResize);
-    document.body.addEventListener('click', () => { initAudio(); if (!isPaused && timeLeft > 0 && hp > 0 && loadingScreen.style.display === 'none' && gameOverScreen.style.display === 'none' && instructionsOverlay.style.display !== 'flex') { document.body.requestPointerLock(); } });
-    document.body.addEventListener('contextmenu', e => e.preventDefault()); 
-    document.addEventListener('mousemove', onMouseMove);
-
-    window.addEventListener('keydown', (e) => { 
-        const key = e.key.toLowerCase(); if(key in keysPressed) keysPressed[key] = true; 
-        if(key === 'r') { initAudio(); reload(); } 
-        if(key === ' ' || e.key === 'Spacebar') { e.preventDefault(); startPlayerJump(); } 
-        if(e.key === "F1") { e.preventDefault(); initAudio(); toggleHelp(); } 
-    });
-    window.addEventListener('keyup', (e) => { const key = e.key.toLowerCase(); if (key in keysPressed) keysPressed[key] = false; });
-    triggerThunderstorm();
-}
 
 function animate3D() {
     requestAnimationFrame(animate3D); 
-    
-    // Delta-Time Berechnung
     const dt = clock.getDelta();
-    // Kappt die Zeit auf max. 0.1s (verhindert gigantische Physik-Sprünge nach Minimieren des Browsers)
     const clampedDt = Math.min(dt, 0.1); 
-    const timeScale = clampedDt * 60; // Ergibt ~1.0 bei 60 FPS
+    const timeScale = clampedDt * 60; 
     
     handlePlayerMovement(timeScale);
 
     if (!isPaused && timeLeft > 0 && hp > 0 && loadingScreen.style.display === 'none' && instructionsOverlay.style.display !== 'flex') {
-        
 		const now = performance.now();
         let activeHtml = '';
-
-        const crosshairElem = document.getElementById('crosshair'); // Referenz zum Fadenkreuz
+        const crosshairElem = document.getElementById('crosshair'); 
 
         if (coffeeEndTime > now) { activeHtml += `<div class="active-buff buff-coffee">☕ ${Math.ceil((coffeeEndTime - now)/1000)}s</div>`; } 
         else if (currentSpeedMultiplier !== 1.0) { currentSpeedMultiplier = 1.0; camera.fov = 75; camera.updateProjectionMatrix(); }
@@ -203,22 +132,18 @@ function animate3D() {
         }
 
         if (freezeEndTime > now) { activeHtml += `<div class="active-buff buff-freeze">🧯 ${Math.ceil((freezeEndTime - now)/1000)}s</div>`; }
-
         if (activePowerupsDisplay.innerHTML !== activeHtml) { activePowerupsDisplay.innerHTML = activeHtml; }
 
         let playerPos2D = new THREE.Vector3(camera.position.x, 0, camera.position.z);
         for (let k = powerups3D.length - 1; k >= 0; k--) {
             let pup = powerups3D[k]; 
-            pup.mesh.rotation.y += 0.04 * timeScale; // Rotation time-scaled
+            pup.mesh.rotation.y += 0.04 * timeScale; 
             let distToPup = playerPos2D.distanceTo(new THREE.Vector3(pup.mesh.position.x, 0, pup.mesh.position.z));
             
 			if (distToPup < pup.radius + 0.5) {
                 playPowerupAudio(pup.type);
-                
-                // NEU: Globaler Punkte-Bonus für jeden Booster
                 score += POWERUP_SCORE_BONUS;
                 scoreDisplay.innerText = `PIGS BLASTED: ${score}`;
-
                 const popup = document.createElement('div'); popup.className = 'score-popup'; popup.style.left = '50%'; popup.style.top = '40%';
 
                 if (pup.type === 'hp') {
@@ -273,18 +198,28 @@ function animate3D() {
             if (pig.isFleeing && distToTarget < 3.0) pig.isFleeing = false;
 
             let avoidance = new THREE.Vector3(0, 0, 0);
-            obstacles.forEach(obs => {
-                let distToObs = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(obs.x, 0, obs.z));
-                // Scaling avoidance logic with timeScale
-                if(distToObs < obs.radius + 1.2) { let pushDir = new THREE.Vector3().subVectors(pig.mesh.position, new THREE.Vector3(obs.x, 0, obs.z)).normalize(); avoidance.addScaledVector(new THREE.Vector3(-pushDir.z, 0, pushDir.x), pig.speed * 1.5 * timeScale); }
-            });
-            pigPens.forEach(pen => {
-                let distToPen = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(pen.x, 0, pen.z));
-                // Scaling avoidance logic with timeScale
-                if (distToPen < pen.radius + 0.5) { let dx = pig.mesh.position.x - pen.x; let dz = pig.mesh.position.z - pen.z; if (!(dz > 1.5 && Math.abs(dx) < 1.0)) { let pushPen = new THREE.Vector3(dx, 0, dz).normalize(); avoidance.addScaledVector(pushPen, pig.speed * 2.0 * timeScale); } }
-            });
+            
+            if (currentGameMode === 'FREE') {
+                obstacles.forEach(obs => {
+                    let distToObs = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(obs.x, 0, obs.z));
+                    if(distToObs < obs.radius + 1.2) { let pushDir = new THREE.Vector3().subVectors(pig.mesh.position, new THREE.Vector3(obs.x, 0, obs.z)).normalize(); avoidance.addScaledVector(new THREE.Vector3(-pushDir.z, 0, pushDir.x), pig.speed * 1.5 * timeScale); }
+                });
+                pigPens.forEach(pen => {
+                    let distToPen = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(pen.x, 0, pen.z));
+                    if (distToPen < pen.radius + 0.5) { let dx = pig.mesh.position.x - pen.x; let dz = pig.mesh.position.z - pen.z; if (!(dz > 1.5 && Math.abs(dx) < 1.0)) { let pushPen = new THREE.Vector3(dx, 0, dz).normalize(); avoidance.addScaledVector(pushPen, pig.speed * 2.0 * timeScale); } }
+                });
+            } else if (currentGameMode === 'LEVEL') {
+                levelWallHitboxes.forEach(wall => {
+                    if (Math.abs(wall.y - pig.mesh.position.y) < 1.0) { 
+                        let distToWall = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(wall.x, 0, wall.z));
+                        if(distToWall < wall.radius + 1.2) { 
+                            let pushDir = new THREE.Vector3().subVectors(pig.mesh.position, new THREE.Vector3(wall.x, 0, wall.z)).normalize(); 
+                            avoidance.addScaledVector(new THREE.Vector3(pushDir.x, 0, pushDir.z), pig.speed * 1.5 * timeScale); 
+                        }
+                    }
+                });
+            }
 
-            // Scaling final move with timeScale
             let finalMove = dirToTarget.clone().multiplyScalar(pig.speed * timeScale).add(avoidance); pig.mesh.position.add(finalMove);
             pig.mesh.position.x = Math.max(MAP_MIN_X + 2, Math.min(MAP_MAX_X - 2, pig.mesh.position.x)); pig.mesh.position.z = Math.max(MAP_MIN_Z + 2, Math.min(MAP_MAX_Z - 2, pig.mesh.position.z));
             pig.mesh.lookAt(new THREE.Vector3(targetPos.x, pig.mesh.position.y, targetPos.z)); pig.mesh.rotateY(Math.PI); 
@@ -309,12 +244,14 @@ function handlePlayerMovement(timeScale) {
     if (keysPressed.w) moveVector.addScaledVector(forward, dynamicSpeed); if (keysPressed.s) moveVector.addScaledVector(forward, -dynamicSpeed); if (keysPressed.d) moveVector.addScaledVector(right, dynamicSpeed); if (keysPressed.a) moveVector.addScaledVector(right, -dynamicSpeed);
     let targetX = camera.position.x + moveVector.x; let targetZ = camera.position.z + moveVector.z; let targetGroundY = currentGameMode === 'LEVEL' ? playerCurrentGroundY : 0; let playerRadius = 0.6; let collisionBlocked = false;
 
-    for(let i = 0; i < obstacles.length; i++) {
-        let obs = obstacles[i]; let dx = targetX - obs.x; let dz = targetZ - obs.z;
-        if (Math.sqrt(dx * dx + dz * dz) < obs.radius + playerRadius) { if ((isJumping || camera.position.y - playerHeightOffset > obs.height - 0.5) && obs.type === 'rock') { targetGroundY = obs.height; } else { collisionBlocked = true; } }
+    if (currentGameMode === 'FREE') {
+        for(let i = 0; i < obstacles.length; i++) {
+            let obs = obstacles[i]; let dx = targetX - obs.x; let dz = targetZ - obs.z;
+            if (Math.sqrt(dx * dx + dz * dz) < obs.radius + playerRadius) { if ((isJumping || camera.position.y - playerHeightOffset > obs.height - 0.5) && obs.type === 'rock') { targetGroundY = obs.height; } else { collisionBlocked = true; } }
+        }
+        pigPens.forEach(pen => { let dx = targetX - pen.x; let dz = targetZ - pen.z; if (Math.sqrt(dx * dx + dz * dz) < pen.radius + playerRadius) { if (!(dz > 1.8 && Math.abs(dx) < 1.1)) collisionBlocked = true; } });
+        if (targetX < MAP_MIN_X + 1.2 || targetX > MAP_MAX_X - 1.2 || targetZ < MAP_MIN_Z + 1.2 || targetZ > MAP_MAX_Z - 1.2) { collisionBlocked = true; }
     }
-    pigPens.forEach(pen => { let dx = targetX - pen.x; let dz = targetZ - pen.z; if (Math.sqrt(dx * dx + dz * dz) < pen.radius + playerRadius) { if (!(dz > 1.8 && Math.abs(dx) < 1.1)) collisionBlocked = true; } });
-    if (targetX < MAP_MIN_X + 1.2 || targetX > MAP_MAX_X - 1.2 || targetZ < MAP_MIN_Z + 1.2 || targetZ > MAP_MAX_Z - 1.2) { collisionBlocked = true; }
     
     const now = performance.now();
 
@@ -324,11 +261,8 @@ function handlePlayerMovement(timeScale) {
         const layer = activeLevel.layers[layerIdx];
         
         if (layer) {
-            // Die Abfrage nutzt jetzt exakt das globale Raster (levelMaxCols/Rows)
             const col = Math.round((targetX + (levelMaxCols * TILE_SIZE) / 2) / TILE_SIZE);
             const row = Math.round((targetZ + (levelMaxRows * TILE_SIZE) / 2) / TILE_SIZE);
-            
-            // Blockieren, wenn man über den Spielfeldrand der aktuellen Ebene hinausläuft
             if (row < 0 || row >= layer.length || col < 0 || col >= layer[row].length || layer[row][col] === undefined) {
                 collisionBlocked = true;
             }
@@ -343,8 +277,6 @@ function handlePlayerMovement(timeScale) {
             }
         });
 
-        // Teleport nur erlauben, wenn der Cooldown abgelaufen ist (1.5 Sekunden)
-		// Teleporter...
         levelTeleporters.forEach(tp => {
             if (Math.abs(tp.y - playerCurrentGroundY) < 1.0) {
                 let dx = camera.position.x - tp.x; let dz = camera.position.z - tp.z;
@@ -357,7 +289,6 @@ function handlePlayerMovement(timeScale) {
             }
         });
 
-        // NEU: Ausgangs-Kollision (E)
         levelExits.forEach(exit => {
             if (Math.abs(exit.y - playerCurrentGroundY) < 1.0) {
                 let dx = camera.position.x - exit.x; let dz = camera.position.z - exit.z;
@@ -366,7 +297,6 @@ function handlePlayerMovement(timeScale) {
                         isTransitioningLevel = true;
                         transitionToNextLevel();
                     } else {
-                        // Warnung einblenden, wenn noch Schweine leben
                         const warning = document.getElementById('exit-warning');
                         warning.style.display = 'block';
                         setTimeout(() => warning.style.display = 'none', 1000);
@@ -414,7 +344,8 @@ function toggleHelp() {
         else if (helpSourceScreen === 'gameover') { gameOverScreen.style.display = 'flex'; } 
         else {
             isPaused = false; document.body.requestPointerLock();
-            gameInterval = setInterval(updateTimer, 1000); spawnInterval = setInterval(spawnSchwein, 1000);
+            gameInterval = setInterval(updateTimer, 1000); 
+            if (currentGameMode === 'FREE') spawnInterval = setInterval(spawnSchwein, 1000);
             powerupInterval = setInterval(spawnPowerUpPair, POWERUP_SPAWN_INTERVAL);
             const now = performance.now();
             if(coffeeEndTime > 0) coffeeEndTime = now + coffeeEndTime;
@@ -464,12 +395,8 @@ function perform3DShoot() {
         let hitPart = intersects[0].object; let pigData = hitPart.userDataPig;
         if (pigData) { 
             let isHeadshot = false;
-            
-            // Präzise Hitbox-Berechnung über lokale Koordinaten des Meshs (Mesh-Merging kompatibel)
             let localHit = intersects[0].point.clone();
             pigData.mesh.worldToLocal(localHit);
-            
-            // Jede Schweine-Klasse hat den Kopf an einer leicht anderen lokalen Höhe (y)
             if (pigData.type === 1 && localHit.y > 0.1 && localHit.z < -0.5) isHeadshot = true;
             if (pigData.type === 2 && localHit.y > 1.2) isHeadshot = true;
             if (pigData.type === 3 && localHit.y > 1.1) isHeadshot = true;
@@ -486,7 +413,7 @@ function hit3DPig(pig, isHeadshot) {
     let finalPoints = isHeadshot ? basePoints : Math.round(basePoints / 5);
     
     playAudio('hit'); 
-    playPigSqueakAudio(); // NEU: Schweine-Quieken beim Treffer!
+    playPigSqueakAudio(); 
 
     score += finalPoints; 
     scoreDisplay.innerText = `PIGS BLASTED: ${score}`;
@@ -499,7 +426,6 @@ function hit3DPig(pig, isHeadshot) {
     container.appendChild(popup); 
     setTimeout(() => popup.remove(), SCORE_POPUP_TIME);
     
-	// NEU: Noch kleinere Bluttropfen bei großer Entfernung (Minimalgröße auf 0.08 gesenkt)
     let distanceScale = Math.max(0.08, 1.5 / (0.5 + shotDistance * 0.08));
 
     for (let i = 0; i < 7; i++) {
@@ -507,19 +433,14 @@ function hit3DPig(pig, isHeadshot) {
         blood.className = 'blood-splatter';
         blood.style.left = '50%';
         blood.style.top = '50%';
-        
-        // Skaliere die Basisgröße je nach Entfernung
         let bWidth = 12 * distanceScale;
         let bHeight = 16 * distanceScale;
         blood.style.width = `${bWidth}px`;
         blood.style.height = `${bHeight}px`;
-        
-        // Auch den Streuungsradius (Spread) entsprechend verkleinern
         const randX = ((Math.random() - 0.5) * 160 * distanceScale) + 'px';
         const randY = ((Math.random() - 0.5) * 160 * distanceScale) + 'px';
         blood.style.setProperty('--rand-x', randX);
         blood.style.setProperty('--rand-y', randY);
-        
         container.appendChild(blood);
         setTimeout(() => blood.remove(), 500);
     }
@@ -554,28 +475,48 @@ function initLoadingScreen() { updateAmmoUI(); displayHighscores(); }
 
 function pressStartButton(e) { if(e) { e.stopPropagation(); e.preventDefault(); } initAudio(); if (instructionsOverlay.style.display === 'flex') return; document.body.requestPointerLock(); loadingScreen.style.opacity = 0; setTimeout(() => { loadingScreen.style.display = 'none'; startGame(); }, 800); }
 
+function init3D() {
+    scene = new THREE.Scene(); scene.background = new THREE.Color(0x050404); scene.fog = new THREE.FogExp2(0x050404, 0.012);
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, playerBaseY, 0); camera.rotation.order = "YXZ"; camera.lookAt(0, 2, -30);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight);
+    container.insertBefore(renderer.domElement, container.firstChild);
+
+    ambientLight = new THREE.AmbientLight(0xffffff, 0.22); scene.add(ambientLight);
+    dirLight = new THREE.DirectionalLight(0xffcccc, 0.75); dirLight.position.set(10, 20, -10); scene.add(dirLight);
+
+    window.addEventListener('resize', onWindowResize);
+    document.body.addEventListener('click', () => { initAudio(); if (!isPaused && timeLeft > 0 && hp > 0 && loadingScreen.style.display === 'none' && gameOverScreen.style.display === 'none' && instructionsOverlay.style.display !== 'flex') { document.body.requestPointerLock(); } });
+    document.body.addEventListener('contextmenu', e => e.preventDefault()); 
+    document.addEventListener('mousemove', onMouseMove);
+
+    window.addEventListener('keydown', (e) => { 
+        const key = e.key.toLowerCase(); if(key in keysPressed) keysPressed[key] = true; 
+        if(key === 'r') { initAudio(); reload(); } 
+        if(key === ' ' || e.key === 'Spacebar') { e.preventDefault(); startPlayerJump(); } 
+        if(e.key === "F1") { e.preventDefault(); initAudio(); toggleHelp(); } 
+    });
+    window.addEventListener('keyup', (e) => { const key = e.key.toLowerCase(); if (key in keysPressed) keysPressed[key] = false; });
+    triggerThunderstorm();
+}
+
 function startGame() {
     score = 0; timeLeft = 60; currentAmmo = MAX_AMMO; hp = 100; isReloading = false; isPaused = false; isJumping = false; jumpVelocity = 0; playerCurrentGroundY = 0;
     collectedHp = 0; collectedTime = 0; collectedCoffee = 0; collectedLightning = 0; collectedFreeze = 0;
     coffeeEndTime = 0; infiniteAmmoEndTime = 0; freezeEndTime = 0; activePowerupsDisplay.innerHTML = '';
     currentSpeedMultiplier = 1.0; camera.fov = 75; camera.updateProjectionMatrix();
-    isTransitioningLevel = false; // Reset Fallback
+    isTransitioningLevel = false;
     
     scoreDisplay.innerText = `PIGS BLASTED: ${score}`; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`; healthValueDisplay.innerText = `HP: ${hp}`; updateAmmoUI();
     damageVignette.style.backgroundColor = `rgba(255, 0, 0, 0)`; gameOverScreen.style.display = 'none'; highscoreForm.style.display = 'none'; instructionsOverlay.style.display = 'none';
     
-    // Das Löschen der Welt passiert jetzt sauber innerhalb von buildLevelFromData
-    
     if (currentGameMode === 'FREE') {
-        // Free Mode Setup
-        pigs3D.forEach(p => { dispose3dObject(p.mesh); scene.remove(p.mesh); }); pigs3D = [];
-        powerups3D.forEach(pup => { dispose3dObject(pup.mesh); scene.remove(pup.mesh); }); powerups3D = [];
-        
+        buildFreeModeEnvironment(); 
         powerupInterval = setInterval(spawnPowerUpPair, POWERUP_SPAWN_INTERVAL);
         spawnInterval = setInterval(spawnSchwein, 1000);
         camera.position.set(0, playerBaseY, 0); 
     } else {
-        // Level Mode Setup
         clearInterval(powerupInterval); 
         clearInterval(spawnInterval);   
         activeLevelIndex = 0; 
@@ -583,17 +524,26 @@ function startGame() {
         showLevelBanner(episodes[activeEpisodeIndex].levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
     }
     
-    clearTimeout(heartbeatTimeout); // ... Rest bleibt gleich 
-	clearInterval(gameInterval);
-    initAudio(); gameInterval = setInterval(updateTimer, 1000);
-    clock.getDelta();
+    // Globale Variablen Sicherheit (Damit clearTimeout keinen Absturz verursacht, falls sie leer sind)
+    if(typeof heartbeatTimeout !== 'undefined') clearTimeout(heartbeatTimeout); 
+    if(typeof gameInterval !== 'undefined') clearInterval(gameInterval); 
+    if(typeof reloadInterval !== 'undefined') clearInterval(reloadInterval);
+    
+    initAudio(); 
+    gameInterval = setInterval(updateTimer, 1000);
+    clock.getDelta(); 
 }
 
 function restartAndPlay() { initAudio(); gameOverScreen.style.display = 'none'; loadingScreen.style.display = 'none'; document.body.requestPointerLock(); startGame(); }
 function updateTimer() { timeLeft--; if(timeLeft < 0) timeLeft = 0; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`; if (timeLeft <= 0) endGame(false); }
 
 function endGame(diedFromHp) { 
-    clearTimeout(heartbeatTimeout); clearInterval(gameInterval); clearInterval(spawnInterval); clearInterval(reloadInterval); clearInterval(powerupInterval);
+    if(typeof heartbeatTimeout !== 'undefined') clearTimeout(heartbeatTimeout); 
+    if(typeof gameInterval !== 'undefined') clearInterval(gameInterval); 
+    if(typeof spawnInterval !== 'undefined') clearInterval(spawnInterval); 
+    if(typeof reloadInterval !== 'undefined') clearInterval(reloadInterval); 
+    if(typeof powerupInterval !== 'undefined') clearInterval(powerupInterval);
+    
     document.exitPointerLock(); 
     
     let hpMultiplier = hp / 100; let finalCalculatedScore = Math.round(score * hpMultiplier);
