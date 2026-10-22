@@ -215,7 +215,20 @@
     </div>
 </div>
 
-<!-- Load modules in correct order -->
+<!-- NEU: Level-Banner und Warnmeldung -->
+<div id="level-title-banner"
+	style="display: none; position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); color: white; text-align: center; z-index: 200; pointer-events: none; text-shadow: 2px 2px 10px #000;">
+	<h1 id="level-title-text"
+		style="font-size: 60px; margin: 0; color: #ffcc00; font-family: 'Courier New', monospace;">LEVEL
+		1</h1>
+	<p id="level-title-sub"
+		style="font-size: 24px; margin-top: 5px; font-weight: bold;"></p>
+</div>
+<div id="exit-warning"
+	style="display: none; position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); color: #ff3333; font-size: 24px; font-weight: bold; text-shadow: 1px 1px 4px #000; pointer-events: none; z-index: 190;">
+	Säubere erst alle Schweine!</div>
+
+	<!-- Load modules in correct order -->
 <script src="js/constants.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/levels.js"></script>

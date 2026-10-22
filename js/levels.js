@@ -5,7 +5,28 @@ const episodes = [
         description: "Tauche ein in die alten Systeme. Die Feature-Requests haben sich tief im Keller eingenistet.",
         levels: [
             {
-                name: "Level 1: Basement Bugs",
+                name: "Level 1: Simple Start",
+                description: "Demo.",
+                configuration: {
+                    timeLeft: 666,          // Überschreibt Standardwert
+                    currentSpeedMultiplier: 1.0,
+                    powerupSpawnInterval: 0 // Deaktiviert zufällige Spawns im Level-Modus
+                },
+                layers: [
+                    [ // Ebene 0 (Basis)
+                        "||||||||||||||||||||||||",
+                        "|P                     |", // P = Player Start
+                        "|  |||||    1          |",
+                        "|  | E |               |",
+                        "|  || ||               |",
+                        "|                      |",
+                        "|                     3|",
+                        "||||||||||||||||||||||||"
+                    ]
+                ]
+            },
+            {
+                name: "Level 2: Basement Bugs",
                 description: "Ein kleines Keller-Archiv. Säubere alle Schweine, um das Level abzuschließen.",
                 configuration: {
                     timeLeft: 120,          // Überschreibt Standardwert
@@ -39,8 +60,8 @@ const episodes = [
                         "|          I   |",
                         "|              |",
                         "|      |||||   |",
-                        "|      | - |   |",
-                        "|          |123|",
+                        "|      | - |  3|",
+                        "|          |12E|",
                         "||||||||||||||||"
                     ]
                 ]

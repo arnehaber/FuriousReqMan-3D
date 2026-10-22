@@ -7,6 +7,8 @@ const darkMat = new THREE.MeshBasicMaterial({ color: 0x110202 });
 
 let levelMaxCols = 0;
 let levelMaxRows = 0;
+let levelEnvironmentMeshes = [];
+let levelExits = [];
 
 // --- MESH MERGER (DRAW CALL REDUKTION) ---
 function mergeMeshesIntoSingleGeometry(meshes) {
@@ -206,8 +208,15 @@ function spawnSchwein() {
 function buildLevelFromData(levelData) {
     levelWallHitboxes = [];
     levelTeleporters = [];
+    levelExits = [];
     levelMaxCols = 0;
     levelMaxRows = 0;
+    
+    // 1. AUFRÄUMEN: Altes Level (Wände, Böden) und Rest-Items löschen, bevor das neue gebaut wird
+    levelEnvironmentMeshes.forEach(m => { dispose3dObject(m); scene.remove(m); });
+    levelEnvironmentMeshes = [];
+    pigs3D.forEach(p => { dispose3dObject(p.mesh); scene.remove(p.mesh); }); pigs3D = [];
+    powerups3D.forEach(pup => { dispose3dObject(pup.mesh); scene.remove(pup.mesh); }); powerups3D = [];
     
     if (levelData.configuration.timeLeft) timeLeft = levelData.configuration.timeLeft;
     
@@ -217,7 +226,6 @@ function buildLevelFromData(levelData) {
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
     const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a }); 
 
-    // NEU: Zuerst die maximale Größe des gesamten Levels ermitteln (erzwingt exaktes Übereinanderliegen!)
     levelData.layers.forEach(layer => {
         levelMaxRows = Math.max(levelMaxRows, layer.length);
         layer.forEach(rowStr => levelMaxCols = Math.max(levelMaxCols, rowStr.length));
@@ -231,35 +239,32 @@ function buildLevelFromData(levelData) {
                 const cell = layer[row][col];
                 if (cell === undefined) continue;
                 
-                // NEU: Globale Zentrierung basierend auf den Maximalwerten des ganzen Levels
                 const xPos = col * TILE_SIZE - (levelMaxCols * TILE_SIZE) / 2;
                 const zPos = row * TILE_SIZE - (levelMaxRows * TILE_SIZE) / 2;
 
                 if (cell !== '-') {
                     const floorTile = new THREE.Mesh(floorGeo, floorMat);
                     floorTile.position.set(xPos, yOffset - 0.2, zPos);
-                    scene.add(floorTile);
+                    scene.add(floorTile); levelEnvironmentMeshes.push(floorTile);
                 }
 
                 if (cell !== '+') {
                     let hasFloorAbove = false;
                     if (layerIndex + 1 < levelData.layers.length) {
                         const lAbove = levelData.layers[layerIndex + 1];
-                        if (lAbove[row] && lAbove[row][col] !== undefined && lAbove[row][col] !== '-') {
-                            hasFloorAbove = true;
-                        }
+                        if (lAbove[row] && lAbove[row][col] !== undefined && lAbove[row][col] !== '-') hasFloorAbove = true;
                     }
                     if (!hasFloorAbove) {
                         const ceilingTile = new THREE.Mesh(floorGeo, ceilingMat);
                         ceilingTile.position.set(xPos, yOffset + LAYER_HEIGHT - 0.2, zPos);
-                        scene.add(ceilingTile);
+                        scene.add(ceilingTile); levelEnvironmentMeshes.push(ceilingTile);
                     }
                 }
 
                 if (cell === '|') {
                     const wall = new THREE.Mesh(wallGeo, wallMat);
                     wall.position.set(xPos, yOffset + LAYER_HEIGHT/2, zPos);
-                    scene.add(wall);
+                    scene.add(wall); levelEnvironmentMeshes.push(wall);
                     levelWallHitboxes.push({ x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE/2 });
                 }
                 else if (cell === 'P') {
@@ -282,10 +287,22 @@ function buildLevelFromData(levelData) {
                     const padMat = new THREE.MeshBasicMaterial({ color: cell === '+' ? 0x00ff00 : 0xff0000, transparent: true, opacity: 0.5 });
                     const pad = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE*0.8, 0.2, TILE_SIZE*0.8), padMat);
                     pad.position.set(xPos, yOffset + 0.1, zPos);
-                    scene.add(pad);
-                    
+                    scene.add(pad); levelEnvironmentMeshes.push(pad);
                     const targetY = cell === '+' ? yOffset + LAYER_HEIGHT : yOffset - LAYER_HEIGHT;
                     levelTeleporters.push({ x: xPos, z: zPos, y: yOffset, targetY: targetY });
+                }
+                // NEU: Ausgang (E) rendern
+                else if (cell === 'E') {
+                    const exitMat = new THREE.MeshBasicMaterial({ color: 0x0088ff, transparent: true, opacity: 0.8 });
+                    const exitPad = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE*0.8, 0.4, TILE_SIZE*0.8), exitMat);
+                    exitPad.position.set(xPos, yOffset + 0.2, zPos);
+                    scene.add(exitPad); levelEnvironmentMeshes.push(exitPad);
+                    
+                    const exitLight = new THREE.PointLight(0x0088ff, 2.0, 10);
+                    exitLight.position.set(xPos, yOffset + 2.0, zPos);
+                    scene.add(exitLight); levelEnvironmentMeshes.push(exitLight);
+                    
+                    levelExits.push({ x: xPos, z: zPos, y: yOffset });
                 }
             }
         }

@@ -8,6 +8,42 @@ const keysPressed = { w: false, a: false, s: false, d: false };
 let isJumping = false, jumpVelocity = 0, playerCurrentGroundY = 0;
 let collectedHp = 0, collectedTime = 0, collectedCoffee = 0, collectedLightning = 0, collectedFreeze = 0;
 let lastTeleportTime = 0; // Verhindert Endlos-Teleports
+let isTransitioningLevel = false;
+let levelBannerTimeout = null;
+
+function showLevelBanner(title, subtitle) {
+    const banner = document.getElementById('level-title-banner');
+    document.getElementById('level-title-text').innerText = title;
+    document.getElementById('level-title-sub').innerText = subtitle || "";
+    banner.style.display = 'block';
+    banner.style.opacity = 1;
+    
+    if(levelBannerTimeout) clearTimeout(levelBannerTimeout);
+    levelBannerTimeout = setTimeout(() => {
+        let op = 1;
+        const fade = setInterval(() => {
+            op -= 0.05;
+            banner.style.opacity = op;
+            if (op <= 0) { clearInterval(fade); banner.style.display = 'none'; }
+        }, 50);
+    }, 2500);
+}
+
+function transitionToNextLevel() {
+    activeLevelIndex++;
+    const ep = episodes[activeEpisodeIndex];
+    
+    if (activeLevelIndex < ep.levels.length) {
+        // Nächstes Level bauen
+        buildLevelFromData(ep.levels[activeLevelIndex]);
+        showLevelBanner(ep.levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
+        setTimeout(() => isTransitioningLevel = false, 1000);
+    } else {
+        // Gesamte Episode geschafft!
+        endGame(false); 
+        isTransitioningLevel = false;
+    }
+}
 
 function startFreeMode(e) {
     if(e) e.preventDefault();
@@ -307,20 +343,37 @@ function handlePlayerMovement(timeScale) {
             }
         });
 
-        // NEU: Teleport nur erlauben, wenn der Cooldown abgelaufen ist (1.5 Sekunden)
+        // Teleport nur erlauben, wenn der Cooldown abgelaufen ist (1.5 Sekunden)
+		// Teleporter...
         levelTeleporters.forEach(tp => {
             if (Math.abs(tp.y - playerCurrentGroundY) < 1.0) {
                 let dx = camera.position.x - tp.x; let dz = camera.position.z - tp.z;
-                if (Math.sqrt(dx*dx + dz*dz) < 1.2 && (now - lastTeleportTime > 1500)) { 
+                if (Math.sqrt(dx * dx + dz * dz) < 1.2 && (now - lastTeleportTime > 1500)) {
                     playerCurrentGroundY = tp.targetY;
                     targetGroundY = tp.targetY;
                     camera.position.y = playerCurrentGroundY + playerHeightOffset;
-                    lastTeleportTime = now; // Timer zurücksetzen
+                    lastTeleportTime = now;
                 }
             }
         });
-        
-        if (pigs3D.length === 0) endGame(false);
+
+        // NEU: Ausgangs-Kollision (E)
+        levelExits.forEach(exit => {
+            if (Math.abs(exit.y - playerCurrentGroundY) < 1.0) {
+                let dx = camera.position.x - exit.x; let dz = camera.position.z - exit.z;
+                if (Math.sqrt(dx * dx + dz * dz) < 1.5 && !isTransitioningLevel) {
+                    if (pigs3D.length === 0) {
+                        isTransitioningLevel = true;
+                        transitionToNextLevel();
+                    } else {
+                        // Warnung einblenden, wenn noch Schweine leben
+                        const warning = document.getElementById('exit-warning');
+                        warning.style.display = 'block';
+                        setTimeout(() => warning.style.display = 'none', 1000);
+                    }
+                }
+            }
+        });
     }
 
     if (!collisionBlocked) { camera.position.x = targetX; camera.position.z = targetZ; playerCurrentGroundY = targetGroundY; }
@@ -506,30 +559,32 @@ function startGame() {
     collectedHp = 0; collectedTime = 0; collectedCoffee = 0; collectedLightning = 0; collectedFreeze = 0;
     coffeeEndTime = 0; infiniteAmmoEndTime = 0; freezeEndTime = 0; activePowerupsDisplay.innerHTML = '';
     currentSpeedMultiplier = 1.0; camera.fov = 75; camera.updateProjectionMatrix();
-
+    isTransitioningLevel = false; // Reset Fallback
+    
     scoreDisplay.innerText = `PIGS BLASTED: ${score}`; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`; healthValueDisplay.innerText = `HP: ${hp}`; updateAmmoUI();
     damageVignette.style.backgroundColor = `rgba(255, 0, 0, 0)`; gameOverScreen.style.display = 'none'; highscoreForm.style.display = 'none'; instructionsOverlay.style.display = 'none';
-
-    // Clean up remnants from the last game
-    pigs3D.forEach(p => { dispose3dObject(p.mesh); scene.remove(p.mesh); }); pigs3D = [];
-    powerups3D.forEach(pup => { dispose3dObject(pup.mesh); scene.remove(pup.mesh); }); powerups3D = [];
-
-    // ALTE Welt leeren (Optional: Fences und Trees entfernen)
-    // Wir überlagern es hier der Einfachheit halber oder löschen vorher alles aus der Scene.
-
+    
+    // Das Löschen der Welt passiert jetzt sauber innerhalb von buildLevelFromData
+    
     if (currentGameMode === 'FREE') {
+        // Free Mode Setup
+        pigs3D.forEach(p => { dispose3dObject(p.mesh); scene.remove(p.mesh); }); pigs3D = [];
+        powerups3D.forEach(pup => { dispose3dObject(pup.mesh); scene.remove(pup.mesh); }); powerups3D = [];
+        
         powerupInterval = setInterval(spawnPowerUpPair, POWERUP_SPAWN_INTERVAL);
         spawnInterval = setInterval(spawnSchwein, 1000);
-        // Startpos Free Mode
-        camera.position.set(0, playerBaseY, 0);
+        camera.position.set(0, playerBaseY, 0); 
     } else {
-        // LEVEL MODE
-        clearInterval(powerupInterval); // Keine zufälligen Spawns
-        clearInterval(spawnInterval);   // Schweine spawnen nur über die Map
+        // Level Mode Setup
+        clearInterval(powerupInterval); 
+        clearInterval(spawnInterval);   
+        activeLevelIndex = 0; 
         buildLevelFromData(episodes[activeEpisodeIndex].levels[activeLevelIndex]);
+        showLevelBanner(episodes[activeEpisodeIndex].levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
     }
-
-    clearTimeout(heartbeatTimeout); clearInterval(gameInterval);
+    
+    clearTimeout(heartbeatTimeout); // ... Rest bleibt gleich 
+	clearInterval(gameInterval);
     initAudio(); gameInterval = setInterval(updateTimer, 1000);
     clock.getDelta();
 }
