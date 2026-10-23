@@ -48,19 +48,24 @@ function transitionToNextLevel() {
 function startFreeMode(e) {
     if(e) e.preventDefault();
     currentGameMode = 'FREE';
-    document.getElementById('level-ui').style.display = 'none';
+    
+    // Verstecke alte UI-Elemente
+    const levelUi = document.getElementById('level-ui');
+    if (levelUi) levelUi.style.display = 'none';
+    
     pressStartButton();
 }
 
 function startLevelMode(e) {
     if(e) e.preventDefault();
     currentGameMode = 'LEVEL';
-    const ep = episodes[activeEpisodeIndex];
-    const lvl = ep.levels[activeLevelIndex];
-    document.getElementById('episode-name').innerText = ep.name;
-    document.getElementById('episode-desc').innerText = ep.description;
-    document.getElementById('level-name').innerText = lvl.name;
-    document.getElementById('level-ui').style.display = 'block';
+    activeLevelIndex = 0; // Erzwingt immer den Start beim 1. Level der gewählten Episode
+    
+    // Zwischenmenü komplett überspringen und verstecken
+    const levelUi = document.getElementById('level-ui');
+    if (levelUi) levelUi.style.display = 'none';
+    
+    pressStartButton(); // Spiel direkt starten!
 }
 
 function dispose3dObject(obj) {
@@ -586,29 +591,59 @@ function initLoadingScreen() {
     updateAmmoUI(); 
     displayHighscores(); 
     
-    // Episoden-Dropdown dynamisch aus levels.js befüllen
-    const episodeSelect = document.getElementById('episode-select');
-    if (episodeSelect) {
-        episodeSelect.innerHTML = '';
+    // Beide Dropdowns finden (Startbildschirm und Game Over Screen)
+    const startSelect = document.getElementById('episode-select');
+    const gameOverSelect = document.getElementById('gameover-episode-select');
+    
+    // Hilfsfunktion zum Befüllen und Verlinken eines Dropdowns
+    function setupEpisodeDropdown(selectElement) {
+        if (!selectElement) return;
+        selectElement.innerHTML = '';
+        
         episodes.forEach((ep, index) => {
             let option = document.createElement('option');
             option.value = index;
             option.innerText = ep.name;
-            episodeSelect.appendChild(option);
+            selectElement.appendChild(option);
         });
         
-        // Event-Listener: Wenn der Spieler eine andere Episode wählt
-        episodeSelect.addEventListener('change', (e) => {
+        selectElement.addEventListener('change', (e) => {
             activeEpisodeIndex = parseInt(e.target.value);
-            activeLevelIndex = 0; // Startet immer bei Level 1 der gewählten Episode
+            activeLevelIndex = 0;
+            
+            // Halte beide Dropdowns synchron!
+            if (startSelect) startSelect.value = activeEpisodeIndex;
+            if (gameOverSelect) gameOverSelect.value = activeEpisodeIndex;
         });
-        
-        // Initialen Wert setzen (z.B. nach einem Reload)
-        activeEpisodeIndex = parseInt(episodeSelect.value) || 0;
+    }
+
+    setupEpisodeDropdown(startSelect);
+    setupEpisodeDropdown(gameOverSelect);
+    
+    // Initialen Wert setzen
+    if (startSelect) {
+        activeEpisodeIndex = parseInt(startSelect.value) || 0;
     }
 }
 
-function pressStartButton(e) { if(e) { e.stopPropagation(); e.preventDefault(); } initAudio(); if (instructionsOverlay.style.display === 'flex') return; document.body.requestPointerLock(); loadingScreen.style.opacity = 0; setTimeout(() => { loadingScreen.style.display = 'none'; startGame(); }, 800); }
+// Nachher (beide Screens werden ausgeblendet):
+function pressStartButton(e) { 
+    if(e) { e.stopPropagation(); e.preventDefault(); } 
+    initAudio(); 
+    if (instructionsOverlay.style.display === 'flex') return; 
+    
+    document.body.requestPointerLock(); 
+    
+    // Blendet beide Menüs (Startbildschirm und Game-Over-Screen) sofort aus
+    loadingScreen.style.opacity = 0; 
+    gameOverScreen.style.display = 'none'; 
+    
+    // Startet das eigentliche Spiel (startGame) nach einer kurzen Ausblend-Animation
+    setTimeout(() => { 
+        loadingScreen.style.display = 'none'; 
+        startGame(); 
+    }, 800); 
+}
 
 function init3D() {
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x050404); scene.fog = new THREE.FogExp2(0x050404, 0.012);
