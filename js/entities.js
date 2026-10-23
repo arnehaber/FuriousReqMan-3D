@@ -284,17 +284,22 @@ function spawnSchwein() {
 
 // --- LEVEL MAP PARSER ---
 function buildLevelFromData(levelData) {
-    clearEnvironment(); 
+    clearEnvironment();
     levelMaxCols = 0;
     levelMaxRows = 0;
-    
+
     if (levelData.configuration.timeLeft) timeLeft = levelData.configuration.timeLeft;
-    
-    const wallGeo = new THREE.BoxGeometry(TILE_SIZE, LAYER_HEIGHT, TILE_SIZE);
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 }); 
-    const floorGeo = new THREE.BoxGeometry(TILE_SIZE, 0.4, TILE_SIZE);
-    const floorMat = getGrassMaterial(); 
-    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a }); 
+
+    // NEU: Exakte Architektonische Maße
+    const THICKNESS = 0.4; // Bodendicke und Deckendicke
+    const WALL_HEIGHT = LAYER_HEIGHT - THICKNESS; // 5.0 - 0.4 = 4.6
+
+    // Geometrien verwenden nun die exakte Wandhöhe
+    const wallGeo = new THREE.BoxGeometry(TILE_SIZE, WALL_HEIGHT, TILE_SIZE);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 });
+    const floorGeo = new THREE.BoxGeometry(TILE_SIZE, THICKNESS, TILE_SIZE);
+    const floorMat = getGrassMaterial();
+    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
 
     levelData.layers.forEach(layer => {
         levelMaxRows = Math.max(levelMaxRows, layer.length);
@@ -303,18 +308,19 @@ function buildLevelFromData(levelData) {
 
     levelData.layers.forEach((layer, layerIndex) => {
         const yOffset = layerIndex * LAYER_HEIGHT;
-        
-        for (let row = 0; row < layer.length; row++) {
-            for (let col = 0; col < layer[row].length; col++) {
+
+        for (let row = 0;row < layer.length;row++) {
+            for (let col = 0;col < layer[row].length;col++) {
                 const cell = layer[row][col];
                 if (cell === undefined) continue;
-                
+
                 const xPos = col * TILE_SIZE - (levelMaxCols * TILE_SIZE) / 2;
                 const zPos = row * TILE_SIZE - (levelMaxRows * TILE_SIZE) / 2;
 
                 if (cell !== '-') {
                     const floorTile = new THREE.Mesh(floorGeo, floorMat);
-                    floorTile.position.set(xPos, yOffset - 0.2, zPos);
+                    // Boden liegt exakt unter den Füßen (0 bis -0.4)
+                    floorTile.position.set(xPos, yOffset - THICKNESS / 2, zPos);
                     scene.add(floorTile); levelEnvironmentMeshes.push(floorTile);
                 }
 
@@ -326,16 +332,18 @@ function buildLevelFromData(levelData) {
                     }
                     if (!hasFloorAbove) {
                         const ceilingTile = new THREE.Mesh(floorGeo, ceilingMat);
-                        ceilingTile.position.set(xPos, yOffset + LAYER_HEIGHT - 0.2, zPos);
+                        // Decke liegt exakt auf den Wänden (4.6 bis 5.0)
+                        ceilingTile.position.set(xPos, yOffset + LAYER_HEIGHT - THICKNESS / 2, zPos);
                         scene.add(ceilingTile); levelEnvironmentMeshes.push(ceilingTile);
                     }
                 }
 
                 if (cell === '|') {
                     const wall = new THREE.Mesh(wallGeo, wallMat);
-                    wall.position.set(xPos, yOffset + LAYER_HEIGHT/2, zPos);
+                    // Wand steht auf yOffset (0) und geht bis yOffset + WALL_HEIGHT (4.6)
+                    wall.position.set(xPos, yOffset + WALL_HEIGHT / 2, zPos);
                     scene.add(wall); levelEnvironmentMeshes.push(wall);
-                    levelWallHitboxes.push({ x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE/2 });
+                    levelWallHitboxes.push({ x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2 });
                 }
                 else if (cell === 'P') {
                     camera.position.set(xPos, yOffset + playerBaseY, zPos);
@@ -346,10 +354,7 @@ function buildLevelFromData(levelData) {
                     pigData.mesh.position.set(xPos, yOffset + (pigData.type === 1 ? 1.1 : 1.0), zPos);
                     scene.add(pigData.mesh);
                     pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
-
-                    // NEU: Im Level-Modus schlafen die Schweine am Anfang!
                     pigData.hasSeenPlayer = false;
-
                     pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0);
                     pigs3D.push(pigData);
                 }
@@ -358,32 +363,26 @@ function buildLevelFromData(levelData) {
                     spawnSpecificPowerUp(xPos, yOffset + 1.3, zPos, type);
                 }
                 else if (cell === '+') {
-                    // NEU: Echte 3D-Wendeltreppe, die bis zur oberen Ebene reicht
                     const spiralGroup = new THREE.Group();
                     const metalMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.5, metalness: 0.8 });
                     const stepMat = new THREE.MeshStandardMaterial({ color: 0x667788, roughness: 0.6 });
 
-                    // Zentrale Mittelsäule der Wendeltreppe
                     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, LAYER_HEIGHT, 16), metalMat);
                     pole.position.set(0, LAYER_HEIGHT / 2, 0);
                     spiralGroup.add(pole);
 
-                    // Spiralförmige Stufen von unten (y=0.2) bis ganz nach oben (y = LAYER_HEIGHT - 0.2)
-                    const totalSteps = 24; // Anzahl der Stufen für eine saubere Drehung
+                    const totalSteps = 24;
                     const totalHeight = LAYER_HEIGHT;
 
                     for (let s = 0;s < totalSteps;s++) {
                         const step = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.1, 0.4), stepMat);
-                        const angle = (s / totalSteps) * Math.PI * 3.5; // Dreht sich ca. 1.75 Mal nach oben
+                        const angle = (s / totalSteps) * Math.PI * 3.5;
                         const height = (s / totalSteps) * totalHeight;
-
-                        // Stufe platzieren (spiralförmig um die Säule angeordnet)
                         step.position.set(Math.cos(angle) * 0.55, height + 0.1, Math.sin(angle) * 0.55);
                         step.rotation.y = -angle;
                         spiralGroup.add(step);
                     }
 
-                    // Grünes Leuchtfeuer oben an der Treppe
                     const glowLight = new THREE.PointLight(0x00ff00, 2.0, 8);
                     glowLight.position.set(0, LAYER_HEIGHT - 0.5, 0);
                     spiralGroup.add(glowLight);
@@ -396,31 +395,31 @@ function buildLevelFromData(levelData) {
                     levelTeleporters.push({ x: xPos, z: zPos, y: yOffset, targetY: targetY });
                 }
                 else if (cell === '-') {
-                    // NEU: Offene Schachtluke ohne Tür (Blick nach unten in die darunterliegende Ebene)
                     const hatchGroup = new THREE.Group();
                     const frameMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9, metalness: 0.8 });
 
-                    // Vier dicke Rahmenbalken im Boden (Einlass)
-                    const thickness = 0.2;
+                    // Schachtrahmen exakt an die Bodendicke anpassen
+                    const frameThickness = 0.2;
                     const size = TILE_SIZE * 0.8;
+                    const frameHeight = THICKNESS; // Nutzt jetzt exakt die 0.4 aus der Konstante
+                    const frameY = -THICKNESS / 2; // Positioniert den Rahmen auf Höhe des Fußbodens
 
-                    const frameTop = new THREE.Mesh(new THREE.BoxGeometry(size, 0.3, thickness), frameMat);
-                    frameTop.position.set(0, 0.15, -size / 2 + thickness / 2);
+                    const frameTop = new THREE.Mesh(new THREE.BoxGeometry(size, frameHeight, frameThickness), frameMat);
+                    frameTop.position.set(0, frameY, -size / 2 + frameThickness / 2);
                     hatchGroup.add(frameTop);
 
-                    const frameBottom = new THREE.Mesh(new THREE.BoxGeometry(size, 0.3, thickness), frameMat);
-                    frameBottom.position.set(0, 0.15, size / 2 - thickness / 2);
+                    const frameBottom = new THREE.Mesh(new THREE.BoxGeometry(size, frameHeight, frameThickness), frameMat);
+                    frameBottom.position.set(0, frameY, size / 2 - frameThickness / 2);
                     hatchGroup.add(frameBottom);
 
-                    const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(thickness, 0.3, size), frameMat);
-                    frameLeft.position.set(-size / 2 + thickness / 2, 0.15, 0);
+                    const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(frameThickness, frameHeight, size), frameMat);
+                    frameLeft.position.set(-size / 2 + frameThickness / 2, frameY, 0);
                     hatchGroup.add(frameLeft);
 
-                    const frameRight = new THREE.Mesh(new THREE.BoxGeometry(thickness, 0.3, size), frameMat);
-                    frameRight.position.set(size / 2 - thickness / 2, 0.15, 0);
+                    const frameRight = new THREE.Mesh(new THREE.BoxGeometry(frameThickness, frameHeight, size), frameMat);
+                    frameRight.position.set(size / 2 - frameThickness / 2, frameY, 0);
                     hatchGroup.add(frameRight);
 
-                    // Rotes Leuchtfeuer im Schacht
                     const glowLight = new THREE.PointLight(0xff0000, 2.0, 8);
                     glowLight.position.set(0, -0.5, 0);
                     hatchGroup.add(glowLight);
@@ -433,44 +432,35 @@ function buildLevelFromData(levelData) {
                     levelTeleporters.push({ x: xPos, z: zPos, y: yOffset, targetY: targetY });
                 }
                 else if (cell === 'E') {
-                    // NEU: Ein dreiteiliges Tor (zwei Säulen + ein blauer Leuchtbalken oben)
                     const gateGroup = new THREE.Group();
-
                     const postMat = new THREE.MeshStandardMaterial({ color: 0x334455, roughness: 0.5, metalness: 0.8 });
                     const glowMat = new THREE.MeshBasicMaterial({ color: 0x0088ff });
 
-                    // Linke Säule
                     const leftPost = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.0, 0.4), postMat);
                     leftPost.position.set(-1.2, 1.5, 0);
                     gateGroup.add(leftPost);
 
-                    // Rechte Säule
                     const rightPost = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.0, 0.4), postMat);
                     rightPost.position.set(1.2, 1.5, 0);
                     gateGroup.add(rightPost);
 
-                    // Oberer Querbalken (Leuchtend)
                     const topBeam = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.5, 0.5), glowMat);
                     topBeam.position.set(0, 2.8, 0);
                     gateGroup.add(topBeam);
 
-                    // Plattform am Boden (als Markierung)
                     const padMat = new THREE.MeshBasicMaterial({ color: 0x0044aa, transparent: true, opacity: 0.6 });
                     const exitPad = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE * 0.8, 0.2, TILE_SIZE * 0.8), padMat);
                     exitPad.position.set(0, 0.1, 0);
                     gateGroup.add(exitPad);
 
-                    // Lichtquelle direkt im Tor
                     const exitLight = new THREE.PointLight(0x0088ff, 3.0, 12);
                     exitLight.position.set(0, 2.0, 0);
                     gateGroup.add(exitLight);
 
-                    // Tor an exakter Position platzieren
                     gateGroup.position.set(xPos, yOffset, zPos);
                     scene.add(gateGroup);
                     levelEnvironmentMeshes.push(gateGroup);
 
-                    // Kollisionspunkt für den Spieler hinterlegen
                     levelExits.push({ x: xPos, z: zPos, y: yOffset });
                 }
             }
