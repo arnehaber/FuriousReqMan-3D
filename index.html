@@ -126,7 +126,17 @@
         <h2>Attack of the Zombie Pigs</h2>
         <div style="display: flex; gap: 20px; margin-top: 10px;">
             <button onclick="startFreeMode(event)" style="font-size: 20px; padding: 15px 30px; background: #5cb85c;">FREE SPRINT (ARCADE)</button>
-            <button onclick="startLevelMode(event)" style="font-size: 20px; padding: 15px 30px; background: #337ab7;">KAMPAGNE (LEVELS)</button>
+            <!-- NEU: Episoden-Auswahl -->
+				<div
+					style="margin-top: 15px; margin-bottom: 15px; text-align: center;">
+					<label for="episode-select"
+						style="color: white; font-size: 18px; font-weight: bold; margin-right: 10px; font-family: 'Courier New', monospace;">EPISODE:</label>
+					<select id="episode-select"
+						style="padding: 10px; font-size: 16px; font-family: 'Courier New', monospace; background: #111; color: #ffcc00; border: 2px solid #ffcc00; cursor: pointer; outline: none;">
+						<!-- Wird automatisch von JavaScript befüllt -->
+					</select>
+				</div>
+				<button onclick="startLevelMode(event)" style="font-size: 20px; padding: 15px 30px; background: #337ab7;">KAMPAGNE (LEVELS)</button>
         </div>
         <div id="level-ui" style="display: none; margin-top: 20px; color: #fff;">
             <h3 id="episode-name" style="color: #f0ad4e;"></h3>

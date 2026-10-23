@@ -582,7 +582,31 @@ function updateAmmoUI() {
 function onMouseMove(e) { if (document.pointerLockElement !== document.body || isPaused || loadingScreen.style.display !== 'none' || instructionsOverlay.style.display === 'flex' || hp <= 0) return; camera.rotation.y -= e.movementX * 0.0022; camera.rotation.x -= e.movementY * 0.0022; camera.rotation.x = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, camera.rotation.x)); }
 function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
 
-function initLoadingScreen() { updateAmmoUI(); displayHighscores(); }
+function initLoadingScreen() { 
+    updateAmmoUI(); 
+    displayHighscores(); 
+    
+    // Episoden-Dropdown dynamisch aus levels.js befüllen
+    const episodeSelect = document.getElementById('episode-select');
+    if (episodeSelect) {
+        episodeSelect.innerHTML = '';
+        episodes.forEach((ep, index) => {
+            let option = document.createElement('option');
+            option.value = index;
+            option.innerText = ep.name;
+            episodeSelect.appendChild(option);
+        });
+        
+        // Event-Listener: Wenn der Spieler eine andere Episode wählt
+        episodeSelect.addEventListener('change', (e) => {
+            activeEpisodeIndex = parseInt(e.target.value);
+            activeLevelIndex = 0; // Startet immer bei Level 1 der gewählten Episode
+        });
+        
+        // Initialen Wert setzen (z.B. nach einem Reload)
+        activeEpisodeIndex = parseInt(episodeSelect.value) || 0;
+    }
+}
 
 function pressStartButton(e) { if(e) { e.stopPropagation(); e.preventDefault(); } initAudio(); if (instructionsOverlay.style.display === 'flex') return; document.body.requestPointerLock(); loadingScreen.style.opacity = 0; setTimeout(() => { loadingScreen.style.display = 'none'; startGame(); }, 800); }
 
