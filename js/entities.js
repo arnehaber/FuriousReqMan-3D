@@ -349,12 +349,79 @@ function buildLevelFromData(levelData) {
                     let type = cell === 'H' ? 'hp' : (cell === 'T' ? 'time' : (cell === 'C' ? 'speed' : (cell === 'I' ? 'infinite' : 'freeze')));
                     spawnSpecificPowerUp(xPos, yOffset + 1.3, zPos, type);
                 }
-                else if (cell === '+' || cell === '-') {
-                    const padMat = new THREE.MeshBasicMaterial({ color: cell === '+' ? 0x00ff00 : 0xff0000, transparent: true, opacity: 0.5 });
-                    const pad = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE*0.8, 0.2, TILE_SIZE*0.8), padMat);
-                    pad.position.set(xPos, yOffset + 0.1, zPos);
-                    scene.add(pad); levelEnvironmentMeshes.push(pad);
-                    const targetY = cell === '+' ? yOffset + LAYER_HEIGHT : yOffset - LAYER_HEIGHT;
+                else if (cell === '+') {
+                    // NEU: Echte 3D-Wendeltreppe, die bis zur oberen Ebene reicht
+                    const spiralGroup = new THREE.Group();
+                    const metalMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.5, metalness: 0.8 });
+                    const stepMat = new THREE.MeshStandardMaterial({ color: 0x667788, roughness: 0.6 });
+
+                    // Zentrale Mittelsäule der Wendeltreppe
+                    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, LAYER_HEIGHT, 16), metalMat);
+                    pole.position.set(0, LAYER_HEIGHT / 2, 0);
+                    spiralGroup.add(pole);
+
+                    // Spiralförmige Stufen von unten (y=0.2) bis ganz nach oben (y = LAYER_HEIGHT - 0.2)
+                    const totalSteps = 24; // Anzahl der Stufen für eine saubere Drehung
+                    const totalHeight = LAYER_HEIGHT;
+
+                    for (let s = 0;s < totalSteps;s++) {
+                        const step = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.1, 0.4), stepMat);
+                        const angle = (s / totalSteps) * Math.PI * 3.5; // Dreht sich ca. 1.75 Mal nach oben
+                        const height = (s / totalSteps) * totalHeight;
+
+                        // Stufe platzieren (spiralförmig um die Säule angeordnet)
+                        step.position.set(Math.cos(angle) * 0.55, height + 0.1, Math.sin(angle) * 0.55);
+                        step.rotation.y = -angle;
+                        spiralGroup.add(step);
+                    }
+
+                    // Grünes Leuchtfeuer oben an der Treppe
+                    const glowLight = new THREE.PointLight(0x00ff00, 2.0, 8);
+                    glowLight.position.set(0, LAYER_HEIGHT - 0.5, 0);
+                    spiralGroup.add(glowLight);
+
+                    spiralGroup.position.set(xPos, yOffset, zPos);
+                    scene.add(spiralGroup);
+                    levelEnvironmentMeshes.push(spiralGroup);
+
+                    const targetY = yOffset + LAYER_HEIGHT;
+                    levelTeleporters.push({ x: xPos, z: zPos, y: yOffset, targetY: targetY });
+                }
+                else if (cell === '-') {
+                    // NEU: Offene Schachtluke ohne Tür (Blick nach unten in die darunterliegende Ebene)
+                    const hatchGroup = new THREE.Group();
+                    const frameMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9, metalness: 0.8 });
+
+                    // Vier dicke Rahmenbalken im Boden (Einlass)
+                    const thickness = 0.2;
+                    const size = TILE_SIZE * 0.8;
+
+                    const frameTop = new THREE.Mesh(new THREE.BoxGeometry(size, 0.3, thickness), frameMat);
+                    frameTop.position.set(0, 0.15, -size / 2 + thickness / 2);
+                    hatchGroup.add(frameTop);
+
+                    const frameBottom = new THREE.Mesh(new THREE.BoxGeometry(size, 0.3, thickness), frameMat);
+                    frameBottom.position.set(0, 0.15, size / 2 - thickness / 2);
+                    hatchGroup.add(frameBottom);
+
+                    const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(thickness, 0.3, size), frameMat);
+                    frameLeft.position.set(-size / 2 + thickness / 2, 0.15, 0);
+                    hatchGroup.add(frameLeft);
+
+                    const frameRight = new THREE.Mesh(new THREE.BoxGeometry(thickness, 0.3, size), frameMat);
+                    frameRight.position.set(size / 2 - thickness / 2, 0.15, 0);
+                    hatchGroup.add(frameRight);
+
+                    // Rotes Leuchtfeuer im Schacht
+                    const glowLight = new THREE.PointLight(0xff0000, 2.0, 8);
+                    glowLight.position.set(0, -0.5, 0);
+                    hatchGroup.add(glowLight);
+
+                    hatchGroup.position.set(xPos, yOffset, zPos);
+                    scene.add(hatchGroup);
+                    levelEnvironmentMeshes.push(hatchGroup);
+
+                    const targetY = yOffset - LAYER_HEIGHT;
                     levelTeleporters.push({ x: xPos, z: zPos, y: yOffset, targetY: targetY });
                 }
                 else if (cell === 'E') {
