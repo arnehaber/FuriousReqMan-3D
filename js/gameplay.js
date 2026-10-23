@@ -124,7 +124,6 @@ function displayHighscores() {
 }
 
 function escapeHtml(text) { if (!text) return text; return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-// ----------------------------
 
 function animate3D() {
     requestAnimationFrame(animate3D); 
@@ -193,15 +192,41 @@ function animate3D() {
             }
 		}
 
+        // Tür-Animation ausführen
+        if (currentGameMode === 'LEVEL') {
+            levelDoors.forEach(door => {
+                if (door.state === 'opening') {
+                    door.slideAmount += 0.08 * timeScale; // Öffnungsgeschwindigkeit
+                    if (door.slideAmount >= door.maxSlide) {
+                        door.slideAmount = door.maxSlide;
+                        door.state = 'open';
+                    }
+
+                    // NEU: Die Tür gleitet nun exakt entlang ihrer Ausrichtung in die richtige Wand!
+                    if (door.isRotated) {
+                        door.mesh.position.z = door.slideAmount;
+                    } else {
+                        door.mesh.position.x = door.slideAmount;
+                    }
+                }
+            });
+        }
+
+        // Kombiniere Wände und GESCHLOSSENE Türen für das Raymarching (Sichtlinie)
+        let solidObstacles = [...levelWallHitboxes];
+        if (currentGameMode === 'LEVEL') {
+            levelDoors.forEach(d => { if (d.state !== 'open') solidObstacles.push(d); });
+        }
+		
         for (let i = pigs3D.length - 1;i >= 0;i--) {
             let pig = pigs3D[i];
-			// NEU: Etage des Schweins berechnen (0 im Free Mode, ansonsten z.B. 5, 10, 15...)
+			// Etage des Schweins berechnen (0 im Free Mode, ansonsten z.B. 5, 10, 15...)
             let pigGroundY = currentGameMode === 'LEVEL' ? Math.round(pig.mesh.position.y / LAYER_HEIGHT) * LAYER_HEIGHT : 0;
 
             let playerPos2D = new THREE.Vector3(camera.position.x, 0, camera.position.z);
             let distToPlayer = playerPos2D.distanceTo(new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z));
 
-            // NEU: Sichtlinien-Check im Level Modus
+            // Sichtlinien-Check im Level Modus
             if (currentGameMode === 'LEVEL' && !pig.hasSeenPlayer) {
                 let canSee = true;
                 pigGroundY = Math.round(pig.mesh.position.y / LAYER_HEIGHT) * LAYER_HEIGHT;
@@ -215,8 +240,9 @@ function animate3D() {
                     let dz = camera.position.z - pig.mesh.position.z;
                     let steps = Math.ceil(distToPlayer / 1.0);
 
-                    for (let w = 0;w < levelWallHitboxes.length;w++) {
-                        let wall = levelWallHitboxes[w];
+                    // prüfe alle solidObstacles
+					for (let w = 0; w < solidObstacles.length; w++) {
+						let wall = solidObstacles[w]; 
                         if (Math.abs(wall.y - pigGroundY) < 1.0) {
                             for (let s = 1;s < steps;s++) {
                                 let px = pig.mesh.position.x + (dx * s / steps);
@@ -270,13 +296,26 @@ function animate3D() {
                     let distToPen = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(pen.x, 0, pen.z));
                     if (distToPen < pen.radius + 0.5) { let dx = pig.mesh.position.x - pen.x; let dz = pig.mesh.position.z - pen.z; if (!(dz > 1.5 && Math.abs(dx) < 1.0)) { let pushPen = new THREE.Vector3(dx, 0, dz).normalize(); avoidance.addScaledVector(pushPen, pig.speed * 2.0 * timeScale); } }
                 });
-            } else if (currentGameMode === 'LEVEL') {
+            } 
+			else if (currentGameMode === 'LEVEL') {
+                // Schweine weichen Wänden aus...
                 levelWallHitboxes.forEach(wall => {
-                    if (Math.abs(wall.y - pig.mesh.position.y) < 1.0) { 
+                    if (Math.abs(wall.y - pig.mesh.position.y) < 1.0) {
                         let distToWall = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(wall.x, 0, wall.z));
-                        if(distToWall < wall.radius + 1.2) { 
-                            let pushDir = new THREE.Vector3().subVectors(pig.mesh.position, new THREE.Vector3(wall.x, 0, wall.z)).normalize(); 
-                            avoidance.addScaledVector(new THREE.Vector3(pushDir.x, 0, pushDir.z), pig.speed * 1.5 * timeScale); 
+                        if (distToWall < wall.radius + 1.2) {
+                            let pushDir = new THREE.Vector3().subVectors(pig.mesh.position, new THREE.Vector3(wall.x, 0, wall.z)).normalize();
+                            avoidance.addScaledVector(new THREE.Vector3(pushDir.x, 0, pushDir.z), pig.speed * 1.5 * timeScale);
+                        }
+                    }
+                });
+
+                // Schweine prallen an geschlossenen Türen ab
+                levelDoors.forEach(door => {
+                    if (door.state !== 'open' && Math.abs(door.y - pig.mesh.position.y) < 1.0) {
+                        let distToDoor = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(door.x, 0, door.z));
+                        if (distToDoor < door.radius + 1.2) {
+                            let pushDir = new THREE.Vector3().subVectors(pig.mesh.position, new THREE.Vector3(door.x, 0, door.z)).normalize();
+                            avoidance.addScaledVector(new THREE.Vector3(pushDir.x, 0, pushDir.z), pig.speed * 1.5 * timeScale);
                         }
                     }
                 });
@@ -335,6 +374,15 @@ function handlePlayerMovement(timeScale) {
             if (Math.abs(wall.y - playerCurrentGroundY) < 1.0) {
                 let dx = targetX - wall.x; let dz = targetZ - wall.z;
                 if (Math.abs(dx) < (wall.radius + playerRadius) && Math.abs(dz) < (wall.radius + playerRadius)) {
+                    collisionBlocked = true;
+                }
+            }
+        });
+		
+        levelDoors.forEach(door => {
+            if (door.state !== 'open' && Math.abs(door.y - playerCurrentGroundY) < 1.0) {
+                let dx = targetX - door.x; let dz = targetZ - door.z;
+                if (Math.abs(dx) < (door.radius + playerRadius) && Math.abs(dz) < (door.radius + playerRadius)) {
                     collisionBlocked = true;
                 }
             }
@@ -554,11 +602,25 @@ function init3D() {
     document.body.addEventListener('contextmenu', e => e.preventDefault()); 
     document.addEventListener('mousemove', onMouseMove);
 
-    window.addEventListener('keydown', (e) => { 
-        const key = e.key.toLowerCase(); if(key in keysPressed) keysPressed[key] = true; 
-        if(key === 'r') { initAudio(); reload(); } 
-        if(key === ' ' || e.key === 'Spacebar') { e.preventDefault(); startPlayerJump(); } 
-        if(e.key === "F1") { e.preventDefault(); initAudio(); toggleHelp(); } 
+    window.addEventListener('keydown', (e) => {
+        const key = e.key.toLowerCase(); if (key in keysPressed) keysPressed[key] = true;
+        if (key === 'r') { initAudio(); reload(); }
+        if (key === ' ' || e.key === 'Spacebar') { e.preventDefault(); startPlayerJump(); }
+        if (e.key === "F1") { e.preventDefault(); initAudio(); toggleHelp(); }
+
+        // NEU: Tür mit 'E' öffnen
+        if (key === 'e' && currentGameMode === 'LEVEL') {
+            levelDoors.forEach(door => {
+                if (door.state === 'closed' && Math.abs(door.y - playerCurrentGroundY) < 1.0) {
+                    let dx = camera.position.x - door.x; let dz = camera.position.z - door.z;
+                    // Öffnen, wenn der Spieler im Umkreis von 3.5 Einheiten steht
+                    if (Math.sqrt(dx * dx + dz * dz) < 3.5) {
+                        door.state = 'opening';
+                        playAudio('hit'); // Optional: Soundeffekt als akustisches Feedback nutzen
+                    }
+                }
+            });
+        }
     });
     window.addEventListener('keyup', (e) => { const key = e.key.toLowerCase(); if (key in keysPressed) keysPressed[key] = false; });
     triggerThunderstorm();

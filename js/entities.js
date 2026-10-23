@@ -9,6 +9,7 @@ let levelMaxCols = 0;
 let levelMaxRows = 0;
 let levelEnvironmentMeshes = [];
 let levelExits = [];
+let levelDoors = [];
 
 // --- MESH MERGER (DRAW CALL REDUKTION) ---
 function mergeMeshesIntoSingleGeometry(meshes) {
@@ -79,6 +80,7 @@ function clearEnvironment() {
     levelWallHitboxes = [];
     levelTeleporters = [];
     levelExits = [];
+	levelDoors = [];
 }
 
 function create2DFenceWall(start, end) { 
@@ -462,6 +464,30 @@ function buildLevelFromData(levelData) {
                     levelEnvironmentMeshes.push(gateGroup);
 
                     levelExits.push({ x: xPos, z: zPos, y: yOffset });
+                }
+                else if (cell === 'D') {
+                    const doorGroup = new THREE.Group();
+                    const doorMat = new THREE.MeshStandardMaterial({ color: 0x5a3a22, roughness: 0.9 }); // Dunkles Holz/Metall
+
+                    const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE, WALL_HEIGHT, 0.6), doorMat);
+
+                    // Automatische Ausrichtung prüfen und merken
+                    let isRotated = false;
+                    if (layer[row - 1] && layer[row - 1][col] === '|' && layer[row + 1] && layer[row + 1][col] === '|') {
+                        doorMesh.rotation.y = Math.PI / 2; // Tür um 90 Grad drehen
+                        isRotated = true; // NEU: Drehung für die Animation speichern!
+                    }
+
+                    doorGroup.add(doorMesh);
+                    doorGroup.position.set(xPos, yOffset + WALL_HEIGHT / 2, zPos);
+                    scene.add(doorGroup);
+                    levelEnvironmentMeshes.push(doorGroup);
+
+                    levelDoors.push({
+                        x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2,
+                        mesh: doorMesh, state: 'closed', slideAmount: 0, maxSlide: TILE_SIZE * 0.95,
+                        isRotated: isRotated // NEU: Wird an gameplay.js übergeben
+                    });
                 }
             }
         }

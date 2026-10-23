@@ -114,12 +114,12 @@ const episodes = [
                 layers: [
                     [ // Ebene 0 (Basis)
                         "||||||||||||||||||||||||",
-                        "|P                     |", // P = Player Start
+                        "|P                    ||", // P = Player Start
                         "|  |||||             |1|",
-                        "|  | E |               |",
-                        "|  || ||      |        |",
-                        "|             |   ||||||",
-                        "|             |       3|",
+                        "|  | E |    |D|        |",
+                        "|  || ||    | |        |",
+                        "|           |H|   ||||||",
+                        "|           |T|   D   3|",
                         "||||||||||||||||||||||||"
                     ]
                 ]
@@ -162,6 +162,28 @@ const episodes = [
                         "|      | - |  3|",
                         "|          |12E|",
                         "||||||||||||||||"
+                    ]
+                ]
+            }
+        ]
+    },
+    {
+        name: "Episode 2: Booring",
+        description: "Don't play it, it's boring.",
+        levels: [
+            {
+                name: "Level 1: Simple Dump",
+                description: "Demo.",
+                configuration: {
+                    timeLeft: 666,          // Überschreibt Standardwert
+                    currentSpeedMultiplier: 1.0,
+                    powerupSpawnInterval: 0 // Deaktiviert zufällige Spawns im Level-Modus
+                },
+                layers: [
+                    [ // Ebene 0 (Basis)
+                        "||||||||||||||||||||||||",
+                        "|P                   DE|", // P = Player Start
+                        "||||||||||||||||||||||||"
                     ]
                 ]
             }
