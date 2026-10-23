@@ -275,6 +275,10 @@ function spawnSchwein() {
     const selectedPen = pigPens[Math.floor(Math.random() * pigPens.length)];
     pigData.mesh.position.set(selectedPen.spawnX, pigData.type === 1 ? 1.1 : 1.0, selectedPen.spawnZ); 
     scene.add(pigData.mesh); pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
+    
+    // NEU: Im Free Mode sind die Schweine immer sofort wach
+    pigData.hasSeenPlayer = true; 
+    
     pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0); pigs3D.push(pigData);
 }
 
@@ -340,8 +344,12 @@ function buildLevelFromData(levelData) {
                 else if (cell === '1' || cell === '2' || cell === '3') {
                     let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : createPigKlasse3());
                     pigData.mesh.position.set(xPos, yOffset + (pigData.type === 1 ? 1.1 : 1.0), zPos);
-                    scene.add(pigData.mesh); 
+                    scene.add(pigData.mesh);
                     pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
+
+                    // NEU: Im Level-Modus schlafen die Schweine am Anfang!
+                    pigData.hasSeenPlayer = false;
+
                     pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0);
                     pigs3D.push(pigData);
                 }

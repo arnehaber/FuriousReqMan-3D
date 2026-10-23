@@ -193,8 +193,52 @@ function animate3D() {
             }
 		}
 
-        for (let i = pigs3D.length - 1; i >= 0; i--) {
-            let pig = pigs3D[i]; let distToPlayer = playerPos2D.distanceTo(new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z));
+        for (let i = pigs3D.length - 1;i >= 0;i--) {
+            let pig = pigs3D[i];
+			// NEU: Etage des Schweins berechnen (0 im Free Mode, ansonsten z.B. 5, 10, 15...)
+            let pigGroundY = currentGameMode === 'LEVEL' ? Math.round(pig.mesh.position.y / LAYER_HEIGHT) * LAYER_HEIGHT : 0;
+
+            let playerPos2D = new THREE.Vector3(camera.position.x, 0, camera.position.z);
+            let distToPlayer = playerPos2D.distanceTo(new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z));
+
+            // NEU: Sichtlinien-Check im Level Modus
+            if (currentGameMode === 'LEVEL' && !pig.hasSeenPlayer) {
+                let canSee = true;
+                pigGroundY = Math.round(pig.mesh.position.y / LAYER_HEIGHT) * LAYER_HEIGHT;
+
+                // 1. Sind Spieler und Schwein auf derselben Etage?
+                if (Math.abs(pigGroundY - playerCurrentGroundY) > 1.0) {
+                    canSee = false;
+                } else {
+                    // 2. Raymarching: Wir tasten die Linie zwischen Schwein und Spieler Meter für Meter ab
+                    let dx = camera.position.x - pig.mesh.position.x;
+                    let dz = camera.position.z - pig.mesh.position.z;
+                    let steps = Math.ceil(distToPlayer / 1.0);
+
+                    for (let w = 0;w < levelWallHitboxes.length;w++) {
+                        let wall = levelWallHitboxes[w];
+                        if (Math.abs(wall.y - pigGroundY) < 1.0) {
+                            for (let s = 1;s < steps;s++) {
+                                let px = pig.mesh.position.x + (dx * s / steps);
+                                let pz = pig.mesh.position.z + (dz * s / steps);
+
+                                // Wenn ein abgetasteter Punkt in einer Wand liegt, ist die Sicht blockiert!
+                                if (Math.abs(px - wall.x) < wall.radius && Math.abs(pz - wall.z) < wall.radius) {
+                                    canSee = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!canSee) break;
+                    }
+                }
+
+                if (canSee) {
+                    pig.hasSeenPlayer = true; // Schwein entdeckt dich und erwacht!
+                } else {
+                    continue; // Überspringt jegliche Bewegung und Animation -> Schwein steht starr still!
+                }
+            }
             
             if (distToPlayer < 1.4 && !pig.isFleeing && freezeEndTime <= now) {
                 pig.isFleeing = true; hp -= 10; if(hp < 0) hp = 0; healthValueDisplay.innerText = `HP: ${hp}`;
@@ -242,7 +286,8 @@ function animate3D() {
             pig.mesh.position.x = Math.max(MAP_MIN_X + 2, Math.min(MAP_MAX_X - 2, pig.mesh.position.x)); pig.mesh.position.z = Math.max(MAP_MIN_Z + 2, Math.min(MAP_MAX_Z - 2, pig.mesh.position.z));
             pig.mesh.lookAt(new THREE.Vector3(targetPos.x, pig.mesh.position.y, targetPos.z)); pig.mesh.rotateY(Math.PI); 
 
-            const time = Date.now() * 0.01 * (pig.speed * 15); pig.mesh.position.y = (pig.type === 1 ? 1.1 : 1.0) + Math.sin(time) * 0.06;
+			const time = Date.now() * 0.01 * (pig.speed * 15); 
+            pig.mesh.position.y = pigGroundY + (pig.type === 1 ? 1.1 : 1.0) + Math.sin(time) * 0.06;
             if (pig.legs) {
                 if (pig.type === 1) { pig.legs[0].rotation.x = Math.sin(time) * 0.4; pig.legs[1].rotation.x = -Math.sin(time) * 0.4; pig.legs[2].rotation.x = -Math.sin(time) * 0.4; pig.legs[3].rotation.x = Math.sin(time) * 0.4; } 
                 else { pig.legs[0].rotation.x = Math.sin(time) * 0.5; pig.legs[1].rotation.x = -Math.sin(time) * 0.5; }
