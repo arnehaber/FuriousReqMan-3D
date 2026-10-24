@@ -121,12 +121,11 @@
 <body>
 
 <div id="game-container">
-    <div id="loading-screen">
-        <h1>Furious Requirement Manager 3D</h1>
-        <h2>Attack of the Zombie Pigs</h2>
-        <div style="display: flex; gap: 20px; margin-top: 10px;">
-            <button onclick="startFreeMode(event)" style="font-size: 20px; padding: 15px 30px; background: #5cb85c;">FREE SPRINT (ARCADE)</button>
-            <!-- NEU: Episoden-Auswahl -->
+		<div id="loading-screen">
+			<h1>Furious Requirement Manager 3D</h1>
+			<h2>Attack of the Zombie Pigs</h2>
+			<div style="display: flex; gap: 20px; margin-top: 10px;">
+				<!-- NEU: Episoden-Auswahl -->
 				<div
 					style="margin-top: 15px; margin-bottom: 15px; text-align: center;">
 					<label for="episode-select"
@@ -136,17 +135,35 @@
 						<!-- Wird automatisch von JavaScript befüllt -->
 					</select>
 				</div>
-				<button onclick="startLevelMode(event)" style="font-size: 20px; padding: 15px 30px; background: #337ab7;">KAMPAGNE (LEVELS)</button>
-        </div>
-        <div id="level-ui" style="display: none; margin-top: 20px; color: #fff;">
-            <h3 id="episode-name" style="color: #f0ad4e;"></h3>
-            <p id="episode-desc"></p>
-            <h4 id="level-name"></h4>
-            <button onclick="pressStartButton(event)" style="margin-top: 10px;">LEVEL STARTEN</button>
-        </div>
-    </div>
+				<button onclick="startSelectedMode(event)"
+					style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #3366ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000;">
+					START</button>
+			</div>
+			<div id="level-ui"
+				style="display: none; margin-top: 20px; color: #fff;">
+				<h3 id="episode-name" style="color: #f0ad4e;"></h3>
+				<p id="episode-desc"></p>
+				<h4 id="level-name"></h4>
+				<button onclick="pressStartButton(event)" style="margin-top: 10px;">LEVEL
+					STARTEN</button>
+			</div>
+			<div class="highscore-container">
+				<h3 id="highscore-title-start">Hall of Fame</h3>
+				<table class="highscore-table">
+					<thead>
+						<tr>
+							<th class="rank-col">Rank</th>
+							<th>Name</th>
+							<th class="score-col">Score</th>
+							<th>Date</th>
+						</tr>
+					</thead>
+					<tbody id="gameover-highscore-body"></tbody>
+				</table>
+			</div>
+		</div>
 
-    <div id="vignette"></div>
+		<div id="vignette"></div>
     <div id="damage-vignette"></div>
     <div id="crosshair"><div class="crosshair-center"></div></div>
     
@@ -242,15 +259,12 @@
 			</div>
 
 			<div style="display: flex; gap: 20px; margin-bottom: 30px;">
-				<button onclick="startFreeMode(event)"
-					style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #ff3333; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000;">PLAY
-					FREE MODE</button>
-				<button onclick="startLevelMode(event)"
-					style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #3366ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000;">PLAY
-					LEVEL MODE</button>
+				<button onclick="startSelectedMode(event)"
+					style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #3366ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000;">
+					START</button>
 			</div>
 			<div class="highscore-container">
-				<h3>Hall of Fame</h3>
+				<h3 id="highscore-title-gameover">Hall of Fame</h3>
 				<table class="highscore-table">
 					<thead>
 						<tr>

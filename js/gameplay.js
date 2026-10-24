@@ -45,27 +45,20 @@ function transitionToNextLevel() {
     }
 }
 
-function startFreeMode(e) {
+function startSelectedMode(e) {
     if(e) e.preventDefault();
-    currentGameMode = 'FREE';
     
-    // Verstecke alte UI-Elemente
+    // Die Variable currentGameMode wird bereits vom Dropdown-Listener gesetzt.
+    // Wir müssen nur sicherstellen, dass wir bei Episoden immer im 1. Level starten.
+    if (currentGameMode === 'LEVEL') {
+        activeLevelIndex = 0; 
+    }
+    
+    // UI aufräumen
     const levelUi = document.getElementById('level-ui');
     if (levelUi) levelUi.style.display = 'none';
     
-    pressStartButton();
-}
-
-function startLevelMode(e) {
-    if(e) e.preventDefault();
-    currentGameMode = 'LEVEL';
-    activeLevelIndex = 0; // Erzwingt immer den Start beim 1. Level der gewählten Episode
-    
-    // Zwischenmenü komplett überspringen und verstecken
-    const levelUi = document.getElementById('level-ui');
-    if (levelUi) levelUi.style.display = 'none';
-    
-    pressStartButton(); // Spiel direkt starten!
+    pressStartButton(); 
 }
 
 function dispose3dObject(obj) {
@@ -80,8 +73,19 @@ function dispose3dObject(obj) {
 // --- HIGHSCORE MANAGEMENT ---
 let lastSavedScoreKey = null;
 
-function saveRawData(value) { try { localStorage.setItem(HIGHSCORE_KEY, btoa(encodeURIComponent(value))); } catch(e) {} }
-function loadRawData() { try { return localStorage.getItem(HIGHSCORE_KEY); } catch(e) { return null; } }
+// Dynamischer Schlüssel für den jeweiligen Modus / die Episode
+function getHighscoreKey() {
+    if (currentGameMode === 'FREE') {
+        return 'HIGHSCORE_FREE_MODE';
+    } else {
+        // Sonder- und Leerzeichen aus dem Namen entfernen, um einen sauberen Speicherschlüssel zu erhalten
+        const epName = episodes[activeEpisodeIndex].name.replace(/[^a-zA-Z0-9]/g, '_');
+        return 'HIGHSCORE_EPISODE_' + epName;
+    }
+}
+
+function saveRawData(value) { try { localStorage.setItem(getHighscoreKey(), btoa(encodeURIComponent(value))); } catch(e) {} }
+function loadRawData() { try { return localStorage.getItem(getHighscoreKey()); } catch(e) { return null; } }
 function loadHighscores() { 
     const raw = loadRawData(); 
     if (!raw) return []; 
@@ -89,7 +93,7 @@ function loadHighscores() {
         const parsed = JSON.parse(decodeURIComponent(atob(raw))); 
         return Array.isArray(parsed) ? parsed : [];
     } catch (e) { 
-        try { localStorage.removeItem(HIGHSCORE_KEY); } catch(c) {} 
+        try { localStorage.removeItem(getHighscoreKey()); } catch(c) {} 
         return []; 
     } 
 }
@@ -616,17 +620,33 @@ function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeig
 
 function initLoadingScreen() { 
     updateAmmoUI(); 
-    displayHighscores(); 
     
-    // Beide Dropdowns finden (Startbildschirm und Game Over Screen)
     const startSelect = document.getElementById('episode-select');
     const gameOverSelect = document.getElementById('gameover-episode-select');
     
-    // Hilfsfunktion zum Befüllen und Verlinken eines Dropdowns
+    // NEU: Hilfsfunktion, um die Titel über den Tabellen dynamisch anzupassen
+    function updateHighscoreTitle(val) {
+        let modeName = (val === 'FREE') ? 'FREE SPRINT (ARCADE)' : episodes[parseInt(val)].name;
+        let titleText = `Hall of Fame - ${modeName}`;
+        
+        let startTitle = document.getElementById('highscore-title-start');
+        let goTitle = document.getElementById('highscore-title-gameover');
+        
+        if (startTitle) startTitle.innerText = titleText;
+        if (goTitle) goTitle.innerText = titleText;
+    }
+
     function setupEpisodeDropdown(selectElement) {
         if (!selectElement) return;
         selectElement.innerHTML = '';
         
+        // 1. Free Mode Option
+        let freeOption = document.createElement('option');
+        freeOption.value = 'FREE';
+        freeOption.innerText = 'FREE SPRINT (ARCADE)';
+        selectElement.appendChild(freeOption);
+        
+        // 2. Episoden anhängen
         episodes.forEach((ep, index) => {
             let option = document.createElement('option');
             option.value = index;
@@ -634,25 +654,42 @@ function initLoadingScreen() {
             selectElement.appendChild(option);
         });
         
+        // 3. Event-Listener für das Dropdown
         selectElement.addEventListener('change', (e) => {
-            activeEpisodeIndex = parseInt(e.target.value);
-            activeLevelIndex = 0;
+            const val = e.target.value;
             
-            // Halte beide Dropdowns synchron!
-            if (startSelect) startSelect.value = activeEpisodeIndex;
-            if (gameOverSelect) gameOverSelect.value = activeEpisodeIndex;
+            // Spielmodus und Index setzen
+            if (val === 'FREE') {
+                currentGameMode = 'FREE';
+            } else {
+                currentGameMode = 'LEVEL';
+                activeEpisodeIndex = parseInt(val);
+                activeLevelIndex = 0;
+            }
+            
+            // Halte beide Dropdowns synchron
+            if (startSelect && startSelect !== selectElement) startSelect.value = val;
+            if (gameOverSelect && gameOverSelect !== selectElement) gameOverSelect.value = val;
+            
+            // NEU: Überschriften anpassen & Highscore-Tabelle live aktualisieren!
+            updateHighscoreTitle(val); 
+            displayHighscores(); 
         });
     }
 
     setupEpisodeDropdown(startSelect);
     setupEpisodeDropdown(gameOverSelect);
     
-    // Initialen Wert setzen
+    // Initiale Werte beim ersten Seitenaufruf setzen
     if (startSelect) {
-        activeEpisodeIndex = parseInt(startSelect.value) || 0;
+        startSelect.value = 'FREE';
+        currentGameMode = 'FREE';
+        updateHighscoreTitle('FREE'); // Setzt den initialen Titel beim Neuladen
     }
+    
+    // Initiale Tabelle laden
+    displayHighscores(); 
 }
-
 // Nachher (beide Screens werden ausgeblendet):
 function pressStartButton(e) { 
     if(e) { e.stopPropagation(); e.preventDefault(); } 
