@@ -176,7 +176,7 @@ const episodes = [
                 description: "Demo.",
                 configuration: {
                     timeLeft: 666,          // Überschreibt Standardwert
-                    currentSpeedMultiplier: 1.0,
+                    currentSpeedMultiplier: 2.0,
                     powerupSpawnInterval: 0 // Deaktiviert zufällige Spawns im Level-Modus
                 },
                 layers: [
@@ -186,7 +186,28 @@ const episodes = [
                         "||||||||||||||||||||||||"
                     ]
                 ]
-            }
+            },
+			{
+			    name: "Level 2: Ups and Downs",
+			    description: "Demo.",
+			    configuration: {
+			        timeLeft: 666,          // Überschreibt Standardwert
+			        currentSpeedMultiplier: 2.0,
+			        powerupSpawnInterval: 0 // Deaktiviert zufällige Spawns im Level-Modus
+			    },
+			    layers: [
+			        [ // Ebene 0 (Basis)
+			            "|||||||||||||||||||||||||",
+			            "|P + + + + + + + + + +  |", // P = Player Start
+			            "|||||||||||||||||||||||||"
+			        ],
+                    [ // Ebene 1
+                        "|||||||||||||||||||||||||",
+                        "|  - - - - - - - - - - E|", 
+                        "|||||||||||||||||||||||||"
+                    ]
+			    ]
+			}
         ]
     }
 ];

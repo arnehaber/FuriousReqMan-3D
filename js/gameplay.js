@@ -405,18 +405,27 @@ function handlePlayerMovement(timeScale) {
             }
         });
 
+        // Check auf Level-Exit
         levelExits.forEach(exit => {
             if (Math.abs(exit.y - playerCurrentGroundY) < 1.0) {
-                let dx = camera.position.x - exit.x; let dz = camera.position.z - exit.z;
-                if (Math.sqrt(dx * dx + dz * dz) < 1.5 && !isTransitioningLevel) {
-                    if (pigs3D.length === 0) {
-                        isTransitioningLevel = true;
-                        transitionToNextLevel();
-                    } else {
-                        const warning = document.getElementById('exit-warning');
-                        warning.style.display = 'block';
-                        setTimeout(() => warning.style.display = 'none', 1000);
-                    }
+                let distToExit = new THREE.Vector3(camera.position.x, 0, camera.position.z).distanceTo(new THREE.Vector3(exit.x, 0, exit.z));
+
+                if (distToExit < 1.8 && pigs3D.length === 0) {
+                    // 1. Array sofort leeren! Das verhindert, dass der Exit-Check
+                    // in den nächsten 20 Millisekunden versehentlich doppelt auslöst.
+                    levelExits = [];
+
+                    // 2. Den eigentlichen Level-Wechsel auslagern, damit der aktuelle Frame endet
+                    setTimeout(() => {
+                        activeLevelIndex++;
+                        if (activeLevelIndex < episodes[activeEpisodeIndex].levels.length) {
+                            buildLevelFromData(episodes[activeEpisodeIndex].levels[activeLevelIndex]);
+                            showLevelBanner(episodes[activeEpisodeIndex].levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
+                        } else {
+                            // Falls keine Level mehr da sind: Episode geschafft!
+                            endGame();
+                        }
+                    }, 20); // 20ms Pause reichen der Engine völlig
                 }
             }
         });
