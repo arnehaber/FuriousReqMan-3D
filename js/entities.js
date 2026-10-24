@@ -157,7 +157,7 @@ function spawnSpecificPowerUp(x, y, z, type) {
     else if(type === 'speed') { model = buildCoffeeCupMesh(); lightColor = 0xffffff; } 
     else if(type === 'infinite') { model = buildLightningAmmoMesh(); lightColor = 0xffcc00; } 
     else { model = buildExtinguisherMesh(); lightColor = 0x00ccff; }
-    pGroup.add(model); const pLight = new THREE.PointLight(lightColor, 2.0, 15); pLight.position.set(0, 0.5, 0); pGroup.add(pLight);
+    pGroup.add(model); const pLight = new THREE.PointLight(lightColor, 1.5, 5); pLight.position.set(0, 0.5, 0); pGroup.add(pLight);
     scene.add(pGroup); powerups3D.push({ mesh: pGroup, type: type, radius: 1.5 });
 }
 
@@ -385,7 +385,7 @@ function buildLevelFromData(levelData) {
                         spiralGroup.add(step);
                     }
 
-                    const glowLight = new THREE.PointLight(0x00ff00, 2.0, 8);
+                    const glowLight = new THREE.PointLight(0x00ff00, 1.5, 4.5);
                     glowLight.position.set(0, LAYER_HEIGHT - 0.5, 0);
                     spiralGroup.add(glowLight);
 
@@ -422,7 +422,7 @@ function buildLevelFromData(levelData) {
                     frameRight.position.set(size / 2 - frameThickness / 2, frameY, 0);
                     hatchGroup.add(frameRight);
 
-                    const glowLight = new THREE.PointLight(0xff0000, 2.0, 8);
+                    const glowLight = new THREE.PointLight(0xff0000, 1.5, 4.5);
                     glowLight.position.set(0, -0.5, 0);
                     hatchGroup.add(glowLight);
 
@@ -455,7 +455,7 @@ function buildLevelFromData(levelData) {
                     exitPad.position.set(0, 0.1, 0);
                     gateGroup.add(exitPad);
 
-                    const exitLight = new THREE.PointLight(0x0088ff, 3.0, 12);
+                    const exitLight = new THREE.PointLight(0x0088ff, 2.0, 6);
                     exitLight.position.set(0, 2.0, 0);
                     gateGroup.add(exitLight);
 
