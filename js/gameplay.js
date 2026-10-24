@@ -392,15 +392,33 @@ function handlePlayerMovement(timeScale) {
                 }
             }
         });
+	
+        // Ein globales Wörterbuch für alle Treppen-Timer anlegen (falls nicht vorhanden)
+        if (typeof window.tpCooldowns === 'undefined') window.tpCooldowns = {};
+
+        let nowTime = Date.now();
+        let teleportedThisFrame = false; // Verhindert, dass die Engine im selben Frame noch weiterrechnet
 
         levelTeleporters.forEach(tp => {
+            if (teleportedThisFrame) return; // 'continue' für forEach: überspringt den Rest für diese Millisekunde
+
             if (Math.abs(tp.y - playerCurrentGroundY) < 1.0) {
-                let dx = camera.position.x - tp.x; let dz = camera.position.z - tp.z;
-                if (Math.sqrt(dx * dx + dz * dz) < 1.2 && (now - lastTeleportTime > 1500)) {
+                let distToTp = new THREE.Vector3(camera.position.x, 0, camera.position.z).distanceTo(new THREE.Vector3(tp.x, 0, tp.z));
+
+                // Einen eindeutigen Namen für dieses Treppenhaus erzeugen (z.B. "12_-24")
+                let stairKey = Math.round(tp.x) + "_" + Math.round(tp.z);
+                let lastUsedTime = window.tpCooldowns[stairKey] || 0; // Wann wurde DIESE Treppe zuletzt benutzt?
+
+                // Prüfen: Nah genug? UND ist DIESE Treppe seit 1.5 Sekunden abgekühlt?
+                if (distToTp < 1.5 && (nowTime - lastUsedTime > 1500)) {
+
                     playerCurrentGroundY = tp.targetY;
-                    targetGroundY = tp.targetY;
-                    camera.position.y = playerCurrentGroundY + playerHeightOffset;
-                    lastTeleportTime = now;
+					targetGroundY = tp.targetY;
+                    camera.position.y = tp.targetY + playerBaseY;
+
+                    // Den Timer exakt für dieses eine Treppenhaus aktualisieren
+                    window.tpCooldowns[stairKey] = nowTime;
+                    teleportedThisFrame = true;
                 }
             }
         });
