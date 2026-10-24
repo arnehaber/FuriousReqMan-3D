@@ -374,8 +374,12 @@ function animate3D() {
                 pig.fleeTarget.set(pig.mesh.position.x + Math.cos(randAngle) * 8, pig.mesh.position.y, pig.mesh.position.z + Math.sin(randAngle) * 8);
             }
 
-            pig.mesh.position.x = Math.max(MAP_MIN_X + 2, Math.min(MAP_MAX_X - 2, pig.mesh.position.x));
-            pig.mesh.position.z = Math.max(MAP_MIN_Z + 2, Math.min(MAP_MAX_Z - 2, pig.mesh.position.z));
+            // NEU: Auch die Schweine dürfen im Level-Modus nicht mehr durch die alten Garten-Grenzen blockiert werden!
+            if (currentGameMode === 'FREE') {
+                pig.mesh.position.x = Math.max(MAP_MIN_X + 2, Math.min(MAP_MAX_X - 2, pig.mesh.position.x));
+                pig.mesh.position.z = Math.max(MAP_MIN_Z + 2, Math.min(MAP_MAX_Z - 2, pig.mesh.position.z));
+            }
+
             pig.mesh.lookAt(new THREE.Vector3(targetPos.x, pig.mesh.position.y, targetPos.z));
             pig.mesh.rotateY(Math.PI);
 
@@ -525,7 +529,12 @@ function handlePlayerMovement(timeScale) {
             camera.position.y = targetEyeHeight; 
         } 
     }
-    camera.position.x = Math.max(MAP_MIN_X + 1.2, Math.min(MAP_MAX_X - 1.2, camera.position.x)); camera.position.z = Math.max(MAP_MIN_Z + 1.2, Math.min(MAP_MAX_Z - 1.2, camera.position.z));
+    // Die harten Map-Grenzen gelten nur noch für den Free-Mode (Garten)!
+    // Im Level-Modus sorgen die gebauten Wände ('|') für die Begrenzung.
+    if (currentGameMode === 'FREE') {
+        camera.position.x = Math.max(MAP_MIN_X + 1.2, Math.min(MAP_MAX_X - 1.2, camera.position.x));
+        camera.position.z = Math.max(MAP_MIN_Z + 1.2, Math.min(MAP_MAX_Z - 1.2, camera.position.z));
+    }
 }
 
 function toggleHelp() {
