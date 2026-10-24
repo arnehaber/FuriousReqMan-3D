@@ -164,12 +164,15 @@ function animate3D() {
         if (activePowerupsDisplay.innerHTML !== activeHtml) { activePowerupsDisplay.innerHTML = activeHtml; }
 
         let playerPos2D = new THREE.Vector3(camera.position.x, 0, camera.position.z);
-        for (let k = powerups3D.length - 1; k >= 0; k--) {
-            let pup = powerups3D[k]; 
-            pup.mesh.rotation.y += 0.04 * timeScale; 
+        for (let k = powerups3D.length - 1;k >= 0;k--) {
+            let pup = powerups3D[k];
+            pup.mesh.rotation.y += 0.04 * timeScale;
             let distToPup = playerPos2D.distanceTo(new THREE.Vector3(pup.mesh.position.x, 0, pup.mesh.position.z));
-            
-			if (distToPup < pup.radius + 0.5) {
+
+            // Wir prüfen zusätzlich, ob das Power-Up ungefähr auf derselben Etage (Y-Achse) ist wie der Spieler!
+            let isSameFloor = Math.abs(pup.mesh.position.y - playerCurrentGroundY) < 2.0;
+
+            if (distToPup < pup.radius + 0.5 && isSameFloor) {
                 playPowerupAudio(pup.type);
                 score += POWERUP_SCORE_BONUS;
                 scoreDisplay.innerText = `PIGS BLASTED: ${score}`;
