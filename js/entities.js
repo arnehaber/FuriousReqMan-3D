@@ -5,6 +5,12 @@ const eyeMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 1.0,
 const browMat = new THREE.MeshBasicMaterial({ color: 0x701818 }); 
 const darkMat = new THREE.MeshBasicMaterial({ color: 0x110202 });
 
+let levelMaxCols = 0;
+let levelMaxRows = 0;
+let levelEnvironmentMeshes = [];
+let levelExits = [];
+let levelDoors = [];
+
 // --- MESH MERGER (DRAW CALL REDUKTION) ---
 function mergeMeshesIntoSingleGeometry(meshes) {
     let totalVertices = 0, totalIndices = 0;
@@ -50,10 +56,38 @@ function mergeGroupIntoSingleMesh(group, material) {
 
 // --- PROZEDURALE UMGEBUNG ---
 function generateProceduralGrassTexture() { const size = 512; const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#161d12'; ctx.fillRect(0, 0, size, size); for (let i = 0; i < 8000; i++) { const x = Math.random() * size, y = Math.random() * size, length = Math.random() * 6 + 2; ctx.fillStyle = ['#1d2b17', '#27381e', '#192115', '#2c291e', '#12190e'][Math.floor(Math.random() * 5)]; ctx.globalAlpha = Math.random() * 0.4 + 0.3; ctx.fillRect(x, y, Math.random() * 3 + 1, length); } const texture = new THREE.CanvasTexture(canvas); texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(50, 50); return texture; }
+
+let cachedGrassTexture = null;
+function getGrassMaterial() {
+    if (!cachedGrassTexture) cachedGrassTexture = generateProceduralGrassTexture();
+    return new THREE.MeshStandardMaterial({ map: cachedGrassTexture, roughness: 1.0, metalness: 0.0 });
+}
+
 function createProceduralRock() { const size = 1.4 + Math.random() * 2.2; const rockGeo = new THREE.DodecahedronGeometry(size, 0); const rockMat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(0, 0, 0.15 + Math.random() * 0.1), roughness: 1.0, metalness: 0.1 }); const rock = new THREE.Mesh(rockGeo, rockMat); rock.scale.set(1 + Math.random() * 0.3, 0.6 + Math.random() * 0.4, 1 + Math.random() * 0.3); rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0); return rock; }
 function createProceduralDeadTree() { const treeGroup = new THREE.Group(); const woodMat = new THREE.MeshStandardMaterial({ color: 0x1f1713, roughness: 1.0 }); const trunkHeight = 4 + Math.random() * 4; const trunkGeo = new THREE.CylinderGeometry(0.15, 0.3, trunkHeight, 8); const trunk = new THREE.Mesh(trunkGeo, woodMat); trunk.position.y = trunkHeight / 2; treeGroup.add(trunk); for (let i = 0; i < 4; i++) { const branchLength = 1.5 + Math.random() * 2; const branchGeo = new THREE.CylinderGeometry(0.04, 0.1, branchLength, 6); const branch = new THREE.Mesh(branchGeo, woodMat); branch.position.y = (trunkHeight * 0.4) + (Math.random() * (trunkHeight * 0.5)); branch.rotation.z = (Math.random() - 0.5) * 1.2 + (branch.position.x > 0 ? 0.5 : -0.5); branch.rotation.x = (Math.random() - 0.5) * 1.2; branch.position.x = Math.sin(branch.rotation.z) * (branchLength / 2); treeGroup.add(branch); } return treeGroup; }
 function generateProceduralFenceTexture(length) { const width = 2048; const height = 256; const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#0a0503'; ctx.fillRect(0, 0, width, height); const boardWidth = 16; const numBoards = width / boardWidth; for (let i = 0; i < numBoards; i++) { const x = i * boardWidth; const isBroken = Math.random() > 0.92; const boardHeight = isBroken ? height * (0.5 + Math.random() * 0.3) : height - (Math.random() * 15); const baseColors = ['#4a3325', '#3b261a', '#543d30', '#2e1f14', '#422f22']; let color = baseColors[Math.floor(Math.random() * baseColors.length)]; ctx.fillStyle = color; ctx.fillRect(x, height - boardHeight, boardWidth - 1, boardHeight); ctx.globalAlpha = 0.15; ctx.fillStyle = '#000000'; for (let g = 0; g < 3; g++) { const gx = x + Math.random() * (boardWidth - 3); ctx.fillRect(gx, height - boardHeight, Math.random() * 2 + 1, boardHeight); } if (Math.random() > 0.7) { ctx.globalAlpha = 0.6; ctx.fillStyle = '#120a05'; const knotY = (height - boardHeight) + Math.random() * (boardHeight - 20); const knotRadius = 2 + Math.random() * 3; ctx.beginPath(); ctx.arc(x + boardWidth/2 + (Math.random()-0.5)*4, knotY, knotRadius, 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1.0; } const texture = new THREE.CanvasTexture(canvas); texture.wrapS = THREE.RepeatWrapping; texture.repeat.set(length / 4, 1); return texture; }
-function create2DFenceWall(start, end) { const startVec = new THREE.Vector3(start.x, 0, start.z); const endVec = new THREE.Vector3(end.x, 0, end.z); const length = startVec.distanceTo(endVec); const fenceHeight = 2.8; const fenceGeo = new THREE.PlaneGeometry(length, fenceHeight); fenceGeo.rotateY(Math.PI / 2); const fenceMat = new THREE.MeshStandardMaterial({ map: generateProceduralFenceTexture(length), roughness: 1.0, metalness: 0.0, transparent: true, side: THREE.DoubleSide }); const fenceMesh = new THREE.Mesh(fenceGeo, fenceMat); const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5); fenceMesh.position.set(midPoint.x, fenceHeight / 2, midPoint.z); const angle = Math.atan2(endVec.x - startVec.x, endVec.z - startVec.z); fenceMesh.rotation.y = angle; scene.add(fenceMesh); }
+
+// --- UMWELT-MANAGEMENT ---
+function clearEnvironment() {
+    if (typeof levelEnvironmentMeshes !== 'undefined') {
+        levelEnvironmentMeshes.forEach(m => { dispose3dObject(m); scene.remove(m); });
+    }
+    levelEnvironmentMeshes = [];
+    pigs3D.forEach(p => { dispose3dObject(p.mesh); scene.remove(p.mesh); }); pigs3D = [];
+    powerups3D.forEach(pup => { dispose3dObject(pup.mesh); scene.remove(pup.mesh); }); powerups3D = [];
+    pigPens = [];
+    obstacles = [];
+    levelWallHitboxes = [];
+    levelTeleporters = [];
+    levelExits = [];
+	levelDoors = [];
+}
+
+function create2DFenceWall(start, end) { 
+    const startVec = new THREE.Vector3(start.x, 0, start.z); const endVec = new THREE.Vector3(end.x, 0, end.z); const length = startVec.distanceTo(endVec); const fenceHeight = 2.8; const fenceGeo = new THREE.PlaneGeometry(length, fenceHeight); fenceGeo.rotateY(Math.PI / 2); const fenceMat = new THREE.MeshStandardMaterial({ map: generateProceduralFenceTexture(length), roughness: 1.0, metalness: 0.0, transparent: true, side: THREE.DoubleSide }); const fenceMesh = new THREE.Mesh(fenceGeo, fenceMat); const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5); fenceMesh.position.set(midPoint.x, fenceHeight / 2, midPoint.z); const angle = Math.atan2(endVec.x - startVec.x, endVec.z - startVec.z); fenceMesh.rotation.y = angle; 
+    scene.add(fenceMesh); levelEnvironmentMeshes.push(fenceMesh);
+}
+
 function generateProceduralPenWoodTexture() { const size = 512; const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#362317'; ctx.fillRect(0, 0, size, size); const numBoards = 16; const bWidth = size / numBoards; for (let i = 0; i < numBoards; i++) { const x = i * bWidth; ctx.fillStyle = ['#422c1e', '#2c1c12', '#4d3425', '#382519'][Math.floor(Math.random() * 4)]; ctx.fillRect(x, 0, bWidth - 2, size); ctx.fillStyle = '#170e09'; ctx.globalAlpha = 0.3; for(let j=0; j<4; j++) { ctx.fillRect(x + Math.random()*(bWidth-4), Math.random()*size, Math.random()*2+1, Math.random()*80+20); } if(Math.random() > 0.6) { ctx.beginPath(); ctx.arc(x + bWidth/2, Math.random()*size, 3 + Math.random()*4, 0, Math.PI*2); ctx.fill(); } ctx.globalAlpha = 1.0; } return new THREE.CanvasTexture(canvas); }
 
 function buildProceduralPigPen(x, z) { 
@@ -65,14 +99,67 @@ function buildProceduralPigPen(x, z) {
     const doorSideRight = new THREE.Mesh(doorSideLeftGeo, penWoodMat); doorSideRight.position.set(2.1, 1.75, 3); penGroup.add(doorSideRight); 
     const doorTopGeo = new THREE.BoxGeometry(2.4, 0.8, 0.2); const doorTop = new THREE.Mesh(doorTopGeo, penWoodMat); doorTop.position.set(0, 3.1, 3); penGroup.add(doorTop); 
     const roofGeo = new THREE.BoxGeometry(6.6, 0.15, 6.6); const roof = new THREE.Mesh(roofGeo, roofMat); roof.position.set(0, 3.6, 0); roof.rotation.x = 0.08; penGroup.add(roof); 
-    scene.add(penGroup); pigPens.push({ x: x, z: z, spawnX: x, spawnZ: z + 1.0, radius: 3.4, height: 3.6 }); 
+    scene.add(penGroup); levelEnvironmentMeshes.push(penGroup);
+    pigPens.push({ x: x, z: z, spawnX: x, spawnZ: z + 1.0, radius: 3.4, height: 3.6 }); 
 }
 
+function buildFreeModeEnvironment() {
+    clearEnvironment(); 
+    
+    const floorGeo = new THREE.PlaneGeometry(600, 600);
+    const floorMat = getGrassMaterial(); 
+    const floor = new THREE.Mesh(floorGeo, floorMat); 
+    floor.rotation.x = -Math.PI / 2; 
+    scene.add(floor); levelEnvironmentMeshes.push(floor);
+
+    create2DFenceWall({ x: MAP_MIN_X, z: MAP_MIN_Z }, { x: MAP_MAX_X, z: MAP_MIN_Z }); 
+    create2DFenceWall({ x: MAP_MAX_X, z: MAP_MIN_Z }, { x: MAP_MAX_X, z: MAP_MAX_Z }); 
+    create2DFenceWall({ x: MAP_MAX_X, z: MAP_MAX_Z }, { x: MAP_MIN_X, z: MAP_MAX_Z }); 
+    create2DFenceWall({ x: MAP_MIN_X, z: MAP_MAX_Z }, { x: MAP_MIN_X, z: MAP_MIN_Z }); 
+
+    const penPositions = [{ x: -45, z: -130 }, { x: 50, z: -70 }, { x: -10, z: -170 }];
+    penPositions.forEach(pos => buildProceduralPigPen(pos.x, pos.z));
+
+    for (let i = 0; i < 90; i++) {
+        const rock = createProceduralRock(); const tree = createProceduralDeadTree();
+        let x = (Math.random() - 0.5) * (MAP_MAX_X - MAP_MIN_X * 0.9), z = MAP_MIN_Z + Math.random() * (MAP_MAX_Z - MAP_MIN_Z);
+        if (Math.abs(x) < 5 && z > -20) x += (x >= 0 ? 8 : -8);
+        let insidePen = false;
+        pigPens.forEach(pen => { let dx = x - pen.x; let dz = z - pen.z; if(Math.sqrt(dx*dx + dz*dz) < pen.radius + 5) insidePen = true; });
+
+        if (!insidePen) {
+            rock.position.set(x, 0, z); 
+            scene.add(rock); levelEnvironmentMeshes.push(rock);
+            obstacles.push({ x: x, z: z, radius: 2.0, type: 'rock', height: 1.8 }); 
+            
+            let tx = x + (Math.random() - 0.5) * 12, tz = z - (Math.random() * 12 + 4);
+            if (tx > MAP_MIN_X + 2 && tx < MAP_MAX_X - 2 && tz > MAP_MIN_Z + 2 && tz < MAP_MAX_Z - 2) { 
+                tree.position.set(tx, 0, tz); 
+                scene.add(tree); levelEnvironmentMeshes.push(tree);
+                obstacles.push({ x: tx, z: tz, radius: 0.8, type: 'tree', height: 5.0 }); 
+            }
+        }
+    }
+}
+
+// --- POWER-UPS & SCHWEINE (WURDEN WIEDERHERGESTELLT) ---
 function buildHpCrossMesh() { const hpGroup = new THREE.Group(); const mat = new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.4, metalness: 0.2 }); const hBox = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.45, 0.45), mat); const vBox = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.4, 0.45), mat); hpGroup.add(hBox); hpGroup.add(vBox); return hpGroup; }
 function buildTimeClockMesh() { const clockGroup = new THREE.Group(); const goldMat = new THREE.MeshStandardMaterial({ color: 0xe5a93b, roughness: 0.3, metalness: 0.8 }); const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }); const blackMat = new THREE.MeshBasicMaterial({ color: 0x000000 }); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.25, 32), goldMat); body.rotation.x = Math.PI / 2; clockGroup.add(body); const face = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.02, 32), whiteMat); face.rotation.x = Math.PI / 2; face.position.z = 0.13; clockGroup.add(face); const hand = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.35, 0.02), blackMat); hand.position.set(0, 0.15, 0.15); clockGroup.add(hand); return clockGroup; }
 function buildCoffeeCupMesh() { const cupGroup = new THREE.Group(); const cupMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 }); const brewMat = new THREE.MeshStandardMaterial({ color: 0x4a2f13, roughness: 0.9 }); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.4, 0.9, 24), cupMat); body.position.y = 0.15; cupGroup.add(body); const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.05, 24), brewMat); liquid.position.y = 0.58; cupGroup.add(liquid); const handleGeo = new THREE.TorusGeometry(0.25, 0.08, 8, 24, Math.PI); const handle = new THREE.Mesh(handleGeo, cupMat); handle.position.set(0.42, 0.15, 0); handle.rotation.z = -Math.PI/2; cupGroup.add(handle); return cupGroup; }
 function buildLightningAmmoMesh() { const ammoGroup = new THREE.Group(); const bulletMat = new THREE.MeshStandardMaterial({ color: 0xcc9900, roughness: 0.2, metalness: 0.9 }); for(let i = -1; i <= 1; i++) { const bGroup = new THREE.Group(); const caseMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 16), bulletMat); const tipMesh = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.25, 16), bulletMat); tipMesh.position.y = 0.425; bGroup.add(caseMesh); bGroup.add(tipMesh); bGroup.position.x = i * 0.35; ammoGroup.add(bGroup); } return ammoGroup; }
 function buildExtinguisherMesh() { const extGroup = new THREE.Group(); const redMat = new THREE.MeshStandardMaterial({ color: 0xdd2222, roughness: 0.3 }); const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 }); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.1, 16), redMat); extGroup.add(body); const topCap = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), blackMat); topCap.position.y = 0.55; extGroup.add(topCap); const hose = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 8), blackMat); hose.position.set(0.2, 0.1, 0.1); hose.rotation.z = -0.2; extGroup.add(hose); return extGroup; }
+
+function spawnSpecificPowerUp(x, y, z, type) {
+    const pGroup = new THREE.Group(); pGroup.position.set(x, y, z);
+    let model; let lightColor = 0xffffff;
+    if(type === 'hp') { model = buildHpCrossMesh(); lightColor = 0xff0000; } 
+    else if(type === 'time') { model = buildTimeClockMesh(); lightColor = 0x00ffaa; } 
+    else if(type === 'speed') { model = buildCoffeeCupMesh(); lightColor = 0xffffff; } 
+    else if(type === 'infinite') { model = buildLightningAmmoMesh(); lightColor = 0xffcc00; } 
+    else { model = buildExtinguisherMesh(); lightColor = 0x00ccff; }
+    pGroup.add(model); const pLight = new THREE.PointLight(lightColor, 1.5, 5); pLight.position.set(0, 0.5, 0); pGroup.add(pLight);
+    scene.add(pGroup); powerups3D.push({ mesh: pGroup, type: type, radius: 1.5 });
+}
 
 function executeSinglePowerUpSpawn() {
     if(!scene) return; let validPos = false; let pX = 0, pZ = 0, attempts = 0; const checkRadius = 2.5;
@@ -84,16 +171,11 @@ function executeSinglePowerUpSpawn() {
         if (!hitObstacle) validPos = true;
     }
     const rand = Math.random(); let type = rand < 0.2 ? 'hp' : rand < 0.4 ? 'time' : rand < 0.6 ? 'speed' : rand < 0.8 ? 'infinite' : 'freeze';
-    const pGroup = new THREE.Group(); pGroup.position.set(pX, 1.3, pZ);
-    let model; let lightColor = 0xffffff;
-    if(type === 'hp') { model = buildHpCrossMesh(); lightColor = 0xff0000; } else if(type === 'time') { model = buildTimeClockMesh(); lightColor = 0x00ffaa; } else if(type === 'speed') { model = buildCoffeeCupMesh(); lightColor = 0xffffff; } else if(type === 'infinite') { model = buildLightningAmmoMesh(); lightColor = 0xffcc00; } else { model = buildExtinguisherMesh(); lightColor = 0x00ccff; }
-    pGroup.add(model); const pLight = new THREE.PointLight(lightColor, 2.0, 15); pLight.position.set(0, 0.5, 0); pGroup.add(pLight);
-    scene.add(pGroup); powerups3D.push({ mesh: pGroup, type: type, radius: 1.5 });
+    spawnSpecificPowerUp(pX, 1.3, pZ, type);
 }
 
 function spawnPowerUpPair() { if (isPaused || timeLeft <= 0 || hp <= 0 || document.getElementById('loading-screen').style.display !== 'none' || document.getElementById('instructions-overlay').style.display === 'flex') return; executeSinglePowerUpSpawn(); executeSinglePowerUpSpawn(); }
 
-// --- SCHWEINE BAUPLÄNE (MERGED) ---
 function applyZombieRot(geometry, baseColorHex) {
     const position = geometry.attributes.position; const colors = []; const colorsPool = [new THREE.Color(baseColorHex), new THREE.Color(0x768a57), new THREE.Color(0x566344), new THREE.Color(0x8a6375), new THREE.Color(0x423d3d)];
     for (let i = 0; i < position.count; i += 3) { const randomColor = colorsPool[Math.floor(Math.random() * colorsPool.length)]; const noise = 0.82 + Math.random() * 0.28; const finalColor = randomColor.clone().multiplyScalar(noise); colors.push(finalColor.r, finalColor.g, finalColor.b, finalColor.r, finalColor.g, finalColor.b, finalColor.r, finalColor.g, finalColor.b); }
@@ -123,7 +205,6 @@ function addUltraHeadParts(group, headY, headZ, baseColor) {
     group.add(leftEye); group.add(rightEye); 
     const browGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.75, 12); const brow = new THREE.Mesh(browGeo, browMat); brow.rotation.z = Math.PI / 2; brow.position.set(0, headY + 0.22, headZ - 0.4); group.add(brow); 
     
-    // Ohren (flach hinzugefügt für korrekten Merger)
     const earBaseGeo = new THREE.CylinderGeometry(0.08, 0.06, 0.2, 12); const earTipGeo = new THREE.CylinderGeometry(0.06, 0.02, 0.25, 12); 
     const earLGroup = new THREE.Group(); 
     const eLBase = new THREE.Mesh(earBaseGeo, snoutMat); eLBase.rotation.z = Math.PI / 4; 
@@ -196,5 +277,219 @@ function spawnSchwein() {
     const selectedPen = pigPens[Math.floor(Math.random() * pigPens.length)];
     pigData.mesh.position.set(selectedPen.spawnX, pigData.type === 1 ? 1.1 : 1.0, selectedPen.spawnZ); 
     scene.add(pigData.mesh); pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
+    
+    // NEU: Im Free Mode sind die Schweine immer sofort wach
+    pigData.hasSeenPlayer = true; 
+    
     pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0); pigs3D.push(pigData);
+}
+
+// --- LEVEL MAP PARSER ---
+function buildLevelFromData(levelData) {
+    clearEnvironment();
+    levelMaxCols = 0;
+    levelMaxRows = 0;
+
+    if (levelData.configuration.timeLeft) timeLeft = levelData.configuration.timeLeft;
+
+    // NEU: Exakte Architektonische Maße
+    const THICKNESS = 0.4; // Bodendicke und Deckendicke
+    const WALL_HEIGHT = LAYER_HEIGHT - THICKNESS; // 5.0 - 0.4 = 4.6
+
+    // Geometrien verwenden nun die exakte Wandhöhe
+    const wallGeo = new THREE.BoxGeometry(TILE_SIZE, WALL_HEIGHT, TILE_SIZE);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 });
+    const floorGeo = new THREE.BoxGeometry(TILE_SIZE, THICKNESS, TILE_SIZE);
+    const floorMat = getGrassMaterial();
+    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
+
+    levelData.layers.forEach(layer => {
+        levelMaxRows = Math.max(levelMaxRows, layer.length);
+        layer.forEach(rowStr => levelMaxCols = Math.max(levelMaxCols, rowStr.length));
+    });
+
+    levelData.layers.forEach((layer, layerIndex) => {
+        const yOffset = layerIndex * LAYER_HEIGHT;
+
+        for (let row = 0;row < layer.length;row++) {
+            for (let col = 0;col < layer[row].length;col++) {
+                const cell = layer[row][col];
+                if (cell === undefined) continue;
+
+                const xPos = col * TILE_SIZE - (levelMaxCols * TILE_SIZE) / 2;
+                const zPos = row * TILE_SIZE - (levelMaxRows * TILE_SIZE) / 2;
+
+                if (cell !== '-') {
+                    const floorTile = new THREE.Mesh(floorGeo, floorMat);
+                    // Boden liegt exakt unter den Füßen (0 bis -0.4)
+                    floorTile.position.set(xPos, yOffset - THICKNESS / 2, zPos);
+                    scene.add(floorTile); levelEnvironmentMeshes.push(floorTile);
+                }
+
+                if (cell !== '+') {
+                    let hasFloorAbove = false;
+                    if (layerIndex + 1 < levelData.layers.length) {
+                        const lAbove = levelData.layers[layerIndex + 1];
+                        if (lAbove[row] && lAbove[row][col] !== undefined && lAbove[row][col] !== '-') hasFloorAbove = true;
+                    }
+                    if (!hasFloorAbove) {
+                        const ceilingTile = new THREE.Mesh(floorGeo, ceilingMat);
+                        // Decke liegt exakt auf den Wänden (4.6 bis 5.0)
+                        ceilingTile.position.set(xPos, yOffset + LAYER_HEIGHT - THICKNESS / 2, zPos);
+                        scene.add(ceilingTile); levelEnvironmentMeshes.push(ceilingTile);
+                    }
+                }
+
+                if (cell === '|') {
+                    const wall = new THREE.Mesh(wallGeo, wallMat);
+                    // Wand steht auf yOffset (0) und geht bis yOffset + WALL_HEIGHT (4.6)
+                    wall.position.set(xPos, yOffset + WALL_HEIGHT / 2, zPos);
+                    scene.add(wall); levelEnvironmentMeshes.push(wall);
+                    levelWallHitboxes.push({ x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2 });
+                }
+                else if (cell === 'P') {
+                    camera.position.set(xPos, yOffset + playerBaseY, zPos);
+                    playerCurrentGroundY = yOffset;
+                }
+                else if (cell === '1' || cell === '2' || cell === '3') {
+                    let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : createPigKlasse3());
+                    pigData.mesh.position.set(xPos, yOffset + (pigData.type === 1 ? 1.1 : 1.0), zPos);
+                    scene.add(pigData.mesh);
+                    pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
+                    pigData.hasSeenPlayer = false;
+                    pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0);
+                    pigs3D.push(pigData);
+                }
+                else if (['H', 'T', 'C', 'I', 'F'].includes(cell)) {
+                    let type = cell === 'H' ? 'hp' : (cell === 'T' ? 'time' : (cell === 'C' ? 'speed' : (cell === 'I' ? 'infinite' : 'freeze')));
+                    spawnSpecificPowerUp(xPos, yOffset + 1.3, zPos, type);
+                }
+                else if (cell === '+') {
+                    const spiralGroup = new THREE.Group();
+                    const metalMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.5, metalness: 0.8 });
+                    const stepMat = new THREE.MeshStandardMaterial({ color: 0x667788, roughness: 0.6 });
+
+                    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, LAYER_HEIGHT, 16), metalMat);
+                    pole.position.set(0, LAYER_HEIGHT / 2, 0);
+                    spiralGroup.add(pole);
+
+                    const totalSteps = 24;
+                    const totalHeight = LAYER_HEIGHT;
+
+                    for (let s = 0;s < totalSteps;s++) {
+                        const step = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.1, 0.4), stepMat);
+                        const angle = (s / totalSteps) * Math.PI * 3.5;
+                        const height = (s / totalSteps) * totalHeight;
+                        step.position.set(Math.cos(angle) * 0.55, height + 0.1, Math.sin(angle) * 0.55);
+                        step.rotation.y = -angle;
+                        spiralGroup.add(step);
+                    }
+
+                    const glowLight = new THREE.PointLight(0x00ff00, 1.5, 4.5);
+                    glowLight.position.set(0, LAYER_HEIGHT - 0.5, 0);
+                    spiralGroup.add(glowLight);
+
+                    spiralGroup.position.set(xPos, yOffset, zPos);
+                    scene.add(spiralGroup);
+                    levelEnvironmentMeshes.push(spiralGroup);
+
+                    const targetY = yOffset + LAYER_HEIGHT;
+                    levelTeleporters.push({ x: xPos, z: zPos, y: yOffset, targetY: targetY });
+                }
+                else if (cell === '-') {
+                    const hatchGroup = new THREE.Group();
+                    const frameMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9, metalness: 0.8 });
+
+                    // Schachtrahmen exakt an die Bodendicke anpassen
+                    const frameThickness = 0.2;
+                    const size = TILE_SIZE * 0.8;
+                    const frameHeight = THICKNESS; // Nutzt jetzt exakt die 0.4 aus der Konstante
+                    const frameY = -THICKNESS / 2; // Positioniert den Rahmen auf Höhe des Fußbodens
+
+                    const frameTop = new THREE.Mesh(new THREE.BoxGeometry(size, frameHeight, frameThickness), frameMat);
+                    frameTop.position.set(0, frameY, -size / 2 + frameThickness / 2);
+                    hatchGroup.add(frameTop);
+
+                    const frameBottom = new THREE.Mesh(new THREE.BoxGeometry(size, frameHeight, frameThickness), frameMat);
+                    frameBottom.position.set(0, frameY, size / 2 - frameThickness / 2);
+                    hatchGroup.add(frameBottom);
+
+                    const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(frameThickness, frameHeight, size), frameMat);
+                    frameLeft.position.set(-size / 2 + frameThickness / 2, frameY, 0);
+                    hatchGroup.add(frameLeft);
+
+                    const frameRight = new THREE.Mesh(new THREE.BoxGeometry(frameThickness, frameHeight, size), frameMat);
+                    frameRight.position.set(size / 2 - frameThickness / 2, frameY, 0);
+                    hatchGroup.add(frameRight);
+
+                    const glowLight = new THREE.PointLight(0xff0000, 1.5, 4.5);
+                    glowLight.position.set(0, -0.5, 0);
+                    hatchGroup.add(glowLight);
+
+                    hatchGroup.position.set(xPos, yOffset, zPos);
+                    scene.add(hatchGroup);
+                    levelEnvironmentMeshes.push(hatchGroup);
+
+                    const targetY = yOffset - LAYER_HEIGHT;
+                    levelTeleporters.push({ x: xPos, z: zPos, y: yOffset, targetY: targetY });
+                }
+                else if (cell === 'E') {
+                    const gateGroup = new THREE.Group();
+                    const postMat = new THREE.MeshStandardMaterial({ color: 0x334455, roughness: 0.5, metalness: 0.8 });
+                    const glowMat = new THREE.MeshBasicMaterial({ color: 0x0088ff });
+
+                    const leftPost = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.0, 0.4), postMat);
+                    leftPost.position.set(-1.2, 1.5, 0);
+                    gateGroup.add(leftPost);
+
+                    const rightPost = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.0, 0.4), postMat);
+                    rightPost.position.set(1.2, 1.5, 0);
+                    gateGroup.add(rightPost);
+
+                    const topBeam = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.5, 0.5), glowMat);
+                    topBeam.position.set(0, 2.8, 0);
+                    gateGroup.add(topBeam);
+
+                    const padMat = new THREE.MeshBasicMaterial({ color: 0x0044aa, transparent: true, opacity: 0.6 });
+                    const exitPad = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE * 0.8, 0.2, TILE_SIZE * 0.8), padMat);
+                    exitPad.position.set(0, 0.1, 0);
+                    gateGroup.add(exitPad);
+
+                    const exitLight = new THREE.PointLight(0x0088ff, 2.0, 6);
+                    exitLight.position.set(0, 2.0, 0);
+                    gateGroup.add(exitLight);
+
+                    gateGroup.position.set(xPos, yOffset, zPos);
+                    scene.add(gateGroup);
+                    levelEnvironmentMeshes.push(gateGroup);
+
+                    levelExits.push({ x: xPos, z: zPos, y: yOffset });
+                }
+                else if (cell === 'D') {
+                    const doorGroup = new THREE.Group();
+                    const doorMat = new THREE.MeshStandardMaterial({ color: 0x5a3a22, roughness: 0.9 }); // Dunkles Holz/Metall
+
+                    const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE, WALL_HEIGHT, 0.6), doorMat);
+
+                    // Automatische Ausrichtung prüfen und merken
+                    let isRotated = false;
+                    if (layer[row - 1] && layer[row - 1][col] === '|' && layer[row + 1] && layer[row + 1][col] === '|') {
+                        doorMesh.rotation.y = Math.PI / 2; // Tür um 90 Grad drehen
+                        isRotated = true; // NEU: Drehung für die Animation speichern!
+                    }
+
+                    doorGroup.add(doorMesh);
+                    doorGroup.position.set(xPos, yOffset + WALL_HEIGHT / 2, zPos);
+                    scene.add(doorGroup);
+                    levelEnvironmentMeshes.push(doorGroup);
+
+                    levelDoors.push({
+                        x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2,
+                        mesh: doorMesh, state: 'closed', slideAmount: 0, maxSlide: TILE_SIZE * 0.95,
+                        isRotated: isRotated // NEU: Wird an gameplay.js übergeben
+                    });
+                }
+            }
+        }
+    });
 }
