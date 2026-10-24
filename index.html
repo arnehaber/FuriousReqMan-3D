@@ -158,7 +158,7 @@
 							<th>Date</th>
 						</tr>
 					</thead>
-					<tbody id="gameover-highscore-body"></tbody>
+					<tbody id="loading-highscore-body"></tbody>
 				</table>
 			</div>
 		</div>
@@ -245,8 +245,8 @@
 				<p>Congratulations! You made the Top 10.</p>
 				<input type="text" id="player-name" placeholder="Your Name"
 					maxlength="20"
-					onkeydown="if(event.key==='Enter') submitHighscore()">
-				<button onclick="submitHighscore()">Submit</button>
+					onkeydown="if(event.key==='Enter') submitHighscore(event)">
+				<button type="button" onclick="submitHighscore(event)">SAVE SCORE</button>
 			</div>
 			<!-- NEU: Modus-Auswahl auf dem Game Over Screen -->
 			<div style="margin-bottom: 20px; text-align: center;">

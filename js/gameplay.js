@@ -127,9 +127,12 @@ function displayHighscores() {
             return `<tr${rowClass}><td class="rank-col">#${index + 1}</td><td>${escapeHtml(entryName)}</td><td class="score-col">${entryScore}</td><td>${entryDate}</td></tr>`;
         }).join(''); 
     
-    // NULL-CHECKS: Verhindert Abstürze, falls ein HTML-Element fehlt oder umbenannt wurde!
-    if (loadingHighscoreBody) loadingHighscoreBody.innerHTML = htmlContent; 
-    if (gameoverHighscoreBody) gameoverHighscoreBody.innerHTML = htmlContent; 
+    // NEU: Elemente in Echtzeit im DOM suchen!
+    const bodyStart = document.getElementById('loading-highscore-body');
+    const bodyGameOver = document.getElementById('gameover-highscore-body');
+    
+    if (bodyStart) bodyStart.innerHTML = htmlContent; 
+    if (bodyGameOver) bodyGameOver.innerHTML = htmlContent; 
 }
 
 function escapeHtml(text) { if (!text) return text; return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
@@ -275,12 +278,15 @@ function animate3D() {
                 }
             }
             
-            if (distToPlayer < 1.4 && !pig.isFleeing && freezeEndTime <= now) {
-                pig.isFleeing = true; hp -= 10; if(hp < 0) hp = 0; healthValueDisplay.innerText = `HP: ${hp}`;
+			if (distToPlayer < 1.4 && !pig.isFleeing && freezeEndTime <= now) {
+                pig.isFleeing = true; hp -= 10; if (hp < 0) hp = 0; healthValueDisplay.innerText = `HP: ${hp}`;
                 let alphaValue = (1 - (hp / 100)) * RED_FILTER_MAX_OPACITY; damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${alphaValue})`;
                 playDamageAudio(); if (hp <= 90 && hp > 0) heartbeatLoop();
-                if(hp <= 0) { endGame(true); return; }
-                let angle = Math.random() * Math.PI * 2; pig.fleeTarget.set(Math.cos(angle) * (MAP_MAX_X - 5), pig.mesh.position.y, MAP_MIN_Z + Math.random() * (MAP_MAX_Z - MAP_MIN_Z));
+                if (hp <= 0) { endGame(true); return; }                
+
+                // Flieht exakt in die entgegengesetzte Richtung des Spielers
+                let fleeDir = new THREE.Vector3().subVectors(pig.mesh.position, camera.position).normalize();
+                pig.fleeTarget.set(pig.mesh.position.x + fleeDir.x * 10, pig.mesh.position.y, pig.mesh.position.z + fleeDir.z * 10);
             }
 
             if (freezeEndTime > now) {
@@ -330,9 +336,45 @@ function animate3D() {
                 });
             }
 
-            let finalMove = dirToTarget.clone().multiplyScalar(pig.speed * timeScale).add(avoidance); pig.mesh.position.add(finalMove);
-            pig.mesh.position.x = Math.max(MAP_MIN_X + 2, Math.min(MAP_MAX_X - 2, pig.mesh.position.x)); pig.mesh.position.z = Math.max(MAP_MIN_Z + 2, Math.min(MAP_MAX_Z - 2, pig.mesh.position.z));
-            pig.mesh.lookAt(new THREE.Vector3(targetPos.x, pig.mesh.position.y, targetPos.z)); pig.mesh.rotateY(Math.PI); 
+            let finalMove = dirToTarget.clone().multiplyScalar(pig.speed * timeScale).add(avoidance);
+
+            // NEU: Harte Kollisionsabfrage für Schweine
+            let nextX = pig.mesh.position.x + finalMove.x;
+            let nextZ = pig.mesh.position.z + finalMove.z;
+            let pigRadius = 0.8;
+            let blockedX = false;
+            let blockedZ = false;
+
+            if (currentGameMode === 'LEVEL') {
+                levelWallHitboxes.forEach(wall => {
+                    if (Math.abs(wall.y - pig.mesh.position.y) < 1.0) {
+                        // Prüfe X- und Z-Achse getrennt, damit das Schwein geschmeidig an der Wand entlanggleiten kann
+                        if (Math.abs(nextX - wall.x) < (wall.radius + pigRadius) && Math.abs(pig.mesh.position.z - wall.z) < (wall.radius + pigRadius)) blockedX = true;
+                        if (Math.abs(pig.mesh.position.x - wall.x) < (wall.radius + pigRadius) && Math.abs(nextZ - wall.z) < (wall.radius + pigRadius)) blockedZ = true;
+                    }
+                });
+                levelDoors.forEach(door => {
+                    if (door.state !== 'open' && Math.abs(door.y - pig.mesh.position.y) < 1.0) {
+                        if (Math.abs(nextX - door.x) < (door.radius + pigRadius) && Math.abs(pig.mesh.position.z - door.z) < (door.radius + pigRadius)) blockedX = true;
+                        if (Math.abs(pig.mesh.position.x - door.x) < (door.radius + pigRadius) && Math.abs(nextZ - door.z) < (door.radius + pigRadius)) blockedZ = true;
+                    }
+                });
+            }
+
+            // Bewegung nur ausführen, wenn die Achse frei ist
+            if (!blockedX) pig.mesh.position.x = nextX;
+            if (!blockedZ) pig.mesh.position.z = nextZ;
+
+            // Wenn das Schwein flieht und in eine Sackgasse/Wand rennt, sucht es sich sofort eine neue Richtung
+            if (pig.isFleeing && (blockedX || blockedZ)) {
+                let randAngle = Math.random() * Math.PI * 2;
+                pig.fleeTarget.set(pig.mesh.position.x + Math.cos(randAngle) * 8, pig.mesh.position.y, pig.mesh.position.z + Math.sin(randAngle) * 8);
+            }
+
+            pig.mesh.position.x = Math.max(MAP_MIN_X + 2, Math.min(MAP_MAX_X - 2, pig.mesh.position.x));
+            pig.mesh.position.z = Math.max(MAP_MIN_Z + 2, Math.min(MAP_MAX_Z - 2, pig.mesh.position.z));
+            pig.mesh.lookAt(new THREE.Vector3(targetPos.x, pig.mesh.position.y, targetPos.z));
+            pig.mesh.rotateY(Math.PI);
 
 			const time = Date.now() * 0.01 * (pig.speed * 15); 
             pig.mesh.position.y = pigGroundY + (pig.type === 1 ? 1.1 : 1.0) + Math.sin(time) * 0.06;
@@ -811,10 +853,16 @@ function endGame(diedFromHp) {
         gameOverTitle.innerText = "PROJECT COMPLETED!"; gameOverTitle.style.textShadow = "4px 4px 4px #000, 0 0 25px #5cb85c";
     }
     gameOverScreen.style.display = 'flex'; displayHighscores(); 
-    if (finalCalculatedScore > 0 && checkHighscoreEligibility(finalCalculatedScore)) { 
-        highscoreForm.style.display = 'block'; playerNameInput.focus(); 
-        window.submitHighscore = function() { saveHighscore(playerNameInput.value.trim(), finalCalculatedScore); highscoreForm.style.display = 'none'; }
-    } 
+    if (finalCalculatedScore > 0 && checkHighscoreEligibility(finalCalculatedScore)) {
+        highscoreForm.style.display = 'block'; playerNameInput.focus();
+
+        // NEU: event.preventDefault() blockiert ein ungewolltes Neuladen der Seite durch den Browser
+        window.submitHighscore = function(event) {
+            if (event) event.preventDefault();
+            saveHighscore(playerNameInput.value.trim(), finalCalculatedScore);
+            highscoreForm.style.display = 'none';
+        }
+    }
 }
 
 function updateHelpValues() {
