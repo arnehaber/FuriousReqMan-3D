@@ -167,16 +167,180 @@ const episodes = [
             }
         ]
     },
+	// ... [Deine bestehenden Episoden] ...,
+	    {
+	        name: "Episode 2: The Refactoring Labyrinth",
+	        description: "Das Backend-System ist ein reines Labyrinth. Finde deinen Weg durch die alten Datenstrukturen und säubere den Code!",
+	        levels: [
+	            {
+	                name: "Level 1: Winding Corridors",
+	                description: "Ein verwinkeltes Netzwerk aus Gängen. Nutze die Türen taktisch, um nicht umzingelt zu werden.",
+	                configuration: {
+	                    timeLeft: 240,
+	                    currentSpeedMultiplier: 1.0,
+	                    powerupSpawnInterval: 0
+	                },
+	                layers: [
+	                    [ // Ebene 0 - Ein großes Labyrinth
+	                        "||||||||||||||||||||||||||||||",
+	                        "|P   |      D        |       |",
+	                        "|| | | ||||||||||||| | ||||| |",
+	                        "|| |   |1     H    | | |   | |",
+	                        "|| ||||| ||||| ||||| | | | | |",
+	                        "|| D     |   | D   | |   | | |",
+	                        "|||||||| | | | | | | ||||| | |",
+	                        "|      | | | | | | |     | | |",
+	                        "| | || | | | | | | ||||| | | |",
+	                        "| | |  |1  |T  | |       | | |",
+	                        "| | |||||||||||| ||||||||| | |",
+	                        "| |   2      C         D   | |",
+	                        "| |||||||||||||||||||||||| |D|",
+	                        "|                          DE|",
+	                        "||||||||||||||||||||||||||||||"
+	                    ]
+	                ]
+	            },
+	            {
+	                name: "Level 2: Cross Department",
+	                description: "Zwei voneinander getrennte Bereiche. Du musst über den 1. Stock gehen, um die andere Seite zu erreichen.",
+	                configuration: {
+	                    timeLeft: 200,
+	                    currentSpeedMultiplier: 1.0,
+	                    powerupSpawnInterval: 0
+	                },
+	                layers: [
+	                    [ // Ebene 0 - Basis
+	                        "|||||||||||||||||||||||",
+	                        "|P  |      |||      | |",
+	                        "| 1 D   H  |||  I   D |",
+	                        "|   |      |||      |E|",
+	                        "||+||||||||||+ ||||||||",
+	                        "|||||||||||||||||||||||"
+	                    ],
+	                    [ // Ebene 1 - Brücke
+	                        "|||||||||||||||||||||||",
+	                        "|   |      |||      |+|",
+	                        "| 2 D   T       C   D |",
+	                        "|   |      |||      | |",
+	                        "||-||||||||+ -|||||||||",
+	                        "|||||||||||||||||||||||"
+	                    ],
+	                    [ // Ebene 2 - Boss-Raum in der Mitte
+	                        "|||||||||||||||||||||||",
+	                        "|123       |||       -|",
+	                        "|333       D D      3 |",
+	                        "|123       |||        |",
+	                        "|||||||||||-    |||||||",
+	                        "|||||||||||||||||||||||"
+	                    ]
+	                ]
+	            },
+	            {
+	                name: "Level 3: The Maze of Despair",
+	                description: "Viele Räume, noch mehr Türen. Verschaffe dir einen Überblick, bevor du losballerst.",
+	                configuration: {
+	                    timeLeft: 300,
+	                    currentSpeedMultiplier: 1.0,
+	                    powerupSpawnInterval: 0
+	                },
+	                layers: [
+	                    [ // Ebene 0 - Dichtes Raumnetzwerk
+	                        "|||||||||||||||||||||||||||",
+	                        "|P        |   1 |   H     |",
+	                        "|||||||D||| ||| | ||||||| |",
+	                        "|     | |   |C| | |   1 | |",
+	                        "| |D| | | ||| ||| | | ||| |",
+	                        "| | |2  | |T      | |D  | |",
+	                        "| | ||||| ||||||||| ||| | |",
+	                        "| |       | 2       |   | |",
+	                        "| ||||||||| ||||||||| ||| |",
+	                        "|       |     I |   3 | E |",
+	                        "|||||||||||||||||||||||||||"
+	                    ]
+	                ]
+	            },
+	            {
+	                name: "Level 4: The Double Staircase",
+	                description: "Zwei Treppenaufgänge. Wähle klug, um die Bosse zu flankieren.",
+	                configuration: {
+	                    timeLeft: 240,
+	                    currentSpeedMultiplier: 1.0,
+	                    powerupSpawnInterval: 0
+	                },
+	                layers: [
+	                    [ // Ebene 0
+	                        "|||||||||||||||||||||||",
+	                        "|P   D 1 |   | 2 D   C|",
+	                        "||||||   |   |   ||||||",
+	                        "|H   |   |   |   |   T|",
+	                        "|  + D   D 3 D   D +  |",
+	                        "|||||||||||||||||||||||"
+	                    ],
+	                    [ // Ebene 1
+	                        "|||||||||||||||||||||||",
+	                        "|    D   |   |   D   E|",
+	                        "||||||   |   |   ||||||",
+	                        "|I   | 2 D   D 2 |   F|",
+	                        "|  - D   |   |   D -  |",
+	                        "|||||||||||||||||||||||"
+	                    ]
+	                ]
+	            },
+	            {
+	                name: "Level 5: The Tower of the CEO",
+	                description: "Vier Stockwerke des Wahnsinns. Kämpfe dich ganz nach oben zum Ausgang!",
+	                configuration: {
+	                    timeLeft: 300,
+	                    currentSpeedMultiplier: 1.0,
+	                    powerupSpawnInterval: 0
+	                },
+	                layers: [
+	                    [ // Ebene 0 - Start
+	                        "||||||||||||||||",
+	                        "|P  |      |  1|",
+	                        "|   D   H  D   |",
+	                        "|   |      |   |",
+	                        "|||||||||||| + |",
+	                        "||||||||||||||||"
+	                    ],
+	                    [ // Ebene 1 - 1. Stock
+	                        "||||||||||||||||",
+	                        "|   | 2    |  T|",
+	                        "| C D      D   |",
+	                        "|   |      |   |",
+	                        "| + |||||||| - |",
+	                        "||||||||||||||||"
+	                    ],
+	                    [ // Ebene 2 - 2. Stock
+	                        "||||||||||||||||",
+	                        "|I  | 2  2 |  3|",
+	                        "|   D      D   |",
+	                        "|   |      |   |",
+	                        "| - |||||||| + |",
+	                        "||||||||||||||||"
+	                    ],
+	                    [ // Ebene 3 - Das Penthouse (Exit)
+	                        "||||||||||||||||",
+	                        "|   |123   |   |",
+	                        "|   D  3 3 D   |",
+	                        "|   |   321|   |",
+	                        "|E  |||||||| - |",
+	                        "||||||||||||||||"
+	                    ]
+	                ]
+	            }
+	        ]
+	    },
     {
-        name: "Episode 2: Booring",
-        description: "Don't play it, it's boring.",
+        name: "Episode X: Booring",
+        description: "Don't play it, it's boring. Just to test some stuff",
         levels: [
             {
                 name: "Level 1: Simple Dump",
                 description: "Demo.",
                 configuration: {
                     timeLeft: 666,          // Überschreibt Standardwert
-                    currentSpeedMultiplier: 2.0,
+                    currentSpeedMultiplier: 3.0,
                     powerupSpawnInterval: 0 // Deaktiviert zufällige Spawns im Level-Modus
                 },
                 layers: [
@@ -192,7 +356,7 @@ const episodes = [
 			    description: "Demo.",
 			    configuration: {
 			        timeLeft: 666,          // Überschreibt Standardwert
-			        currentSpeedMultiplier: 2.0,
+			        currentSpeedMultiplier: 3.0,
 			        powerupSpawnInterval: 0 // Deaktiviert zufällige Spawns im Level-Modus
 			    },
 			    layers: [
