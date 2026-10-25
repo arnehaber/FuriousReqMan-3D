@@ -290,9 +290,7 @@ function buildLevelFromData(levelData) {
     levelMaxCols = 0;
     levelMaxRows = 0;
 
-    if (levelData.configuration.timeLeft) timeLeft = levelData.configuration.timeLeft;
-
-    // NEU: Exakte Architektonische Maße
+    // Exakte Architektonische Maße
     const THICKNESS = 0.4; // Bodendicke und Deckendicke
     const WALL_HEIGHT = LAYER_HEIGHT - THICKNESS; // 5.0 - 0.4 = 4.6
 

@@ -1,4 +1,5 @@
 // --- LEVEL-DATENSTRUKTUR ---
+// --- LEVEL-DATENSTRUKTUR ---
 /**
  * ============================================================================
  * CAMPAIGN MODE: EPISODE AND LEVEL DATA STRUCTURE (DOCUMENTATION)
@@ -16,22 +17,36 @@
  *          └──> [ Episode ]
  *                 ├── name (String)
  *                 ├── description (String)
+ *                 ├── configuration (Object)  <-- Episode-wide settings
  *                 └── levels (Array of Level Objects)
  *                        │
  *                        └──> [ Level ]
  *                               ├── name (String)
  *                               ├── description (String)
- *                               ├── configuration (Object)
  *                               └── layers (Array of 2D String Arrays / Floors)
  * 
  * ----------------------------------------------------------------------------
- * 2. LEVEL CONFIGURATION (configuration)
+ * 2. EPISODE CONFIGURATION (configuration)
  * ----------------------------------------------------------------------------
- * Each level includes a configuration object to manage parameters:
- * - timeLeft (Integer): Starting countdown timer for the level in seconds.
- * - currentSpeedMultiplier (Float): Base speed multiplier for the player.
- * - powerupSpawnInterval (Integer): Interval for random spawns (typically set to 0 
- *   in Level Mode since power-ups are statically placed via the grid).
+ * Each episode includes a configuration object to manage parameters for all 
+ * its levels. If a parameter is omitted, the game falls back to the Free Mode defaults.
+ * 
+ *   Parameter Name         │ Default │ Description
+ *  ────────────────────────┼─────────┼──────────────────────────────────────────
+ *   timeLeft               │ 60      │ Starting countdown timer for the levels (in seconds).
+ *   currentSpeedMultiplier │ 1.0     │ Base speed multiplier for the player's movement.
+ *   MAX_AMMO               │ 10      │ Maximum ammunition capacity (magazine size).
+ *   RELOAD_TIME            │ 250     │ Reload time per bullet/shell in milliseconds.
+ *   HP_HEAL_AMOUNT         │ 20      │ Amount of HP restored per Health Power-Up (+).
+ *   MAX_OVERHEAL_HP        │ 140     │ Maximum HP limit (allows overhealing past 100).
+ *   TIME_BONUS_AMOUNT      │ 8       │ Seconds added by a Time Bonus Power-Up (T).
+ *   COFFEE_TIMER           │ 7.0     │ Duration of the coffee speed boost in seconds.
+ *   COFFEE_SPEED_MULTI     │ 1.4     │ Speed multiplier applied during the coffee boost.
+ *   INFINITE_AMMO_TIMER    │ 6.0     │ Duration of the infinite ammo effect in seconds.
+ *   FREEZE_TIME            │ 6.0     │ Duration of the enemy freeze effect in seconds.
+ *   POWERUP_SCORE_BONUS    │ 1000    │ Points awarded for collecting any Power-Up.
+ *   playerBaseSpeed        │ 0.18    │ The absolute base movement speed of the player.
+ *   gravity                │ 0.015   │ Strength of the gravity (affects jumping/falling).
  * 
  * ----------------------------------------------------------------------------
  * 3. LAYER STRUCTURE & TILE SCHEMA (layers)
@@ -58,59 +73,33 @@
  *    'P'    │ Player Start          │ Starting position of the player on this layer
  *    'E'    │ Level Exit (Gate)     │ Blue glowing portal (opens when all 
  *                                   pigs in the level have been eliminated)
- * 
- * ----------------------------------------------------------------------------
- * 4. EXAMPLE STRUCTURE (JSON / JavaScript)
- * ----------------------------------------------------------------------------
- * 
- * const episodes = [
- *     {
- *         name: "Episode 1: Episode Name",
- *         description: "Description of the plot or setting.",
- *         levels: [
- *             {
- *                 name: "Level 1: Level Name",
- *                 description: "Short description of the level objective.",
- *                 configuration: {
- *                     timeLeft: 120,
- *                     currentSpeedMultiplier: 1.0,
- *                     powerupSpawnInterval: 0
- *                 },
- *                 layers: [
- *                     [ // Layer 0 (Ground floor / Index 0)
- *                         "||||||||||||||||",
- *                         "|P             |",
- *                         "|  1       H   |",
- *                         "|          +   |",
- *                         "||||||||||||||||"
- *                     ],
- *                     [ // Layer 1 (Upper floor / Index 1)
- *                         "||||||||||||||||",
- *                         "|          E   |",
- *                         "|  2       C   |",
- *                         "|          -   |",
- *                         "||||||||||||||||"
- *                     ]
- *                 ]
- *             }
- *         ]
- *     }
- * ];
+ *    'D'    │ Door                  │ Sliding door obstacle
  * ============================================================================
  */
 const episodes = [
     {
         name: "Episode 1: The Legacy Descent",
         description: "Tauche ein in die alten Systeme. Die Feature-Requests haben sich tief im Keller eingenistet.",
+        configuration: {
+            timeLeft: 180, // Zeitlimit für alle Level in dieser Episode
+            currentSpeedMultiplier: 1.0,
+            MAX_AMMO: 10,
+            RELOAD_TIME: 250,
+            HP_HEAL_AMOUNT: 20,
+            MAX_OVERHEAL_HP: 140,
+            TIME_BONUS_AMOUNT: 8,
+            COFFEE_TIMER: 7.0,
+            COFFEE_SPEED_MULTI: 1.4,
+            INFINITE_AMMO_TIMER: 6.0,
+            FREEZE_TIME: 6.0,
+            POWERUP_SCORE_BONUS: 1000,
+            playerBaseSpeed: 0.18,
+            gravity: 0.015
+        },
         levels: [
             {
                 name: "Level 1: Simple Start",
                 description: "Demo.",
-                configuration: {
-                    timeLeft: 666,          // Überschreibt Standardwert
-                    currentSpeedMultiplier: 1.0,
-                    powerupSpawnInterval: 0 // Deaktiviert zufällige Spawns im Level-Modus
-                },
                 layers: [
                     [ // Ebene 0 (Basis)
                         "||||||||||||||||||||||||",
@@ -127,11 +116,6 @@ const episodes = [
             {
                 name: "Level 2: Basement Bugs",
                 description: "Ein kleines Keller-Archiv. Säubere alle Schweine, um das Level abzuschließen.",
-                configuration: {
-                    timeLeft: 120,          // Überschreibt Standardwert
-                    currentSpeedMultiplier: 1.0,
-                    powerupSpawnInterval: 0 // Deaktiviert zufällige Spawns im Level-Modus
-                },
                 layers: [
                     [ // Ebene 0 (Basis)
                         "||||||||||||||||||||||||",
@@ -167,182 +151,183 @@ const episodes = [
             }
         ]
     },
-	// ... [Deine bestehenden Episoden] ...,
-	    {
-	        name: "Episode 2: The Refactoring Labyrinth",
-	        description: "Das Backend-System ist ein reines Labyrinth. Finde deinen Weg durch die alten Datenstrukturen und säubere den Code!",
-	        levels: [
-	            {
-	                name: "Level 1: Winding Corridors",
-	                description: "Ein verwinkeltes Netzwerk aus Gängen. Nutze die Türen taktisch, um nicht umzingelt zu werden.",
-	                configuration: {
-	                    timeLeft: 240,
-	                    currentSpeedMultiplier: 1.0,
-	                    powerupSpawnInterval: 0
-	                },
-	                layers: [
-	                    [ // Ebene 0 - Ein großes Labyrinth
-	                        "||||||||||||||||||||||||||||||",
-	                        "|P   |      D        |       |",
-	                        "|| | | ||||||||||||| | ||||| |",
-	                        "|| |   |1     H    | | |   | |",
-	                        "|| ||||| ||||| ||||| | | | | |",
-	                        "|| D     |   | D   | |   | | |",
-	                        "|||||||| | | | | | | ||||| | |",
-	                        "|      | | | | | | |     | | |",
-	                        "| | || | | | | | | ||||| | | |",
-	                        "| | |  |1  |T  | |       | | |",
-	                        "| | |||||||||||| ||||||||| | |",
-	                        "| |   2      C         D   | |",
-	                        "| |||||||||||||||||||||||| |D|",
-	                        "|                          DE|",
-	                        "||||||||||||||||||||||||||||||"
-	                    ]
-	                ]
-	            },
-	            {
-	                name: "Level 2: Cross Department",
-	                description: "Zwei voneinander getrennte Bereiche. Du musst über den 1. Stock gehen, um die andere Seite zu erreichen.",
-	                configuration: {
-	                    timeLeft: 200,
-	                    currentSpeedMultiplier: 1.0,
-	                    powerupSpawnInterval: 0
-	                },
-	                layers: [
-	                    [ // Ebene 0 - Basis
-	                        "|||||||||||||||||||||||",
-	                        "|P  |      |||      | |",
-	                        "| 1 D   H  |||  I   D |",
-	                        "|   |      |||      |E|",
-	                        "||+||||||||||+ ||||||||",
-	                        "|||||||||||||||||||||||"
-	                    ],
-	                    [ // Ebene 1 - Brücke
-	                        "|||||||||||||||||||||||",
-	                        "|   |      |||      |+|",
-	                        "| 2 D   T       C   D |",
-	                        "|   |      |||      | |",
-	                        "||-||||||||+ -|||||||||",
-	                        "|||||||||||||||||||||||"
-	                    ],
-	                    [ // Ebene 2 - Boss-Raum in der Mitte
-	                        "|||||||||||||||||||||||",
-	                        "|123       |||       -|",
-	                        "|333       D D      3 |",
-	                        "|123       |||        |",
-	                        "|||||||||||-    |||||||",
-	                        "|||||||||||||||||||||||"
-	                    ]
-	                ]
-	            },
-	            {
-	                name: "Level 3: The Maze of Despair",
-	                description: "Viele Räume, noch mehr Türen. Verschaffe dir einen Überblick, bevor du losballerst.",
-	                configuration: {
-	                    timeLeft: 300,
-	                    currentSpeedMultiplier: 1.0,
-	                    powerupSpawnInterval: 0
-	                },
-	                layers: [
-	                    [ // Ebene 0 - Dichtes Raumnetzwerk
-	                        "|||||||||||||||||||||||||||",
-	                        "|P        |   1 |   H     |",
-	                        "|||||||D||| ||| | ||||||| |",
-	                        "|     | |   |C| | |   1 | |",
-	                        "| |D| | | ||| |D| | | ||| |",
-	                        "| | |2  | |T      | |D  | |",
-	                        "| | ||||| ||||||||| ||| | |",
-	                        "| |       | 2       |   | |",
-	                        "| ||||||||| ||||||||| ||| |",
-	                        "|       D     I |   3 | E |",
-	                        "|||||||||||||||||||||||||||"
-	                    ]
-	                ]
-	            },
-	            {
-	                name: "Level 4: The Double Staircase",
-	                description: "Zwei Treppenaufgänge. Wähle klug, um die Bosse zu flankieren.",
-	                configuration: {
-	                    timeLeft: 240,
-	                    currentSpeedMultiplier: 1.0,
-	                    powerupSpawnInterval: 0
-	                },
-	                layers: [
-	                    [ // Ebene 0
-	                        "|||||||||||||||||||||||",
-	                        "|P   D 1 |   | 2 D   C|",
-	                        "||||||   |   |   ||||||",
-	                        "|H   |   |   |   |   T|",
-	                        "|  + D   D 3 D   D +  |",
-	                        "|||||||||||||||||||||||"
-	                    ],
-	                    [ // Ebene 1
-	                        "|||||||||||||||||||||||",
-	                        "|    D   |   |   D   E|",
-	                        "||||||   |   |   ||||||",
-	                        "|I   | 2 D   D 2 |   F|",
-	                        "|  - D   |   |   D -  |",
-	                        "|||||||||||||||||||||||"
-	                    ]
-	                ]
-	            },
-	            {
-	                name: "Level 5: The Tower of the CEO",
-	                description: "Vier Stockwerke des Wahnsinns. Kämpfe dich ganz nach oben zum Ausgang!",
-	                configuration: {
-	                    timeLeft: 300,
-	                    currentSpeedMultiplier: 1.0,
-	                    powerupSpawnInterval: 0
-	                },
-	                layers: [
-	                    [ // Ebene 0 - Start
-	                        "||||||||||||||||",
-	                        "|P  |      |  1|",
-	                        "|   D   H  D   |",
-	                        "|   |      |   |",
-	                        "|||||||||||| + |",
-	                        "||||||||||||||||"
-	                    ],
-	                    [ // Ebene 1 - 1. Stock
-	                        "||||||||||||||||",
-	                        "|   | 2    |  T|",
-	                        "| C D      D   |",
-	                        "|   |      |   |",
-	                        "| + |||||||| - |",
-	                        "||||||||||||||||"
-	                    ],
-	                    [ // Ebene 2 - 2. Stock
-	                        "||||||||||||||||",
-	                        "|I  | 2  2 |  3|",
-	                        "|   D      D   |",
-	                        "|   |      |   |",
-	                        "| - |||||||| + |",
-	                        "||||||||||||||||"
-	                    ],
-	                    [ // Ebene 3 - Das Penthouse (Exit)
-	                        "||||||||||||||||",
-	                        "|   |123   |   |",
-	                        "|   D  3 3 D   |",
-	                        "|   |   321|   |",
-	                        "|E  |||||||| - |",
-	                        "||||||||||||||||"
-	                    ]
-	                ]
-	            }
-	        ]
-	    },
     {
-        name: "Episode X: Booring",
-        description: "Don't play it, it's boring. Just to test some stuff",
+        name: "Episode 2: The Refactoring Labyrinth",
+        description: "Das Backend-System ist ein reines Labyrinth. Finde deinen Weg durch die alten Datenstrukturen und säubere den Code!",
+        configuration: {
+            timeLeft: 300, // Etwas mehr Zeit für die komplexen Labyrinthe
+            currentSpeedMultiplier: 1.0,
+            MAX_AMMO: 10,
+            RELOAD_TIME: 250,
+            HP_HEAL_AMOUNT: 20,
+            MAX_OVERHEAL_HP: 140,
+            TIME_BONUS_AMOUNT: 8,
+            COFFEE_TIMER: 7.0,
+            COFFEE_SPEED_MULTI: 1.4,
+            INFINITE_AMMO_TIMER: 6.0,
+            FREEZE_TIME: 6.0,
+            POWERUP_SCORE_BONUS: 1000,
+            playerBaseSpeed: 0.18,
+            gravity: 0.015
+        },
+        levels: [
+            {
+                name: "Level 1: Winding Corridors",
+                description: "Ein verwinkeltes Netzwerk aus Gängen. Nutze die Türen taktisch, um nicht umzingelt zu werden.",
+                layers: [
+                    [ // Ebene 0 - Ein großes Labyrinth
+                        "||||||||||||||||||||||||||||||",
+                        "|P   |      D        |       |",
+                        "|| | | ||||||||||||| | ||||| |",
+                        "|| |   |1     H    | | |   | |",
+                        "|| ||||| ||||| ||||| | | | | |",
+                        "|| D     |   | D   | |   | | |",
+                        "|||||||| | | | | | | ||||| | |",
+                        "|      | | | | | | |     | | |",
+                        "| | || | | | | | | ||||| | | |",
+                        "| | |  |1  |T  | |       | | |",
+                        "| | |||||||||||| ||||||||| | |",
+                        "| |   2      C         D   | |",
+                        "| |||||||||||||||||||||||| |D|",
+                        "|                          DE|",
+                        "||||||||||||||||||||||||||||||"
+                    ]
+                ]
+            },
+            {
+                name: "Level 2: Cross Department",
+                description: "Zwei voneinander getrennte Bereiche. Du musst über den 1. Stock gehen, um die andere Seite zu erreichen.",
+                layers: [
+                    [ // Ebene 0 - Basis
+                        "|||||||||||||||||||||||",
+                        "|P  |      |||      | |",
+                        "| 1 D   H  |||  I   D |",
+                        "|   |      |||      |E|",
+                        "||+||||||||||+ ||||||||",
+                        "|||||||||||||||||||||||"
+                    ],
+                    [ // Ebene 1 - Brücke
+                        "|||||||||||||||||||||||",
+                        "|   |      |||      |+|",
+                        "| 2 D   T       C   D |",
+                        "|   |      |||      | |",
+                        "||-||||||||+ -|||||||||",
+                        "|||||||||||||||||||||||"
+                    ],
+                    [ // Ebene 2 - Boss-Raum in der Mitte
+                        "|||||||||||||||||||||||",
+                        "|123       |||       -|",
+                        "|333       D D      3 |",
+                        "|123       |||        |",
+                        "|||||||||||-    |||||||",
+                        "|||||||||||||||||||||||"
+                    ]
+                ]
+            },
+            {
+                name: "Level 3: The Maze of Despair",
+                description: "Viele Räume, noch mehr Türen. Verschaffe dir einen Überblick, bevor du losballerst.",
+                layers: [
+                    [ // Ebene 0 - Dichtes Raumnetzwerk
+                        "|||||||||||||||||||||||||||",
+                        "|P        |   1 |   H     |",
+                        "|||||||D||| ||| | ||||||| |",
+                        "|     | |   |C| | |   1 | |",
+                        "| |D| | | ||| |D| | | ||| |",
+                        "| | |2  | |T      | |D  | |",
+                        "| | ||||| ||||||||| ||| | |",
+                        "| |       | 2       |   | |",
+                        "| ||||||||| ||||||||| ||| |",
+                        "|       D     I |   3 | E |",
+                        "|||||||||||||||||||||||||||"
+                    ]
+                ]
+            },
+            {
+                name: "Level 4: The Double Staircase",
+                description: "Zwei Treppenaufgänge. Wähle klug, um die Bosse zu flankieren.",
+                layers: [
+                    [ // Ebene 0
+                        "|||||||||||||||||||||||",
+                        "|P   D 1 |   | 2 D   C|",
+                        "||||||   |   |   ||||||",
+                        "|H   |   |   |   |   T|",
+                        "|  + D   D 3 D   D +  |",
+                        "|||||||||||||||||||||||"
+                    ],
+                    [ // Ebene 1
+                        "|||||||||||||||||||||||",
+                        "|    D   |   |   D   E|",
+                        "||||||   |   |   ||||||",
+                        "|I   | 2 D   D 2 |   F|",
+                        "|  - D   |   |   D -  |",
+                        "|||||||||||||||||||||||"
+                    ]
+                ]
+            },
+            {
+                name: "Level 5: The Tower of the CEO",
+                description: "Vier Stockwerke des Wahnsinns. Kämpfe dich ganz nach oben zum Ausgang!",
+                layers: [
+                    [ // Ebene 0 - Start
+                        "||||||||||||||||",
+                        "|P  |      |  1|",
+                        "|   D   H  D   |",
+                        "|   |      |   |",
+                        "|||||||||||| + |",
+                        "||||||||||||||||"
+                    ],
+                    [ // Ebene 1 - 1. Stock
+                        "||||||||||||||||",
+                        "|   | 2    |  T|",
+                        "| C D      D   |",
+                        "|   |      |   |",
+                        "| + |||||||| - |",
+                        "||||||||||||||||"
+                    ],
+                    [ // Ebene 2 - 2. Stock
+                        "||||||||||||||||",
+                        "|I  | 2  2 |  3|",
+                        "|   D      D   |",
+                        "|   |      |   |",
+                        "| - |||||||| + |",
+                        "||||||||||||||||"
+                    ],
+                    [ // Ebene 3 - Das Penthouse (Exit)
+                        "||||||||||||||||",
+                        "|   |123   |   |",
+                        "|   D  3 3 D   |",
+                        "|   |   321|   |",
+                        "|E  |||||||| - |",
+                        "||||||||||||||||"
+                    ]
+                ]
+            }
+        ]
+    },
+    {
+        name: "Episode X: Booring (Turbo Edition)",
+        description: "Schnellere Spieler, schnellere Nachladezeiten, weniger Schwerkraft!",
+        configuration: {
+            timeLeft: 666,          
+            currentSpeedMultiplier: 3.0, // Mega schnell!
+            MAX_AMMO: 20,                // Doppeltes Magazin!
+            RELOAD_TIME: 100,            // Extrem schnelles Nachladen!
+            HP_HEAL_AMOUNT: 50,          // Große Heilung
+            MAX_OVERHEAL_HP: 200,        
+            TIME_BONUS_AMOUNT: 15,       
+            COFFEE_TIMER: 10.0,  
+            COFFEE_SPEED_MULTI: 1.8,
+            INFINITE_AMMO_TIMER: 10.0,
+            FREEZE_TIME: 10.0,
+            POWERUP_SCORE_BONUS: 5000, 
+            playerBaseSpeed: 0.5,       // Schnellerer Basis-Speed
+            gravity: 0.005               // Fühlt sich an wie auf dem Mond!
+        },
         levels: [
             {
                 name: "Level 1: Simple Dump",
                 description: "Demo.",
-                configuration: {
-                    timeLeft: 666,          // Überschreibt Standardwert
-                    currentSpeedMultiplier: 3.0,
-                    powerupSpawnInterval: 0 // Deaktiviert zufällige Spawns im Level-Modus
-                },
                 layers: [
                     [ // Ebene 0 (Basis)
                         "||||||||||||||||||||||||",
@@ -351,27 +336,22 @@ const episodes = [
                     ]
                 ]
             },
-			{
-			    name: "Level 2: Ups and Downs",
-			    description: "Demo.",
-			    configuration: {
-			        timeLeft: 666,          // Überschreibt Standardwert
-			        currentSpeedMultiplier: 3.0,
-			        powerupSpawnInterval: 0 // Deaktiviert zufällige Spawns im Level-Modus
-			    },
-			    layers: [
-			        [ // Ebene 0 (Basis)
-			            "|||||||||||||||||||||||||",
-			            "|P + + + + + + + + + +  |", // P = Player Start
-			            "|||||||||||||||||||||||||"
-			        ],
+            {
+                name: "Level 2: Ups and Downs",
+                description: "Demo.",
+                layers: [
+                    [ // Ebene 0 (Basis)
+                        "|||||||||||||||||||||||||",
+                        "|P + + + + + + + + + +  |", // P = Player Start
+                        "|||||||||||||||||||||||||"
+                    ],
                     [ // Ebene 1
                         "|||||||||||||||||||||||||",
                         "|  - - - - - - - - - - E|", 
                         "|||||||||||||||||||||||||"
                     ]
-			    ]
-			}
+                ]
+            }
         ]
     }
 ];

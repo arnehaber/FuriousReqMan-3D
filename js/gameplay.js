@@ -13,6 +13,56 @@ let lastTeleportTime = 0;
 let isTransitioningLevel = false;
 let levelBannerTimeout = null;
 
+
+function applyGameConfiguration() {
+    let config;
+    
+    if (currentGameMode === 'FREE') {
+        // Im Free Mode setzen wir alles auf die Standardwerte zurück
+        config = {
+            timeLeft: 60,
+            currentSpeedMultiplier: 1.0,
+            MAX_AMMO: 10,
+            RELOAD_TIME: 250,
+            HP_HEAL_AMOUNT: 20,             
+            MAX_OVERHEAL_HP: 140,           
+            TIME_BONUS_AMOUNT: 8,         
+            COFFEE_TIMER: 7.0,  
+            COFFEE_SPEED_MULTI: 1.4,
+            INFINITE_AMMO_TIMER: 6.0,
+            FREEZE_TIME: 6.0,
+            POWERUP_SCORE_BONUS: 1000, 
+            playerBaseSpeed: 0.18,
+            gravity: 0.015
+        };
+    } else {
+        // Im Level Mode lesen wir die Konfiguration der aktuellen Episode aus
+        config = episodes[activeEpisodeIndex].configuration;
+    }
+
+    // Werte anwenden (Falls eine Episode einen Wert nicht definiert hat, wird ein Fallback genutzt)
+    timeLeft = config.timeLeft !== undefined ? config.timeLeft : 60;
+	// Wir merken uns den Basis-Speed global, für das Kaffee-Powerup!
+	window.baseSpeedMultiplier = config.currentSpeedMultiplier !== undefined ? config.currentSpeedMultiplier : 1.0;
+	currentSpeedMultiplier = window.baseSpeedMultiplier;
+	
+    MAX_AMMO = config.MAX_AMMO !== undefined ? config.MAX_AMMO : 10;
+    RELOAD_TIME = config.RELOAD_TIME !== undefined ? config.RELOAD_TIME : 250;
+    HP_HEAL_AMOUNT = config.HP_HEAL_AMOUNT !== undefined ? config.HP_HEAL_AMOUNT : 20;
+    MAX_OVERHEAL_HP = config.MAX_OVERHEAL_HP !== undefined ? config.MAX_OVERHEAL_HP : 140;
+    TIME_BONUS_AMOUNT = config.TIME_BONUS_AMOUNT !== undefined ? config.TIME_BONUS_AMOUNT : 8;
+    COFFEE_TIMER = config.COFFEE_TIMER !== undefined ? config.COFFEE_TIMER : 7.0;
+    COFFEE_SPEED_MULTI = config.COFFEE_SPEED_MULTI !== undefined ? config.COFFEE_SPEED_MULTI : 1.4;
+    INFINITE_AMMO_TIMER = config.INFINITE_AMMO_TIMER !== undefined ? config.INFINITE_AMMO_TIMER : 6.0;
+    FREEZE_TIME = config.FREEZE_TIME !== undefined ? config.FREEZE_TIME : 6.0;
+    POWERUP_SCORE_BONUS = config.POWERUP_SCORE_BONUS !== undefined ? config.POWERUP_SCORE_BONUS : 1000;
+    playerBaseSpeed = config.playerBaseSpeed !== undefined ? config.playerBaseSpeed : 0.18;
+    gravity = config.gravity !== undefined ? config.gravity : 0.015;
+    
+    // UI-Elemente für das Hilfemenü (F1) sofort aktualisieren, damit die neuen Werte dort stehen!
+    if (typeof updateHelpValues === 'function') updateHelpValues();
+}
+
 function showLevelBanner(title, subtitle) {
     const banner = document.getElementById('level-title-banner');
     document.getElementById('level-title-text').innerText = title;
@@ -36,6 +86,7 @@ function transitionToNextLevel() {
     const ep = episodes[activeEpisodeIndex];
     
     if (activeLevelIndex < ep.levels.length) {
+		applyGameConfiguration(); // <--- Timer und Speed für das neue Level resetten
         buildLevelFromData(ep.levels[activeLevelIndex]);
         showLevelBanner(ep.levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
         setTimeout(() => isTransitioningLevel = false, 1000);
@@ -150,10 +201,11 @@ function animate3D() {
         let activeHtml = '';
         const crosshairElem = document.getElementById('crosshair'); 
 
-        if (coffeeEndTime > now) { activeHtml += `<div class="active-buff buff-coffee">☕ ${Math.ceil((coffeeEndTime - now)/1000)}s</div>`; } 
-        else if (currentSpeedMultiplier !== 1.0) { currentSpeedMultiplier = 1.0; camera.fov = 75; camera.updateProjectionMatrix(); }
+		if (coffeeEndTime > now) { activeHtml += `<div class="active-buff buff-coffee">☕ ${Math.ceil((coffeeEndTime - now)/1000)}s</div>`; } 
+		// Fällt auf den konfigurierten Speed der Episode zurück, nicht einfach auf 1.0!
+		else if (currentSpeedMultiplier !== window.baseSpeedMultiplier) { currentSpeedMultiplier = window.baseSpeedMultiplier; camera.fov = 75; camera.updateProjectionMatrix(); }        
         
-        if (infiniteAmmoEndTime > now) { 
+		if (infiniteAmmoEndTime > now) { 
             activeHtml += `<div class="active-buff buff-lightning">⚡ ${Math.ceil((infiniteAmmoEndTime - now)/1000)}s</div>`; 
             if (crosshairElem && !crosshairElem.classList.contains('infinite-ammo')) crosshairElem.classList.add('infinite-ammo');
         } else {
@@ -804,13 +856,18 @@ function init3D() {
 }
 
 function startGame() {
-    score = 0; timeLeft = 60; currentAmmo = MAX_AMMO; hp = 100; isReloading = false; isPaused = false; isJumping = false; jumpVelocity = 0; playerCurrentGroundY = 0;
+	applyGameConfiguration(); // <--- Konfiguration VOR dem Setup laden!
+	
+    // WICHTIG: timeLeft und currentSpeedMultiplier wurden von applyGameConfiguration gesetzt. 
+    // Hier nicht mehr mit festen Zahlen überschreiben!
+    score = 0; currentAmmo = MAX_AMMO; hp = 100; isReloading = false; isPaused = false; isJumping = false; jumpVelocity = 0; playerCurrentGroundY = 0;
     collectedHp = 0; collectedTime = 0; collectedCoffee = 0; collectedLightning = 0; collectedFreeze = 0;
     coffeeEndTime = 0; infiniteAmmoEndTime = 0; freezeEndTime = 0; activePowerupsDisplay.innerHTML = '';
-    currentSpeedMultiplier = 1.0; camera.fov = 75; camera.updateProjectionMatrix();
+    
+    camera.fov = 75; camera.updateProjectionMatrix();
     isTransitioningLevel = false;
     
-    scoreDisplay.innerText = `PIGS BLASTED: ${score}`; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`; healthValueDisplay.innerText = `HP: ${hp}`; updateAmmoUI();
+    scoreDisplay.innerText = `SCORE: ${score}`; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`; healthValueDisplay.innerText = `HP: ${hp}`; updateAmmoUI();
     damageVignette.style.backgroundColor = `rgba(255, 0, 0, 0)`; gameOverScreen.style.display = 'none'; highscoreForm.style.display = 'none'; instructionsOverlay.style.display = 'none';
     
     if (currentGameMode === 'FREE') {
