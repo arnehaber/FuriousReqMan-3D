@@ -50,6 +50,7 @@ The game offers a complete first-person experience directly in the browser, comp
 | **Reload** | `R` or `Right Click` |
 | **Super Jump** | `Spacebar` |
 | **Interact (Open Doors)** | `E` |
+| **Toggle Auto-Map** | `M` |
 | **Manual / Pause** | `F1` |
 
 ## 🏗️ Development History
@@ -59,7 +60,7 @@ This project went through several exciting iterations during development:
 1.  **The Monolith (v1.0):** The game started as a gigantic, monolithic block of HTML, CSS, and JavaScript in a single file. This allowed for rapid prototyping and immediate visual results.
 2.  **Structuring (v2.0):** As the feature set grew, the code was refactored for better scalability. The logic was split into modular units (`constants.js`, `audio.js`, `entities.js`, `gameplay.js`) to ensure maintainability – all while keeping a simple `index.html` that remains executable locally without a complex build process.
 3.  **The Performance Offensive (v2.4+):** Implementation of critical optimizations. Strict memory management (`.dispose()`), fixing VRAM leaks when despawning entities, and extracting static values optimized the game for smooth sprints.
-4.  **The Campaign Architecture (v3.0):** Introduction of the ASCII-based 2D-to-3D level parser (`levels.js`). Added multi-story buildings, line-of-sight checks, sliding doors, dynamic configuration overrides per episode, and isolated highscore tracking.
+4.  **The Campaign Architecture (v3.0+):** Introduction of the ASCII-based 2D-to-3D level parser (`levels.js`) and an integrated level editor. Added multi-story buildings, line-of-sight checks, dynamic Auto-Map with Fog of War, sliding doors, dynamic configuration overrides per episode, and isolated highscore tracking.
 
 ## 🚀 Installation & Start
 
