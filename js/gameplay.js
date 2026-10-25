@@ -1,5 +1,3 @@
-
-
 // --- GAMEPLAY AND MAIN LOOP ---
 const clock = new THREE.Clock(); // Delta-Time Clock
 
@@ -13,39 +11,23 @@ let lastTeleportTime = 0;
 let isTransitioningLevel = false;
 let levelBannerTimeout = null;
 
+// --- MAP VARIABLES ---
+let isMapOpen = false;
+let discoveredMaps = []; // Speichert [layerIdx][r][c] = true/false
+let currentMapLevelHash = "";
 
 function applyGameConfiguration() {
     let config;
-    
     if (currentGameMode === 'FREE') {
-        // Im Free Mode setzen wir alles auf die Standardwerte zurück
-        config = {
-            timeLeft: 60,
-            currentSpeedMultiplier: 1.0,
-            MAX_AMMO: 10,
-            RELOAD_TIME: 250,
-            HP_HEAL_AMOUNT: 20,             
-            MAX_OVERHEAL_HP: 140,           
-            TIME_BONUS_AMOUNT: 8,         
-            COFFEE_TIMER: 7.0,  
-            COFFEE_SPEED_MULTI: 1.4,
-            INFINITE_AMMO_TIMER: 6.0,
-            FREEZE_TIME: 6.0,
-            POWERUP_SCORE_BONUS: 1000, 
-            playerBaseSpeed: 0.18,
-            gravity: 0.015
-        };
+        config = { timeLeft: 60, currentSpeedMultiplier: 1.0, MAX_AMMO: 10, RELOAD_TIME: 250, HP_HEAL_AMOUNT: 20, MAX_OVERHEAL_HP: 140, TIME_BONUS_AMOUNT: 8, COFFEE_TIMER: 7.0, COFFEE_SPEED_MULTI: 1.4, INFINITE_AMMO_TIMER: 6.0, FREEZE_TIME: 6.0, POWERUP_SCORE_BONUS: 1000, playerBaseSpeed: 0.18, gravity: 0.015 };
     } else {
-        // Im Level Mode lesen wir die Konfiguration der aktuellen Episode aus
         config = episodes[activeEpisodeIndex].configuration;
     }
 
-    // Werte anwenden (Falls eine Episode einen Wert nicht definiert hat, wird ein Fallback genutzt)
     timeLeft = config.timeLeft !== undefined ? config.timeLeft : 60;
-	// Wir merken uns den Basis-Speed global, für das Kaffee-Powerup!
-	window.baseSpeedMultiplier = config.currentSpeedMultiplier !== undefined ? config.currentSpeedMultiplier : 1.0;
-	currentSpeedMultiplier = window.baseSpeedMultiplier;
-	
+    window.baseSpeedMultiplier = config.currentSpeedMultiplier !== undefined ? config.currentSpeedMultiplier : 1.0;
+    currentSpeedMultiplier = window.baseSpeedMultiplier;
+    
     MAX_AMMO = config.MAX_AMMO !== undefined ? config.MAX_AMMO : 10;
     RELOAD_TIME = config.RELOAD_TIME !== undefined ? config.RELOAD_TIME : 250;
     HP_HEAL_AMOUNT = config.HP_HEAL_AMOUNT !== undefined ? config.HP_HEAL_AMOUNT : 20;
@@ -59,7 +41,6 @@ function applyGameConfiguration() {
     playerBaseSpeed = config.playerBaseSpeed !== undefined ? config.playerBaseSpeed : 0.18;
     gravity = config.gravity !== undefined ? config.gravity : 0.015;
     
-    // UI-Elemente für das Hilfemenü (F1) sofort aktualisieren, damit die neuen Werte dort stehen!
     if (typeof updateHelpValues === 'function') updateHelpValues();
 }
 
@@ -84,9 +65,8 @@ function showLevelBanner(title, subtitle) {
 function transitionToNextLevel() {
     activeLevelIndex++;
     const ep = episodes[activeEpisodeIndex];
-    
     if (activeLevelIndex < ep.levels.length) {
-		applyGameConfiguration(); // <--- Timer und Speed für das neue Level resetten
+        applyGameConfiguration();
         buildLevelFromData(ep.levels[activeLevelIndex]);
         showLevelBanner(ep.levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
         setTimeout(() => isTransitioningLevel = false, 1000);
@@ -98,41 +78,24 @@ function transitionToNextLevel() {
 
 function startSelectedMode(e) {
     if(e) e.preventDefault();
-    
-    // Die Variable currentGameMode wird bereits vom Dropdown-Listener gesetzt.
-    // Wir müssen nur sicherstellen, dass wir bei Episoden immer im 1. Level starten.
-    if (currentGameMode === 'LEVEL') {
-        activeLevelIndex = 0; 
-    }
-    
-    // UI aufräumen
+    if (currentGameMode === 'LEVEL') activeLevelIndex = 0; 
     const levelUi = document.getElementById('level-ui');
     if (levelUi) levelUi.style.display = 'none';
-    
     pressStartButton(); 
 }
 
 function dispose3dObject(obj) {
     if (!obj) return;
-    obj.traverse(child => {
-        if (child.isMesh && child.geometry) {
-            child.geometry.dispose(); 
-        }
-    });
+    obj.traverse(child => { if (child.isMesh && child.geometry) child.geometry.dispose(); });
 }
 
 // --- HIGHSCORE MANAGEMENT ---
 let lastSavedScoreKey = null;
 
-// Dynamischer Schlüssel für den jeweiligen Modus / die Episode
 function getHighscoreKey() {
-    if (currentGameMode === 'FREE') {
-        return 'HIGHSCORE_FREE_MODE';
-    } else {
-        // Sonder- und Leerzeichen aus dem Namen entfernen, um einen sauberen Speicherschlüssel zu erhalten
-        const epName = episodes[activeEpisodeIndex].name.replace(/[^a-zA-Z0-9]/g, '_');
-        return 'HIGHSCORE_EPISODE_' + epName;
-    }
+    if (currentGameMode === 'FREE') return 'HIGHSCORE_FREE_MODE';
+    const epName = episodes[activeEpisodeIndex].name.replace(/[^a-zA-Z0-9]/g, '_');
+    return 'HIGHSCORE_EPISODE_' + epName;
 }
 
 function saveRawData(value) { try { localStorage.setItem(getHighscoreKey(), btoa(encodeURIComponent(value))); } catch(e) {} }
@@ -178,16 +141,111 @@ function displayHighscores() {
             return `<tr${rowClass}><td class="rank-col">#${index + 1}</td><td>${escapeHtml(entryName)}</td><td class="score-col">${entryScore}</td><td>${entryDate}</td></tr>`;
         }).join(''); 
     
-    // NEU: Elemente in Echtzeit im DOM suchen!
     const bodyStart = document.getElementById('loading-highscore-body');
     const bodyGameOver = document.getElementById('gameover-highscore-body');
-    
     if (bodyStart) bodyStart.innerHTML = htmlContent; 
     if (bodyGameOver) bodyGameOver.innerHTML = htmlContent; 
 }
 
 function escapeHtml(text) { if (!text) return text; return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
+// --- MAP LOGIC ---
+function updateMapDiscovery(layerIdx, layerData) {
+    if (!discoveredMaps[layerIdx]) discoveredMaps[layerIdx] = Array.from({length: levelMaxRows}, () => new Array(levelMaxCols).fill(false));
+    
+    let pCol = Math.round((camera.position.x + (levelMaxCols * TILE_SIZE) / 2) / TILE_SIZE);
+    let pRow = Math.round((camera.position.z + (levelMaxRows * TILE_SIZE) / 2) / TILE_SIZE);
+
+    for(let r=-1; r<=1; r++) {
+        for(let c=-1; c<=1; c++) {
+            if(pRow+r >= 0 && pRow+r < levelMaxRows && pCol+c >= 0 && pCol+c < levelMaxCols) {
+                discoveredMaps[layerIdx][pRow+r][pCol+c] = true;
+            }
+        }
+    }
+
+    const maxSightTiles = 12; 
+    for(let angle=0; angle < Math.PI*2; angle += 0.05) {
+        let dx = Math.cos(angle);
+        let dy = Math.sin(angle);
+        for(let dist=0; dist < maxSightTiles; dist += 0.5) {
+            let c = Math.round(pCol + dx * dist);
+            let r = Math.round(pRow + dy * dist);
+            if(r>=0 && r<levelMaxRows && c>=0 && c<levelMaxCols) {
+                discoveredMaps[layerIdx][r][c] = true;
+                let cell = layerData[r] && layerData[r][c] ? layerData[r][c] : ' ';
+                if(cell === '|') break; 
+                if(cell === 'D') {
+                    let doorObj = levelDoors.find(d => Math.abs(d.y - playerCurrentGroundY) < 1.0 && Math.round((d.x + (levelMaxCols * TILE_SIZE) / 2) / TILE_SIZE) === c && Math.round((d.z + (levelMaxRows * TILE_SIZE) / 2) / TILE_SIZE) === r);
+                    if (!doorObj || doorObj.state !== 'open') break; // Blockiert Sicht, wenn Tür zu
+                }
+            } else break; 
+        }
+    }
+}
+
+function drawMap(layerIdx, layerData) {
+    const cvs = document.getElementById('map-canvas');
+    if(!cvs) return;
+    const ctx = cvs.getContext('2d');
+    
+    const mapDisplaySize = 300; 
+    cvs.width = mapDisplaySize;
+    cvs.height = mapDisplaySize;
+    
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    
+    let pCol = Math.round((camera.position.x + (levelMaxCols * TILE_SIZE) / 2) / TILE_SIZE);
+    let pRow = Math.round((camera.position.z + (levelMaxRows * TILE_SIZE) / 2) / TILE_SIZE);
+
+    const cellSize = Math.min(mapDisplaySize / levelMaxCols, mapDisplaySize / levelMaxRows);
+    const offsetX = (mapDisplaySize - (levelMaxCols * cellSize)) / 2;
+    const offsetY = (mapDisplaySize - (levelMaxRows * cellSize)) / 2;
+
+    if(!discoveredMaps[layerIdx]) return;
+
+    for(let r=0; r<levelMaxRows; r++) {
+        for(let c=0; c<levelMaxCols; c++) {
+            if(discoveredMaps[layerIdx][r][c]) {
+                let cell = layerData[r] && layerData[r][c] ? layerData[r][c] : ' ';
+                let x = offsetX + c * cellSize;
+                let y = offsetY + r * cellSize;
+                
+                ctx.fillStyle = '#111'; // Floor
+                if (cell === '|') ctx.fillStyle = '#777'; 
+                else if (cell === 'D') ctx.fillStyle = '#8b5a2b'; 
+                else if (cell === 'E') ctx.fillStyle = '#0088ff'; 
+                else if (cell === '+') ctx.fillStyle = '#22aa22'; 
+                else if (cell === '-') ctx.fillStyle = '#aa2222'; 
+                
+                ctx.fillRect(x, y, cellSize+0.5, cellSize+0.5); 
+            }
+        }
+    }
+
+    let px = offsetX + pCol * cellSize + cellSize/2;
+    let py = offsetY + pRow * cellSize + cellSize/2;
+    
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion); 
+    let angle = Math.atan2(forward.z, forward.x); 
+    
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(angle + Math.PI / 2);
+    
+    ctx.fillStyle = '#00ff00';
+    ctx.beginPath();
+    let size = Math.max(cellSize * 0.6, 4);
+    ctx.moveTo(0, -size); 
+    ctx.lineTo(-size*0.7, size*0.7);
+    ctx.lineTo(size*0.7, size*0.7);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.restore();
+}
+
+// --- MAIN RENDER LOOP ---
 function animate3D() {
     requestAnimationFrame(animate3D); 
     const dt = clock.getDelta();
@@ -202,7 +260,6 @@ function animate3D() {
         const crosshairElem = document.getElementById('crosshair'); 
 
 		if (coffeeEndTime > now) { activeHtml += `<div class="active-buff buff-coffee">☕ ${Math.ceil((coffeeEndTime - now)/1000)}s</div>`; } 
-		// Fällt auf den konfigurierten Speed der Episode zurück, nicht einfach auf 1.0!
 		else if (currentSpeedMultiplier !== window.baseSpeedMultiplier) { currentSpeedMultiplier = window.baseSpeedMultiplier; camera.fov = 75; camera.updateProjectionMatrix(); }        
         
 		if (infiniteAmmoEndTime > now) { 
@@ -220,8 +277,6 @@ function animate3D() {
             let pup = powerups3D[k];
             pup.mesh.rotation.y += 0.04 * timeScale;
             let distToPup = playerPos2D.distanceTo(new THREE.Vector3(pup.mesh.position.x, 0, pup.mesh.position.z));
-
-            // Wir prüfen zusätzlich, ob das Power-Up ungefähr auf derselben Etage (Y-Achse) ist wie der Spieler!
             let isSameFloor = Math.abs(pup.mesh.position.y - playerCurrentGroundY) < 2.0;
 
             if (distToPup < pup.radius + 0.5 && isSameFloor) {
@@ -259,27 +314,16 @@ function animate3D() {
             }
 		}
 
-        // Tür-Animation ausführen
         if (currentGameMode === 'LEVEL') {
             levelDoors.forEach(door => {
                 if (door.state === 'opening') {
-                    door.slideAmount += 0.08 * timeScale; // Öffnungsgeschwindigkeit
-                    if (door.slideAmount >= door.maxSlide) {
-                        door.slideAmount = door.maxSlide;
-                        door.state = 'open';
-                    }
-
-                    // NEU: Die Tür gleitet nun exakt entlang ihrer Ausrichtung in die richtige Wand!
-                    if (door.isRotated) {
-                        door.mesh.position.z = door.slideAmount;
-                    } else {
-                        door.mesh.position.x = door.slideAmount;
-                    }
+                    door.slideAmount += 0.08 * timeScale; 
+                    if (door.slideAmount >= door.maxSlide) { door.slideAmount = door.maxSlide; door.state = 'open'; }
+                    if (door.isRotated) door.mesh.position.z = door.slideAmount; else door.mesh.position.x = door.slideAmount;
                 }
             });
         }
 
-        // Kombiniere Wände und GESCHLOSSENE Türen für das Raymarching (Sichtlinie)
         let solidObstacles = [...levelWallHitboxes];
         if (currentGameMode === 'LEVEL') {
             levelDoors.forEach(d => { if (d.state !== 'open') solidObstacles.push(d); });
@@ -287,50 +331,34 @@ function animate3D() {
 		
         for (let i = pigs3D.length - 1;i >= 0;i--) {
             let pig = pigs3D[i];
-			// Etage des Schweins berechnen (0 im Free Mode, ansonsten z.B. 5, 10, 15...)
             let pigGroundY = currentGameMode === 'LEVEL' ? Math.round(pig.mesh.position.y / LAYER_HEIGHT) * LAYER_HEIGHT : 0;
-
             let playerPos2D = new THREE.Vector3(camera.position.x, 0, camera.position.z);
             let distToPlayer = playerPos2D.distanceTo(new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z));
 
-            // Sichtlinien-Check im Level Modus
             if (currentGameMode === 'LEVEL' && !pig.hasSeenPlayer) {
                 let canSee = true;
                 pigGroundY = Math.round(pig.mesh.position.y / LAYER_HEIGHT) * LAYER_HEIGHT;
 
-                // 1. Sind Spieler und Schwein auf derselben Etage?
                 if (Math.abs(pigGroundY - playerCurrentGroundY) > 1.0) {
                     canSee = false;
                 } else {
-                    // 2. Raymarching: Wir tasten die Linie zwischen Schwein und Spieler Meter für Meter ab
                     let dx = camera.position.x - pig.mesh.position.x;
                     let dz = camera.position.z - pig.mesh.position.z;
                     let steps = Math.ceil(distToPlayer / 1.0);
 
-                    // prüfe alle solidObstacles
 					for (let w = 0; w < solidObstacles.length; w++) {
 						let wall = solidObstacles[w]; 
                         if (Math.abs(wall.y - pigGroundY) < 1.0) {
                             for (let s = 1;s < steps;s++) {
                                 let px = pig.mesh.position.x + (dx * s / steps);
                                 let pz = pig.mesh.position.z + (dz * s / steps);
-
-                                // Wenn ein abgetasteter Punkt in einer Wand liegt, ist die Sicht blockiert!
-                                if (Math.abs(px - wall.x) < wall.radius && Math.abs(pz - wall.z) < wall.radius) {
-                                    canSee = false;
-                                    break;
-                                }
+                                if (Math.abs(px - wall.x) < wall.radius && Math.abs(pz - wall.z) < wall.radius) { canSee = false; break; }
                             }
                         }
                         if (!canSee) break;
                     }
                 }
-
-                if (canSee) {
-                    pig.hasSeenPlayer = true; // Schwein entdeckt dich und erwacht!
-                } else {
-                    continue; // Überspringt jegliche Bewegung und Animation -> Schwein steht starr still!
-                }
+                if (canSee) pig.hasSeenPlayer = true; else continue;
             }
             
 			if (distToPlayer < 1.4 && !pig.isFleeing && freezeEndTime <= now) {
@@ -338,8 +366,6 @@ function animate3D() {
                 let alphaValue = (1 - (hp / 100)) * RED_FILTER_MAX_OPACITY; damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${alphaValue})`;
                 playDamageAudio(); if (hp <= 90 && hp > 0) heartbeatLoop();
                 if (hp <= 0) { endGame(true); return; }                
-
-                // Flieht exakt in die entgegengesetzte Richtung des Spielers
                 let fleeDir = new THREE.Vector3().subVectors(pig.mesh.position, camera.position).normalize();
                 pig.fleeTarget.set(pig.mesh.position.x + fleeDir.x * 10, pig.mesh.position.y, pig.mesh.position.z + fleeDir.z * 10);
             }
@@ -356,7 +382,6 @@ function animate3D() {
             if (pig.isFleeing && distToTarget < 3.0) pig.isFleeing = false;
 
             let avoidance = new THREE.Vector3(0, 0, 0);
-            
             if (currentGameMode === 'FREE') {
                 obstacles.forEach(obs => {
                     let distToObs = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(obs.x, 0, obs.z));
@@ -366,9 +391,7 @@ function animate3D() {
                     let distToPen = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(pen.x, 0, pen.z));
                     if (distToPen < pen.radius + 0.5) { let dx = pig.mesh.position.x - pen.x; let dz = pig.mesh.position.z - pen.z; if (!(dz > 1.5 && Math.abs(dx) < 1.0)) { let pushPen = new THREE.Vector3(dx, 0, dz).normalize(); avoidance.addScaledVector(pushPen, pig.speed * 2.0 * timeScale); } }
                 });
-            } 
-			else if (currentGameMode === 'LEVEL') {
-                // Schweine weichen Wänden aus...
+            } else if (currentGameMode === 'LEVEL') {
                 levelWallHitboxes.forEach(wall => {
                     if (Math.abs(wall.y - pig.mesh.position.y) < 1.0) {
                         let distToWall = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(wall.x, 0, wall.z));
@@ -378,8 +401,6 @@ function animate3D() {
                         }
                     }
                 });
-
-                // Schweine prallen an geschlossenen Türen ab
                 levelDoors.forEach(door => {
                     if (door.state !== 'open' && Math.abs(door.y - pig.mesh.position.y) < 1.0) {
                         let distToDoor = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(door.x, 0, door.z));
@@ -392,8 +413,6 @@ function animate3D() {
             }
 
             let finalMove = dirToTarget.clone().multiplyScalar(pig.speed * timeScale).add(avoidance);
-
-            // NEU: Harte Kollisionsabfrage für Schweine
             let nextX = pig.mesh.position.x + finalMove.x;
             let nextZ = pig.mesh.position.z + finalMove.z;
             let pigRadius = 0.8;
@@ -403,7 +422,6 @@ function animate3D() {
             if (currentGameMode === 'LEVEL') {
                 levelWallHitboxes.forEach(wall => {
                     if (Math.abs(wall.y - pig.mesh.position.y) < 1.0) {
-                        // Prüfe X- und Z-Achse getrennt, damit das Schwein geschmeidig an der Wand entlanggleiten kann
                         if (Math.abs(nextX - wall.x) < (wall.radius + pigRadius) && Math.abs(pig.mesh.position.z - wall.z) < (wall.radius + pigRadius)) blockedX = true;
                         if (Math.abs(pig.mesh.position.x - wall.x) < (wall.radius + pigRadius) && Math.abs(nextZ - wall.z) < (wall.radius + pigRadius)) blockedZ = true;
                     }
@@ -416,17 +434,14 @@ function animate3D() {
                 });
             }
 
-            // Bewegung nur ausführen, wenn die Achse frei ist
             if (!blockedX) pig.mesh.position.x = nextX;
             if (!blockedZ) pig.mesh.position.z = nextZ;
 
-            // Wenn das Schwein flieht und in eine Sackgasse/Wand rennt, sucht es sich sofort eine neue Richtung
             if (pig.isFleeing && (blockedX || blockedZ)) {
                 let randAngle = Math.random() * Math.PI * 2;
                 pig.fleeTarget.set(pig.mesh.position.x + Math.cos(randAngle) * 8, pig.mesh.position.y, pig.mesh.position.z + Math.sin(randAngle) * 8);
             }
 
-            // NEU: Auch die Schweine dürfen im Level-Modus nicht mehr durch die alten Garten-Grenzen blockiert werden!
             if (currentGameMode === 'FREE') {
                 pig.mesh.position.x = Math.max(MAP_MIN_X + 2, Math.min(MAP_MAX_X - 2, pig.mesh.position.x));
                 pig.mesh.position.z = Math.max(MAP_MIN_Z + 2, Math.min(MAP_MAX_Z - 2, pig.mesh.position.z));
@@ -440,6 +455,27 @@ function animate3D() {
             if (pig.legs) {
                 if (pig.type === 1) { pig.legs[0].rotation.x = Math.sin(time) * 0.4; pig.legs[1].rotation.x = -Math.sin(time) * 0.4; pig.legs[2].rotation.x = -Math.sin(time) * 0.4; pig.legs[3].rotation.x = Math.sin(time) * 0.4; } 
                 else { pig.legs[0].rotation.x = Math.sin(time) * 0.5; pig.legs[1].rotation.x = -Math.sin(time) * 0.5; }
+            }
+        }
+
+        // --- MAP DISCOVERY UPDATE & RENDER ---
+        if (currentGameMode === 'LEVEL') {
+            let hash = activeEpisodeIndex + "_" + activeLevelIndex;
+            if (currentMapLevelHash !== hash) {
+                currentMapLevelHash = hash;
+                discoveredMaps = []; // Reset on level change
+            }
+
+            const activeLevel = episodes[activeEpisodeIndex].levels[activeLevelIndex];
+            const layerIdx = Math.round(playerCurrentGroundY / LAYER_HEIGHT);
+            const layerData = activeLevel.layers[layerIdx];
+            
+            if (layerData) {
+                updateMapDiscovery(layerIdx, layerData);
+                if (isMapOpen) {
+                    document.getElementById('map-floor-display').innerText = layerIdx;
+                    drawMap(layerIdx, layerData);
+                }
             }
         }
     }
@@ -498,57 +534,40 @@ function handlePlayerMovement(timeScale) {
             }
         });
 	
-        // Ein globales Wörterbuch für alle Treppen-Timer anlegen (falls nicht vorhanden)
         if (typeof window.tpCooldowns === 'undefined') window.tpCooldowns = {};
-
         let nowTime = Date.now();
-        let teleportedThisFrame = false; // Verhindert, dass die Engine im selben Frame noch weiterrechnet
+        let teleportedThisFrame = false; 
 
         levelTeleporters.forEach(tp => {
-            if (teleportedThisFrame) return; // 'continue' für forEach: überspringt den Rest für diese Millisekunde
-
+            if (teleportedThisFrame) return; 
             if (Math.abs(tp.y - playerCurrentGroundY) < 1.0) {
                 let distToTp = new THREE.Vector3(camera.position.x, 0, camera.position.z).distanceTo(new THREE.Vector3(tp.x, 0, tp.z));
-
-                // Einen eindeutigen Namen für dieses Treppenhaus erzeugen (z.B. "12_-24")
                 let stairKey = Math.round(tp.x) + "_" + Math.round(tp.z);
-                let lastUsedTime = window.tpCooldowns[stairKey] || 0; // Wann wurde DIESE Treppe zuletzt benutzt?
-
-                // Prüfen: Nah genug? UND ist DIESE Treppe seit 1.5 Sekunden abgekühlt?
+                let lastUsedTime = window.tpCooldowns[stairKey] || 0; 
                 if (distToTp < 1.5 && (nowTime - lastUsedTime > 1500)) {
-
                     playerCurrentGroundY = tp.targetY;
 					targetGroundY = tp.targetY;
                     camera.position.y = tp.targetY + playerBaseY;
-
-                    // Den Timer exakt für dieses eine Treppenhaus aktualisieren
                     window.tpCooldowns[stairKey] = nowTime;
                     teleportedThisFrame = true;
                 }
             }
         });
 
-        // Check auf Level-Exit
         levelExits.forEach(exit => {
             if (Math.abs(exit.y - playerCurrentGroundY) < 1.0) {
                 let distToExit = new THREE.Vector3(camera.position.x, 0, camera.position.z).distanceTo(new THREE.Vector3(exit.x, 0, exit.z));
-
                 if (distToExit < 1.8 && pigs3D.length === 0) {
-                    // 1. Array sofort leeren! Das verhindert, dass der Exit-Check
-                    // in den nächsten 20 Millisekunden versehentlich doppelt auslöst.
                     levelExits = [];
-
-                    // 2. Den eigentlichen Level-Wechsel auslagern, damit der aktuelle Frame endet
                     setTimeout(() => {
                         activeLevelIndex++;
                         if (activeLevelIndex < episodes[activeEpisodeIndex].levels.length) {
                             buildLevelFromData(episodes[activeEpisodeIndex].levels[activeLevelIndex]);
                             showLevelBanner(episodes[activeEpisodeIndex].levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
                         } else {
-                            // Falls keine Level mehr da sind: Episode geschafft!
                             endGame();
                         }
-                    }, 20); // 20ms Pause reichen der Engine völlig
+                    }, 20); 
                 }
             }
         });
@@ -581,8 +600,6 @@ function handlePlayerMovement(timeScale) {
             camera.position.y = targetEyeHeight; 
         } 
     }
-    // Die harten Map-Grenzen gelten nur noch für den Free-Mode (Garten)!
-    // Im Level-Modus sorgen die gebauten Wände ('|') für die Begrenzung.
     if (currentGameMode === 'FREE') {
         camera.position.x = Math.max(MAP_MIN_X + 1.2, Math.min(MAP_MAX_X - 1.2, camera.position.x));
         camera.position.z = Math.max(MAP_MIN_Z + 1.2, Math.min(MAP_MAX_Z - 1.2, camera.position.z));
@@ -730,7 +747,6 @@ function initLoadingScreen() {
     const startSelect = document.getElementById('episode-select');
     const gameOverSelect = document.getElementById('gameover-episode-select');
     
-    // NEU: Hilfsfunktion, um die Titel über den Tabellen dynamisch anzupassen
     function updateHighscoreTitle(val) {
         let modeName = (val === 'FREE') ? 'FREE SPRINT (ARCADE)' : episodes[parseInt(val)].name;
         let titleText = `Hall of Fame - ${modeName}`;
@@ -746,13 +762,11 @@ function initLoadingScreen() {
         if (!selectElement) return;
         selectElement.innerHTML = '';
         
-        // 1. Free Mode Option
         let freeOption = document.createElement('option');
         freeOption.value = 'FREE';
         freeOption.innerText = 'FREE SPRINT (ARCADE)';
         selectElement.appendChild(freeOption);
         
-        // 2. Episoden anhängen
         episodes.forEach((ep, index) => {
             let option = document.createElement('option');
             option.value = index;
@@ -760,11 +774,8 @@ function initLoadingScreen() {
             selectElement.appendChild(option);
         });
         
-        // 3. Event-Listener für das Dropdown
         selectElement.addEventListener('change', (e) => {
             const val = e.target.value;
-            
-            // Spielmodus und Index setzen
             if (val === 'FREE') {
                 currentGameMode = 'FREE';
             } else {
@@ -772,12 +783,8 @@ function initLoadingScreen() {
                 activeEpisodeIndex = parseInt(val);
                 activeLevelIndex = 0;
             }
-            
-            // Halte beide Dropdowns synchron
             if (startSelect && startSelect !== selectElement) startSelect.value = val;
             if (gameOverSelect && gameOverSelect !== selectElement) gameOverSelect.value = val;
-            
-            // NEU: Überschriften anpassen & Highscore-Tabelle live aktualisieren!
             updateHighscoreTitle(val); 
             displayHighscores(); 
         });
@@ -786,29 +793,24 @@ function initLoadingScreen() {
     setupEpisodeDropdown(startSelect);
     setupEpisodeDropdown(gameOverSelect);
     
-    // Initiale Werte beim ersten Seitenaufruf setzen
     if (startSelect) {
         startSelect.value = 'FREE';
         currentGameMode = 'FREE';
-        updateHighscoreTitle('FREE'); // Setzt den initialen Titel beim Neuladen
+        updateHighscoreTitle('FREE'); 
     }
     
-    // Initiale Tabelle laden
     displayHighscores(); 
 }
-// Nachher (beide Screens werden ausgeblendet):
+
 function pressStartButton(e) { 
     if(e) { e.stopPropagation(); e.preventDefault(); } 
     initAudio(); 
     if (instructionsOverlay.style.display === 'flex') return; 
     
     document.body.requestPointerLock(); 
-    
-    // Blendet beide Menüs (Startbildschirm und Game-Over-Screen) sofort aus
     loadingScreen.style.opacity = 0; 
     gameOverScreen.style.display = 'none'; 
     
-    // Startet das eigentliche Spiel (startGame) nach einer kurzen Ausblend-Animation
     setTimeout(() => { 
         loadingScreen.style.display = 'none'; 
         startGame(); 
@@ -832,28 +834,33 @@ function init3D() {
     document.addEventListener('mousemove', onMouseMove);
 
 	window.addEventListener('keydown', (e) => {
-	    // Wenn der Editor offen ist ODER man gerade in einem Input-Feld tippt, blockieren wir Spiel-Tastendrücke!
 	    const editorOverlay = document.getElementById('editor-overlay');
 	    if (editorOverlay && editorOverlay.style.display === 'flex') return;
 	    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
 
 	    const key = e.key.toLowerCase();
-		
-		if (key in keysPressed) keysPressed[key] = true;
-		
+        if (key in keysPressed) keysPressed[key] = true;
+        
         if (key === 'r') { initAudio(); reload(); }
         if (key === ' ' || e.key === 'Spacebar') { e.preventDefault(); startPlayerJump(); }
         if (e.key === "F1") { e.preventDefault(); initAudio(); toggleHelp(); }
 
-        // NEU: Tür mit 'E' öffnen
+        // NEU: Karte aufrufen ('M')
+        if (key === 'm') {
+            const mapOverlay = document.getElementById('map-overlay');
+            if (mapOverlay && currentGameMode === 'LEVEL') {
+                isMapOpen = !isMapOpen;
+                mapOverlay.style.display = isMapOpen ? 'flex' : 'none';
+            }
+        }
+
         if (key === 'e' && currentGameMode === 'LEVEL') {
             levelDoors.forEach(door => {
                 if (door.state === 'closed' && Math.abs(door.y - playerCurrentGroundY) < 1.0) {
                     let dx = camera.position.x - door.x; let dz = camera.position.z - door.z;
-                    // Öffnen, wenn der Spieler im Umkreis von 3.5 Einheiten steht
                     if (Math.sqrt(dx * dx + dz * dz) < 3.5) {
                         door.state = 'opening';
-                        playAudio('hit'); // Optional: Soundeffekt als akustisches Feedback nutzen
+                        playAudio('hit'); 
                     }
                 }
             });
@@ -864,14 +871,17 @@ function init3D() {
 }
 
 function startGame() {
-	applyGameConfiguration(); // <--- Konfiguration VOR dem Setup laden!
+	applyGameConfiguration(); 
 	
-    // WICHTIG: timeLeft und currentSpeedMultiplier wurden von applyGameConfiguration gesetzt. 
-    // Hier nicht mehr mit festen Zahlen überschreiben!
     score = 0; currentAmmo = MAX_AMMO; hp = 100; isReloading = false; isPaused = false; isJumping = false; jumpVelocity = 0; playerCurrentGroundY = 0;
     collectedHp = 0; collectedTime = 0; collectedCoffee = 0; collectedLightning = 0; collectedFreeze = 0;
     coffeeEndTime = 0; infiniteAmmoEndTime = 0; freezeEndTime = 0; activePowerupsDisplay.innerHTML = '';
     
+    // Map Reset
+    isMapOpen = false;
+    const mo = document.getElementById('map-overlay');
+    if (mo) mo.style.display = 'none';
+
     camera.fov = 75; camera.updateProjectionMatrix();
     isTransitioningLevel = false;
     
@@ -891,7 +901,6 @@ function startGame() {
         showLevelBanner(episodes[activeEpisodeIndex].levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
     }
     
-    // Globale Variablen Sicherheit (Damit clearTimeout keinen Absturz verursacht, falls sie leer sind)
     if(typeof heartbeatTimeout !== 'undefined') clearTimeout(heartbeatTimeout); 
     if(typeof gameInterval !== 'undefined') clearInterval(gameInterval); 
     if(typeof reloadInterval !== 'undefined') clearInterval(reloadInterval);
@@ -913,6 +922,11 @@ function endGame(diedFromHp) {
     
     document.exitPointerLock(); 
     
+    // Map verstecken
+    isMapOpen = false;
+    const mo = document.getElementById('map-overlay');
+    if (mo) mo.style.display = 'none';
+
     let hpMultiplier = hp / 100; let finalCalculatedScore = Math.round(score * hpMultiplier);
     scoreCalcText.innerText = `Points Scored: ${score} | Final Health: ${hp}% (Multiplier x${hpMultiplier.toFixed(2)})`;
     finalScoreDisplay.innerText = finalCalculatedScore;
@@ -933,7 +947,6 @@ function endGame(diedFromHp) {
     if (finalCalculatedScore > 0 && checkHighscoreEligibility(finalCalculatedScore)) {
         highscoreForm.style.display = 'block'; playerNameInput.focus();
 
-        // NEU: event.preventDefault() blockiert ein ungewolltes Neuladen der Seite durch den Browser
         window.submitHighscore = function(event) {
             if (event) event.preventDefault();
             saveHighscore(playerNameInput.value.trim(), finalCalculatedScore);
@@ -952,7 +965,6 @@ function updateHelpValues() {
     document.getElementById('help-val-freezetime').innerText = FREEZE_TIME;
 }
 
-// Initial start of the system
 updateHelpValues(); 
 init3D(); 
 animate3D(); 
