@@ -831,8 +831,13 @@ function init3D() {
     document.body.addEventListener('contextmenu', e => e.preventDefault()); 
     document.addEventListener('mousemove', onMouseMove);
 
-    window.addEventListener('keydown', (e) => {
-        const key = e.key.toLowerCase(); if (key in keysPressed) keysPressed[key] = true;
+	window.addEventListener('keydown', (e) => {
+	    // Wenn der Editor offen ist ODER man gerade in einem Input-Feld tippt, blockieren wir Spiel-Tastendrücke!
+	    const editorOverlay = document.getElementById('editor-overlay');
+	    if (editorOverlay && editorOverlay.style.display === 'flex') return;
+	    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+
+	    const key = e.key.toLowerCase();
         if (key === 'r') { initAudio(); reload(); }
         if (key === ' ' || e.key === 'Spacebar') { e.preventDefault(); startPlayerJump(); }
         if (e.key === "F1") { e.preventDefault(); initAudio(); toggleHelp(); }
