@@ -152,30 +152,30 @@ const episodes = [
         ]
     },
     {
-        name: "Episode 2: The Refactoring Labyrinth",
-        description: "Das Backend-System ist ein reines Labyrinth. Finde deinen Weg durch die alten Datenstrukturen und säubere den Code!",
-        configuration: {
-            timeLeft: 300, // Etwas mehr Zeit für die komplexen Labyrinthe
-            currentSpeedMultiplier: 1.0,
-            MAX_AMMO: 10,
-            RELOAD_TIME: 250,
-            HP_HEAL_AMOUNT: 20,
-            MAX_OVERHEAL_HP: 140,
-            TIME_BONUS_AMOUNT: 8,
-            COFFEE_TIMER: 7.0,
-            COFFEE_SPEED_MULTI: 1.4,
-            INFINITE_AMMO_TIMER: 6.0,
-            FREEZE_TIME: 6.0,
-            POWERUP_SCORE_BONUS: 1000,
-            playerBaseSpeed: 0.18,
-            gravity: 0.015
+        "name": "Episode 2: The Refactoring Labyrinth",
+        "description": "Das Backend-System ist ein reines Labyrinth. Finde deinen Weg durch die alten Datenstrukturen und säubere den Code!",
+        "configuration": {
+            "timeLeft": 300,
+            "currentSpeedMultiplier": 1,
+            "MAX_AMMO": 10,
+            "RELOAD_TIME": 250,
+            "HP_HEAL_AMOUNT": 20,
+            "MAX_OVERHEAL_HP": 140,
+            "TIME_BONUS_AMOUNT": 8,
+            "COFFEE_TIMER": 7,
+            "COFFEE_SPEED_MULTI": 1.4,
+            "INFINITE_AMMO_TIMER": 6,
+            "FREEZE_TIME": 6,
+            "POWERUP_SCORE_BONUS": 1000,
+            "playerBaseSpeed": 0.18,
+            "gravity": 0.015
         },
-        levels: [
+        "levels": [
             {
-                name: "Level 1: Winding Corridors",
-                description: "Ein verwinkeltes Netzwerk aus Gängen. Nutze die Türen taktisch, um nicht umzingelt zu werden.",
-                layers: [
-                    [ // Ebene 0 - Ein großes Labyrinth
+                "name": "Level 1: Winding Corridors",
+                "description": "Ein verwinkeltes Netzwerk aus Gängen. Nutze die Türen taktisch, um nicht umzingelt zu werden.",
+                "layers": [
+                    [
                         "||||||||||||||||||||||||||||||",
                         "|P   |      D        |       |",
                         "|| | | ||||||||||||| | ||||| |",
@@ -195,18 +195,18 @@ const episodes = [
                 ]
             },
             {
-                name: "Level 2: Cross Department",
-                description: "Zwei voneinander getrennte Bereiche. Du musst über den 1. Stock gehen, um die andere Seite zu erreichen.",
-                layers: [
-                    [ // Ebene 0 - Basis
+                "name": "Level 2: Cross Department",
+                "description": "Zwei voneinander getrennte Bereiche. Du musst über den 1. Stock gehen, um die andere Seite zu erreichen.",
+                "layers": [
+                    [
                         "|||||||||||||||||||||||",
                         "|P  |      |||      | |",
-                        "| 1 D   H  |||  I   D |",
+                        "| 1 D   H  |||  H   D |",
                         "|   |      |||      |E|",
                         "||+||||||||||+ ||||||||",
                         "|||||||||||||||||||||||"
                     ],
-                    [ // Ebene 1 - Brücke
+                    [
                         "|||||||||||||||||||||||",
                         "|   |      |||      |+|",
                         "| 2 D   T       C   D |",
@@ -214,21 +214,21 @@ const episodes = [
                         "||-||||||||+ -|||||||||",
                         "|||||||||||||||||||||||"
                     ],
-                    [ // Ebene 2 - Boss-Raum in der Mitte
+                    [
                         "|||||||||||||||||||||||",
                         "|123       |||       -|",
-                        "|333       D D      3 |",
-                        "|123       |||        |",
+                        "|333       DID        |",
+                        "|123       |||     3  |",
                         "|||||||||||-    |||||||",
                         "|||||||||||||||||||||||"
                     ]
                 ]
             },
             {
-                name: "Level 3: The Maze of Despair",
-                description: "Viele Räume, noch mehr Türen. Verschaffe dir einen Überblick, bevor du losballerst.",
-                layers: [
-                    [ // Ebene 0 - Dichtes Raumnetzwerk
+                "name": "Level 3: The Maze of Despair",
+                "description": "Viele Räume, noch mehr Türen. Verschaffe dir einen Überblick, bevor du losballerst.",
+                "layers": [
+                    [
                         "|||||||||||||||||||||||||||",
                         "|P        |   1 |   H     |",
                         "|||||||D||| ||| | ||||||| |",
@@ -238,16 +238,16 @@ const episodes = [
                         "| | ||||| ||||||||| ||| | |",
                         "| |       | 2       |   | |",
                         "| ||||||||| ||||||||| ||| |",
-                        "|       D     I |   3 | E |",
+                        "|       D     I |12   D E |",
                         "|||||||||||||||||||||||||||"
                     ]
                 ]
             },
             {
-                name: "Level 4: The Double Staircase",
-                description: "Zwei Treppenaufgänge. Wähle klug, um die Bosse zu flankieren.",
-                layers: [
-                    [ // Ebene 0
+                "name": "Level 4: The Double Staircase",
+                "description": "Zwei Treppenaufgänge. Wähle klug, um die Bosse zu flankieren.",
+                "layers": [
+                    [
                         "|||||||||||||||||||||||",
                         "|P   D 1 |   | 2 D   C|",
                         "||||||   |   |   ||||||",
@@ -255,7 +255,7 @@ const episodes = [
                         "|  + D   D 3 D   D +  |",
                         "|||||||||||||||||||||||"
                     ],
-                    [ // Ebene 1
+                    [
                         "|||||||||||||||||||||||",
                         "|    D   |   |   D   E|",
                         "||||||   |   |   ||||||",
@@ -266,10 +266,10 @@ const episodes = [
                 ]
             },
             {
-                name: "Level 5: The Tower of the CEO",
-                description: "Vier Stockwerke des Wahnsinns. Kämpfe dich ganz nach oben zum Ausgang!",
-                layers: [
-                    [ // Ebene 0 - Start
+                "name": "Level 5: The Tower of the CEO",
+                "description": "Vier Stockwerke des Wahnsinns. Kämpfe dich ganz nach oben zum Ausgang!",
+                "layers": [
+                    [
                         "||||||||||||||||",
                         "|P  |      |  1|",
                         "|   D   H  D   |",
@@ -277,7 +277,7 @@ const episodes = [
                         "|||||||||||| + |",
                         "||||||||||||||||"
                     ],
-                    [ // Ebene 1 - 1. Stock
+                    [
                         "||||||||||||||||",
                         "|   | 2    |  T|",
                         "| C D      D   |",
@@ -285,7 +285,7 @@ const episodes = [
                         "| + |||||||| - |",
                         "||||||||||||||||"
                     ],
-                    [ // Ebene 2 - 2. Stock
+                    [
                         "||||||||||||||||",
                         "|I  | 2  2 |  3|",
                         "|   D      D   |",
@@ -293,34 +293,34 @@ const episodes = [
                         "| - |||||||| + |",
                         "||||||||||||||||"
                     ],
-                    [ // Ebene 3 - Das Penthouse (Exit)
+                    [
                         "||||||||||||||||",
-                        "|   |123   |   |",
-                        "|   D  3 3 D   |",
-                        "|   |   321|   |",
+                        "|   |123333|   |",
+                        "|  HD22313 DHI |",
+                        "|   |221321|   |",
                         "|E  |||||||| - |",
                         "||||||||||||||||"
                     ]
                 ]
             }
         ]
-    },
+    }, 
     {
         name: "Episode X: Booring (Turbo Edition)",
         description: "Schnellere Spieler, schnellere Nachladezeiten, weniger Schwerkraft!",
         configuration: {
-            timeLeft: 666,          
+            timeLeft: 666,
             currentSpeedMultiplier: 3.0, // Mega schnell!
             MAX_AMMO: 20,                // Doppeltes Magazin!
             RELOAD_TIME: 100,            // Extrem schnelles Nachladen!
             HP_HEAL_AMOUNT: 50,          // Große Heilung
-            MAX_OVERHEAL_HP: 200,        
-            TIME_BONUS_AMOUNT: 15,       
-            COFFEE_TIMER: 10.0,  
+            MAX_OVERHEAL_HP: 200,
+            TIME_BONUS_AMOUNT: 15,
+            COFFEE_TIMER: 10.0,
             COFFEE_SPEED_MULTI: 1.8,
             INFINITE_AMMO_TIMER: 10.0,
             FREEZE_TIME: 10.0,
-            POWERUP_SCORE_BONUS: 5000, 
+            POWERUP_SCORE_BONUS: 5000,
             playerBaseSpeed: 0.5,       // Schnellerer Basis-Speed
             gravity: 0.005               // Fühlt sich an wie auf dem Mond!
         },
@@ -347,7 +347,7 @@ const episodes = [
                     ],
                     [ // Ebene 1
                         "|||||||||||||||||||||||||",
-                        "|  - - - - - - - - - - E|", 
+                        "|  - - - - - - - - - - E|",
                         "|||||||||||||||||||||||||"
                     ]
                 ]

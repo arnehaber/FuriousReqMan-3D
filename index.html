@@ -116,6 +116,49 @@
 		.highscore-table tr.highlighted-score td {
 		    border-bottom: 1px solid #5cb85c;
 		}
+		
+		/* --- EPISODE EDITOR STYLES --- */
+        #editor-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 5000; display: none; flex-direction: column; color: #fff; font-family: sans-serif; overflow: hidden; }
+        .editor-header { display: flex; justify-content: space-between; align-items: center; background: #222; padding: 10px 20px; border-bottom: 2px solid #444; }
+        .editor-header h2 { margin: 0; color: #ffcc00; font-family: 'Arial Black', sans-serif; text-transform: uppercase; }
+        .editor-toolbar { display: flex; gap: 10px; align-items: center; }
+        .editor-btn { background: #444; color: white; border: 1px solid #777; padding: 8px 15px; cursor: pointer; font-weight: bold; border-radius: 3px; }
+        .editor-btn:hover { background: #555; }
+        .editor-btn.play-btn { background: #5cb85c; border-color: #4cae4c; }
+        .editor-btn.play-btn:hover { background: #449d44; }
+        
+        .editor-body { display: flex; flex: 1; overflow: hidden; }
+        .editor-sidebar { width: 320px; background: #1a1a1a; border-right: 2px solid #444; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+        .editor-section { background: #222; padding: 10px; border-radius: 5px; border: 1px solid #333; }
+        .editor-section h3 { margin: 0 0 10px 0; font-size: 16px; color: #bbb; border-bottom: 1px solid #444; padding-bottom: 5px; }
+        .editor-input-group { display: flex; justify-content: space-between; margin-bottom: 5px; align-items: center; }
+        .editor-input-group label { font-size: 12px; color: #999; }
+        .editor-input-group input, .editor-input-group select { background: #000; color: #fff; border: 1px solid #555; padding: 4px; width: 120px; font-family: monospace; }
+        
+        .editor-main { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; padding: 20px; align-items: center; overflow: auto; }
+        .editor-palette { display: flex; gap: 5px; margin-bottom: 20px; background: #222; padding: 10px; border-radius: 5px; border: 1px solid #444; flex-wrap: wrap; justify-content: center; }
+        .palette-btn { width: 40px; height: 40px; font-weight: bold; font-size: 18px; cursor: pointer; border: 2px solid transparent; border-radius: 4px; display: flex; justify-content: center; align-items: center; }
+        .palette-btn.selected { border-color: #ffcc00; transform: scale(1.1); }
+        
+        #editor-grid-container { background: #000; border: 2px solid #555; display: inline-block; cursor: crosshair; }
+        .editor-row { display: flex; }
+        .editor-cell { width: 24px; height: 24px; border-right: 1px solid #222; border-bottom: 1px solid #222; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 14px; user-select: none; }
+        .editor-cell:hover { border: 1px solid #fff; z-index: 10; }
+        
+        /* Tile Colors */
+        .tile- { background: #000; }
+        .tile-\| { background: #666; color: transparent; }
+        .tile-P { background: #0044aa; color: white; }
+        .tile-E { background: #0088ff; color: white; }
+        .tile-D { background: #5a3a22; color: white; }
+        .tile-\+ { background: #22aa22; color: white; }
+        .tile-- { background: #aa2222; color: white; }
+        .tile-1, .tile-2, .tile-3 { background: #bc667b; color: #000; }
+        .tile-H { background: #ff3333; color: white; }
+        .tile-T { background: #00ffaa; color: black; }
+        .tile-C { background: #ffffff; color: black; }
+        .tile-I { background: #ffcc00; color: black; }
+        .tile-F { background: #00ccff; color: black; }
     </style>
 </head>
 <body>
@@ -138,14 +181,9 @@
 				<button onclick="startSelectedMode(event)"
 					style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #3366ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000;">
 					START</button>
-			</div>
-			<div id="level-ui"
-				style="display: none; margin-top: 20px; color: #fff;">
-				<h3 id="episode-name" style="color: #f0ad4e;"></h3>
-				<p id="episode-desc"></p>
-				<h4 id="level-name"></h4>
-				<button onclick="pressStartButton(event)" style="margin-top: 10px;">LEVEL
-					STARTEN</button>
+				<button onclick="openEditor()" style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #8833ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000; margin-left: 10px;">
+				    EDITOR
+				</button>
 			</div>
 			<div class="highscore-container">
 				<h3 id="highscore-title-start">Hall of Fame</h3>
@@ -262,6 +300,9 @@
 				<button onclick="startSelectedMode(event)"
 					style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #3366ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000;">
 					START</button>
+				<button onclick="openEditor()" style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #8833ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000; margin-left: 10px;">
+				    EDITOR
+				</button>
 			</div>
 			<div class="highscore-container">
 				<h3 id="highscore-title-gameover">Hall of Fame</h3>
@@ -280,8 +321,11 @@
 		</div>
 	</div>
 
-<!-- NEU: Level-Banner und Warnmeldung -->
-<div id="level-title-banner"
+
+	
+	<!-- NEU: Level-Banner und Warnmeldung -->
+
+	<div id="level-title-banner"
 	style="display: none; position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); color: white; text-align: center; z-index: 200; pointer-events: none; text-shadow: 2px 2px 10px #000;">
 	<h1 id="level-title-text"
 		style="font-size: 60px; margin: 0; color: #ffcc00; font-family: 'Courier New', monospace;">LEVEL
@@ -289,15 +333,86 @@
 	<p id="level-title-sub"
 		style="font-size: 24px; margin-top: 5px; font-weight: bold;"></p>
 </div>
+
+<!-- EPISODE EDITOR OVERLAY -->
+<div id="editor-overlay">
+    <div class="editor-header">
+        <h2>Episode Editor</h2>
+        <div class="editor-toolbar">
+            <select id="editor-template-select" class="editor-btn" style="background:#000;">
+                <option value="">-- Load Template --</option>
+            </select>
+            <button class="editor-btn" onclick="document.getElementById('editor-import-file').click()">Load JSON</button>
+            <input type="file" id="editor-import-file" style="display:none;" accept=".json" onchange="editorImportJSON(event)">
+            <button class="editor-btn" onclick="editorExportJSON()">Export JSON</button>
+            <button class="editor-btn play-btn" onclick="editorTestPlay()">▶ TEST PLAY</button>
+            <button class="editor-btn" style="background:#d9534f;" onclick="closeEditor()">X CLOSE</button>
+        </div>
+    </div>
+    <div class="editor-body">
+        <div class="editor-sidebar">
+            <div class="editor-section">
+                <h3>Episode Meta</h3>
+                <div class="editor-input-group"><label>Name</label><input type="text" id="edit-ep-name" value="Custom Episode"></div>
+                <div class="editor-input-group"><label>Description</label><input type="text" id="edit-ep-desc" value="Created in Editor"></div>
+            </div>
+            
+            <div class="editor-section" id="editor-config-container">
+                <h3>Configuration</h3>
+                <!-- Config inputs will be generated here by JS -->
+            </div>
+
+            <div class="editor-section">
+                <h3>Level & Layers</h3>
+                <div class="editor-input-group">
+                    <label>Level</label>
+                    <select id="edit-level-select" onchange="editorSelectLevel(this.value)"></select>
+                </div>
+                <button class="editor-btn" style="width:100%; margin-bottom:10px;" onclick="editorAddLevel()">+ Add Level</button>
+                
+                <div class="editor-input-group">
+                    <label>Layer (Floor)</label>
+                    <select id="edit-layer-select" onchange="editorSelectLayer(this.value)"></select>
+                </div>
+                <button class="editor-btn" style="width:100%;" onclick="editorAddLayer()">+ Add Layer</button>
+				<div class="editor-section">
+                <h3>Level Meta</h3>
+                <div class="editor-input-group"><label>Level Name</label><input type="text" id="edit-lvl-name" oninput="saveUIToEditData()"></div>
+                <div class="editor-input-group"><label>Description</label><input type="text" id="edit-lvl-desc" oninput="saveUIToEditData()"></div>
+            </div>
+
+            <div class="editor-section">
+                <h3>Grid Size (Map)</h3>
+                <div class="editor-input-group"><label>Columns (Width)</label><input type="number" id="edit-grid-cols" oninput="resizeGridDimensions()" value="32" min="5" max="100"></div>
+                <div class="editor-input-group"><label>Rows (Height)</label><input type="number" id="edit-grid-rows" oninput="resizeGridDimensions()" value="24" min="5" max="100"></div>
+                <!--<button class="editor-btn" style="width:100%; margin-top:5px;" onclick="resizeGridDimensions()">Apply Size</button>-->
+            </div>
+            </div>
+        </div>
+        
+        <div class="editor-main">
+            <div class="editor-palette" id="editor-palette">
+                <!-- Palette generated by JS -->
+            </div>
+            <div id="editor-grid-container" onmousedown="editorStartPaint(event)" onmousemove="editorDragPaint(event)" onmouseup="editorStopPaint()" onmouseleave="editorStopPaint()">
+                <!-- Grid generated by JS -->
+            </div>
+            <p style="color:#666; margin-top:10px;">Tipp: Halte die Maus gedrückt und ziehe, um durchgehend zu zeichnen.</p>
+        </div>
+    </div>
+</div>
 <div id="exit-warning"
 	style="display: none; position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); color: #ff3333; font-size: 24px; font-weight: bold; text-shadow: 1px 1px 4px #000; pointer-events: none; z-index: 190;">
 	Säubere erst alle Schweine!</div>
 
+	
+	
 	<!-- Load modules in correct order -->
 <script src="js/constants.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/levels.js"></script>
 <script src="js/entities.js"></script>
+<script src="js/editor.js"></script> 
 <script src="js/gameplay.js"></script>
 
 </body>
