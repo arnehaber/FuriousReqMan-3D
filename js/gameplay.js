@@ -838,6 +838,9 @@ function init3D() {
 	    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
 
 	    const key = e.key.toLowerCase();
+		
+		if (key in keysPressed) keysPressed[key] = true;
+		
         if (key === 'r') { initAudio(); reload(); }
         if (key === ' ' || e.key === 'Spacebar') { e.preventDefault(); startPlayerJump(); }
         if (e.key === "F1") { e.preventDefault(); initAudio(); toggleHelp(); }
