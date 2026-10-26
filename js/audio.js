@@ -125,3 +125,82 @@ function playPowerupAudio(type) {
     gain.gain.setValueAtTime(0.2, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
     osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.26);
 }
+
+function playShotgunAudio() {
+    if (!audioCtx || isPaused) return;
+
+    const t = audioCtx.currentTime;
+
+    // 1. Der mechanische Klick (Schlagbolzen) - extrem kurz und scharf
+    const clickOsc = audioCtx.createOscillator();
+    const clickGain = audioCtx.createGain();
+    clickOsc.type = 'square';
+    clickOsc.frequency.setValueAtTime(150, t);
+    clickOsc.frequency.exponentialRampToValueAtTime(0.01, t + 0.04); 
+    clickGain.gain.setValueAtTime(0.8, t);
+    clickGain.gain.exponentialRampToValueAtTime(0.01, t + 0.04); 
+    clickOsc.connect(clickGain);
+    clickGain.connect(audioCtx.destination);
+    clickOsc.start(t);
+    clickOsc.stop(t + 0.05);
+
+    // 2. Die Explosion (Weißes Rauschen)
+    const bufferSize = audioCtx.sampleRate * 0.5; // 0.5 Sekunden Puffer
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1); 
+    }
+    
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+
+    // Der Schlüssel zum Schuss: Ein Filter, der rasend schnell "zu" macht.    
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(900, t);
+    filter.frequency.exponentialRampToValueAtTime(200, t + 0.3);
+    filter.frequency.linearRampToValueAtTime(100, t + 0.6);
+
+    const noiseGain = audioCtx.createGain();
+    noiseGain.gain.setValueAtTime(5, t); 
+    noiseGain.gain.exponentialRampToValueAtTime(2, t + 0.1);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(audioCtx.destination);
+
+    noise.start(t);
+}
+
+function playEmptyClickAudio() {
+    if (!audioCtx || isPaused) return;
+
+    const t = audioCtx.currentTime;
+    
+    // Zwei Oszillatoren mit unharmonischen Frequenzen erzeugen den metallischen Anschlag
+    const osc1 = audioCtx.createOscillator();
+    const osc2 = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc1.type = 'square';
+    osc1.frequency.value = 200; // Keine Frequenzkurve = kein Quietschen!
+    
+    osc2.type = 'square';
+    osc2.frequency.value = 800; 
+
+    // Extrem kurzer, harter Lautstärkeabfall für das "Klick"
+    gain.gain.setValueAtTime(0.75, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.03); // Fällt in nur 30 Millisekunden ab
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc1.start(t);
+    osc2.start(t);
+    
+    osc1.stop(t + 0.04);
+    osc2.stop(t + 0.04);
+}

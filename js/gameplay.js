@@ -719,12 +719,24 @@ window.addEventListener('mousedown', (e) => {
     initAudio(); 
     if (e.button === 0 && document.pointerLockElement === document.body) {
         if (isReloading) return; 
-        if (infiniteAmmoEndTime > performance.now()) { perform3DShoot(); } 
-        else if (currentAmmo > 0) { currentAmmo--; updateAmmoUI(); perform3DShoot(); }
-    } else if (e.button === 2 && infiniteAmmoEndTime <= performance.now()) { reload(); }
+        if (infiniteAmmoEndTime > performance.now()) { 
+            perform3DShoot(); 
+        } else if (currentAmmo > 0) { 
+            currentAmmo--; 
+            updateAmmoUI(); 
+            perform3DShoot(); 
+        } else {
+            // NEU: Wenn keine Munition da ist, spiele das leere mechanische Klicken!
+            playEmptyClickAudio();
+        }
+    } else if (e.button === 2 && infiniteAmmoEndTime <= performance.now()) { 
+        reload(); 
+    }
 });
 
 function perform3DShoot() {
+	playShotgunAudio();
+	
     // --- NEU: Rückstoß und Mündungsfeuer aktivieren ---
     weaponRecoil = 1.0;
     if (muzzleFlash) muzzleFlash.intensity = 2.5;
@@ -757,8 +769,7 @@ function perform3DShoot() {
             
             hit3DPig(pigData, isHeadshot); return; 
         }
-    }
-    playAudio('miss');
+    }    
 }
 
 function hit3DPig(pig, isHeadshot) {
