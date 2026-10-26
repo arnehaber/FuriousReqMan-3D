@@ -10,6 +10,10 @@ let collectedHp = 0, collectedTime = 0, collectedCoffee = 0, collectedLightning 
 let lastTeleportTime = 0; 
 let isTransitioningLevel = false;
 let levelBannerTimeout = null;
+let playerWeapon = null;
+let muzzleFlash = null;
+let muzzleFlashMesh = null;
+let weaponRecoil = 0;
 
 // --- MAP VARIABLES ---
 let isMapOpen = false;
@@ -253,12 +257,49 @@ function drawMap(layerIdx, layerData) {
 
 // --- MAIN RENDER LOOP ---
 function animate3D() {
-    requestAnimationFrame(animate3D); 
+    requestAnimationFrame(animate3D);
     const dt = clock.getDelta();
-    const clampedDt = Math.min(dt, 0.1); 
-    const timeScale = clampedDt * 60; 
-    
+    const clampedDt = Math.min(dt, 0.1);
+    const timeScale = clampedDt * 60;
+
     handlePlayerMovement(timeScale);
+
+    // --- WAFFEN-ANIMATION ---
+    if (playerWeapon) {
+        // Rückstoß abbauen (Waffe gleitet zurück)
+        if (weaponRecoil > 0) {
+            weaponRecoil -= dt * 6;
+            if (weaponRecoil < 0) weaponRecoil = 0;
+        }
+
+        // Position und Rotation der Waffe basierend auf dem Rückstoß setzen
+        // Sie kickt nach hinten (+Z), nach oben (+Y) und dreht sich leicht hoch
+        playerWeapon.position.z = -0.4 + (weaponRecoil * 0.15);
+        playerWeapon.position.y = -0.25 + (weaponRecoil * 0.05);
+        playerWeapon.rotation.x = weaponRecoil * 0.25;
+
+        // Wackeln beim Laufen (Bobbing), wenn der Spieler sich bewegt
+        if ((keysPressed.w || keysPressed.a || keysPressed.s || keysPressed.d) && !isJumping) {
+            const time = performance.now() * 0.008;
+            playerWeapon.position.y = -0.25 + Math.sin(time) * 0.01 + (weaponRecoil * 0.05);
+            playerWeapon.position.x = 0.25 + Math.cos(time * 0.5) * 0.01;
+        } else {
+            playerWeapon.position.x = 0.25; // Zurück zur Mitte, wenn wir stehen
+        }
+
+        // Mündungsfeuer extrem schnell ausfaden
+        if (muzzleFlash && muzzleFlash.intensity > 0) {
+            muzzleFlash.intensity -= dt * 15;
+            if (muzzleFlash.intensity < 0) muzzleFlash.intensity = 0;
+        }
+        // Mündungsfeuer ausfaden (Visueller Blitz)
+        if (muzzleFlashMesh && muzzleFlashMesh.children[0].material.opacity > 0) {
+            muzzleFlashMesh.children.forEach(c => {
+                c.material.opacity -= dt * 15;
+                if (c.material.opacity < 0) c.material.opacity = 0;
+            });
+        }
+    }
 
     if (!isPaused && timeLeft > 0 && hp > 0 && loadingScreen.style.display === 'none' && instructionsOverlay.style.display !== 'flex') {
 		const now = performance.now();
@@ -684,7 +725,20 @@ window.addEventListener('mousedown', (e) => {
 });
 
 function perform3DShoot() {
-    const raycaster = new THREE.Raycaster(); raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    // --- NEU: Rückstoß und Mündungsfeuer aktivieren ---
+    weaponRecoil = 1.0;
+    if (muzzleFlash) muzzleFlash.intensity = 2.5;
+    // Den visuellen Blitz anschalten
+    if (muzzleFlashMesh) {
+        muzzleFlashMesh.rotation.z = Math.random() * Math.PI; // Zufällige Drehung
+        const scale = 0.4 + Math.random() * 0.25; // Mal größer, mal kleiner
+        muzzleFlashMesh.scale.set(scale, scale, scale);
+        muzzleFlashMesh.children.forEach(c => c.material.opacity = 1.0);
+    }
+    // ---------------------------------------------------
+	
+	const raycaster = new THREE.Raycaster(); 
+	raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
     pigs3D.forEach(p => p.mesh.updateMatrixWorld(true));
     let allPigMeshes = []; pigs3D.forEach(p => { p.mesh.traverse(child => { if(child.isMesh) { child.userDataPig = p; allPigMeshes.push(child); } }); });
     const intersects = raycaster.intersectObjects(allPigMeshes, false);
@@ -847,10 +901,72 @@ function pressStartButton(e) {
     }, 800); 
 }
 
+function initPlayerWeapon() {
+    playerWeapon = new THREE.Group();
+    
+    // Metall-Material für die Läufe
+    const barrelMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8, roughness: 0.2 });
+    // Holz-Material für den Schaft
+    const stockMat = new THREE.MeshStandardMaterial({ color: 0x5a3a22, roughness: 0.9 });
+
+    // Linker Lauf
+    const barrelL = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 16), barrelMat);
+    barrelL.rotation.x = Math.PI / 2;
+    barrelL.position.set(-0.045, 0, -0.2);
+    playerWeapon.add(barrelL);
+
+    // Rechter Lauf
+    const barrelR = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 16), barrelMat);
+    barrelR.rotation.x = Math.PI / 2;
+    barrelR.position.set(0.045, 0, -0.2);
+    playerWeapon.add(barrelR);
+
+    // Holzschaft
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.5), stockMat);
+    stock.position.set(0, -0.04, 0.15);
+    playerWeapon.add(stock);
+
+    // Mündungsfeuer (unsichtbar, blitzt nur beim Schuss auf)
+    muzzleFlash = new THREE.PointLight(0xffaa00, 0, 5);
+    muzzleFlash.position.set(0, 0, -0.6);
+    playerWeapon.add(muzzleFlash);
+
+    // --- Visueller Blitz (Mündungsfeuer) ---
+    const flashGeo = new THREE.PlaneGeometry(0.4, 0.4);
+    const flashMat = new THREE.MeshBasicMaterial({
+        color: 0xffaa00,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        depthWrite: false, // Verhindert ekliges Flackern durch Wände
+        blending: THREE.AdditiveBlending // Macht den Blitz richtig schön leuchtend!
+    });
+
+    muzzleFlashMesh = new THREE.Group();
+    // 3 gekreuzte Flächen für einen coolen Retro-3D-Explosions-Look
+    for (let i = 0;i < 3;i++) {
+        const plane = new THREE.Mesh(flashGeo, flashMat);
+        plane.rotation.z = (Math.PI / 3) * i;
+        muzzleFlashMesh.add(plane);
+    }
+    // Den Blitz exakt vor die zwei Läufe schieben
+    muzzleFlashMesh.position.set(0, 0, -0.6);
+    playerWeapon.add(muzzleFlashMesh);
+    // --------------------------------------------
+	
+    // Waffe unten rechts ins Sichtfeld der Kamera positionieren
+    playerWeapon.position.set(0.25, -0.25, -0.4);
+    
+    // Waffe an die Kamera heften!
+    camera.add(playerWeapon);
+}
+
 function init3D() {
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x050404); scene.fog = new THREE.FogExp2(0x050404, 0.012);
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, playerBaseY, 0); camera.rotation.order = "YXZ"; camera.lookAt(0, 2, -30);
+    scene.add(camera); // GANZ WICHTIG: Kamera zur Szene hinzufügen!
+    initPlayerWeapon(); // Unsere neue Waffe laden
 
     renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight);
     container.insertBefore(renderer.domElement, container.firstChild);
