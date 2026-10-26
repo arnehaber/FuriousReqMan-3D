@@ -19,6 +19,7 @@ const PALETTE_TILES = [
     { char: '1', name: 'Pig (Standard)', class: 'tile-1' },
     { char: '2', name: 'Pig (Strong)', class: 'tile-2' },
     { char: '3', name: 'Pig (Boss)', class: 'tile-3' },
+	{ char: '4', name: 'Pig (Pumpkin)', class: 'tile-4' },
     { char: 'H', name: 'Health', class: 'tile-H' },
     { char: 'T', name: 'Time', class: 'tile-T' },
     { char: 'C', name: 'Coffee', class: 'tile-C' },

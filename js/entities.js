@@ -270,10 +270,101 @@ function createPigKlasse3() {
     group.rotation.y = Math.PI; return { mesh: group, legs: legs, type: 3 }; 
 }
 
+// Füge diesen Block in die Erstellungsmethode für Schweine in js/entities.js ein:
+function createPigMesh(type) {
+    const pigGroup = new THREE.Group();
+    
+    // Gemeinsame Materialien & Schweine-Körper (ähnlich den anderen Typen)
+    const skinMat = new THREE.MeshLambertMaterial({ color: type === 4 ? 0x5a8f3e : 0xffa0a0 }); // Zombie-Grün/Pink für Typ 4
+    
+    // Schweine-Körper (Standard)
+    const bodyGeom = new THREE.BoxGeometry(1.2, 0.8, 1.8);
+    const bodyMesh = new THREE.Mesh(bodyGeom, skinMat);
+    bodyMesh.position.y = 0.6;
+    pigGroup.add(bodyMesh);
+
+    // Beine (4 Stück)
+    const legGeom = new THREE.BoxGeometry(0.3, 0.6, 0.3);
+    const legs = [];
+    for (let i = 0; i < 4; i++) {
+        const leg = new THREE.Mesh(legGeom, skinMat);
+        leg.position.set(
+            (i % 2 === 0 ? 0.45 : -0.45), 
+            0.15, 
+            (i < 2 ? 0.6 : -0.6)
+        );
+        pigGroup.add(leg);
+        legs.push(leg);
+    }
+
+    // Schweine-Kopf
+    const headGeom = new THREE.BoxGeometry(0.7, 0.7, 0.7);
+    const headMesh = new THREE.Mesh(headGeom, skinMat);
+    headMesh.position.set(0, 0.9, -1.0);
+    pigGroup.add(headMesh);
+    
+    // Rüssel
+    const snoutGeom = new THREE.BoxGeometry(0.4, 0.25, 0.2);
+    const snoutMesh = new THREE.Mesh(snoutGeom, new THREE.MeshLambertMaterial({ color: 0x3d6628 }));
+    snoutMesh.position.set(0, 0.8, -1.45);
+    pigGroup.add(snoutMesh);
+
+    // --- NEU: Kürbis auf dem Kopf für Typ 4 (image_1.png) ---
+    if (type === 4) {
+        // Der Kürbis (orangefarbener, leicht gestauchter Cube)
+        const pumpkinGeom = new THREE.BoxGeometry(1.0, 0.9, 1.0);
+        const pumpkinMat = new THREE.MeshLambertMaterial({ color: 0xd95d00 }); // Sattes Orange
+        const pumpkin = new THREE.Mesh(pumpkinGeom, pumpkinMat);
+        // Positioniert genau auf und leicht über dem Schweinekopf, so wie in image_1.png
+        pumpkin.position.set(0, 1.6, -0.9);
+        pigGroup.add(pumpkin);
+
+        // Der grüne Stängel oben
+        const stemGeom = new THREE.BoxGeometry(0.15, 0.3, 0.15);
+        const stemMat = new THREE.MeshLambertMaterial({ color: 0x4a5d23 });
+        const stem = new THREE.Mesh(stemGeom, stemMat);
+        stem.position.set(0, 2.15, -0.9);
+        stem.rotation.z = 0.1; // Leichter Knick
+        pigGroup.add(stem);
+
+        // Gruselig glühende Augen & Mund (Cutouts / Overlays auf der Vorderseite, image_0.png nachempfunden)
+        const glowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 }); // Hellgelb/Orange glühend (unbeeinflusst von Schatten)
+
+        // Linkes Auge
+        const eyeLGeom = new THREE.BoxGeometry(0.25, 0.15, 0.05);
+        const eyeL = new THREE.Mesh(eyeLGeom, glowMat);
+        eyeL.position.set(-0.22, 1.7, -1.41);
+        eyeL.rotation.z = 0.2; // Bedrohlicher Winkel
+        pigGroup.add(eyeL);
+
+        // Rechtes Auge
+        const eyeR = eyeL.clone();
+        eyeR.position.x = 0.22;
+        eyeR.rotation.z = -0.2;
+        pigGroup.add(eyeR);
+
+        // Die Nase (Dreieck / kleiner Cube)
+        const noseGeom = new THREE.BoxGeometry(0.15, 0.15, 0.05);
+        const nose = new THREE.Mesh(noseGeom, glowMat);
+        nose.position.set(0, 1.55, -1.41);
+        pigGroup.add(nose);
+
+        // Gezackter Gruselmund
+        const mouthGeom = new THREE.BoxGeometry(0.6, 0.18, 0.05);
+        const mouth = new THREE.Mesh(mouthGeom, glowMat);
+        mouth.position.set(0, 1.35, -1.41);
+        pigGroup.add(mouth);
+
+    }
+
+    pigGroup.userData = { legs: legs, type: type };
+    return { mesh: pigGroup, legs: legs, type: type || 4 };
+}
+
 function spawnSchwein() {
     if (timeLeft <= 0 || hp <= 0 || isPaused || document.getElementById('loading-screen').style.display !== 'none' || pigPens.length === 0 || document.getElementById('instructions-overlay').style.display === 'flex') return;
-    const classIdx = Math.floor(Math.random() * 3) + 1;
-    let pigData = classIdx === 1 ? createPigKlasse1() : (classIdx === 2 ? createPigKlasse2() : createPigKlasse3());
+    const classIdx = Math.floor(Math.random() * 4) + 1;
+	let pigData = classIdx === 1 ? createPigKlasse1() : (classIdx === 2 ? createPigKlasse2() : (classIdx === 3 ? createPigKlasse3() : createPigMesh(4))); // <-- (4) hinzugefügt!
     const selectedPen = pigPens[Math.floor(Math.random() * pigPens.length)];
     pigData.mesh.position.set(selectedPen.spawnX, pigData.type === 1 ? 1.1 : 1.0, selectedPen.spawnZ); 
     scene.add(pigData.mesh); pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
@@ -349,8 +440,8 @@ function buildLevelFromData(levelData) {
                     camera.position.set(xPos, yOffset + playerBaseY, zPos);
                     playerCurrentGroundY = yOffset;
                 }
-                else if (cell === '1' || cell === '2' || cell === '3') {
-                    let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : createPigKlasse3());
+                else if (cell === '1' || cell === '2' || cell === '3' || cell === '4') {
+                    let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : (cell === '3' ? createPigKlasse3() : createPigMesh(4)));
                     pigData.mesh.position.set(xPos, yOffset + (pigData.type === 1 ? 1.1 : 1.0), zPos);
                     scene.add(pigData.mesh);
                     pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();

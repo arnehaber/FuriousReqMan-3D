@@ -86,7 +86,13 @@ function startSelectedMode(e) {
 
 function dispose3dObject(obj) {
     if (!obj) return;
-    obj.traverse(child => { if (child.isMesh && child.geometry) child.geometry.dispose(); });
+    obj.traverse(child => { 
+        if (child.isMesh) {
+            if (child.geometry) child.geometry.dispose(); 
+            // Das eigens geklonte Material beim Löschen des Schweins sauber zerstören
+            if (child.material && child.userData.hasClonedMat) child.material.dispose();
+        }
+    });
 }
 
 // --- HIGHSCORE MANAGEMENT ---
@@ -370,11 +376,33 @@ function animate3D() {
                 pig.fleeTarget.set(pig.mesh.position.x + fleeDir.x * 10, pig.mesh.position.y, pig.mesh.position.z + fleeDir.z * 10);
             }
 
+            // Gefrier-Effekt (isoliert mit geklonten Materialien)
             if (freezeEndTime > now) {
-                pig.mesh.traverse(child => { if(child.isMesh && child.material) child.material.color.setHex(0x3399ff); });
-                continue; 
-            } else {
-                pig.mesh.traverse(child => { if(child.isMesh && child.material && child.userDataPig) { child.material.color.setHex(0xffffff); } });
+                pig.mesh.traverse(child => {
+                    if (child.isMesh && child.material) {
+                        // Klonen des Materials beim ersten Freeze, um globale Materialien zu schützen!
+                        if (!child.userData.hasClonedMat) {
+                            if (!Array.isArray(child.material)) {
+                                child.material = child.material.clone();
+                                child.userData.hasClonedMat = true;
+                                child.userData.origColor = child.material.color.getHex();
+                            }
+                        }
+                        // Sicher umfärben
+                        if (child.userData.hasClonedMat) {
+                            child.material.color.setHex(0x3399ff);
+                        }
+                    }
+                });
+                continue;
+            } 
+			else {
+                // Auftauen: Originalfarbe des privaten Materials wiederherstellen
+                pig.mesh.traverse(child => {
+                    if (child.isMesh && child.material && child.userData.hasClonedMat) {
+                        child.material.color.setHex(child.userData.origColor);
+                    }
+                });
             }
 
             let targetPos = pig.isFleeing ? pig.fleeTarget : camera.position;
@@ -670,6 +698,8 @@ function perform3DShoot() {
             if (pigData.type === 1 && localHit.y > 0.1 && localHit.z < -0.5) isHeadshot = true;
             if (pigData.type === 2 && localHit.y > 1.2) isHeadshot = true;
             if (pigData.type === 3 && localHit.y > 1.1) isHeadshot = true;
+			// Innerhalb der perform3DShoot() / hit3DPig() Logik
+			if (pigData.type === 4 && localHit.y > 1.15) isHeadshot = true; // Kopfschuss-Registrierung für Kürbiskopf!
             
             hit3DPig(pigData, isHeadshot); return; 
         }
