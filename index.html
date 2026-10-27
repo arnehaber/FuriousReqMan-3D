@@ -6,7 +6,25 @@
     <title>Furious Requirement Manager 3D: Ultimate Power-Up Edition</title>
     <!-- Three.js Base -->
     <script src="./lib/three.min-r128.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
     <style>
+    
+    	/* --- MOBILE TOUCH UI --- */
+        body, html { touch-action: none; /* Verhindert Wischen/Zoomen durch den Browser */ }
+        #mobile-ui { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1500; pointer-events: none; }
+        .touch-zone { position: absolute; width: 40vw; height: 100%; top: 0; pointer-events: auto; }
+        #joystick-left { left: 0; }
+        #joystick-right { right: 0; }
+        
+        .mobile-btn { position: absolute; background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.5); border-radius: 50%; color: white; font-weight: bold; font-family: 'Arial Black', sans-serif; display: flex; justify-content: center; align-items: center; pointer-events: auto; user-select: none; font-size: 18px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .mobile-btn:active { background: rgba(255, 0, 0, 0.5); transform: scale(0.9); }
+        
+        #btn-shoot { bottom: 15vh; right: 10vw; width: 70px; height: 70px; border-color: #ff3333; color: #ff3333; font-size: 24px; background: rgba(255, 50, 50, 0.2); }
+        #btn-jump { bottom: 30vh; right: 5vw; width: 50px; height: 50px; }
+        #btn-reload { bottom: 30vh; right: 18vw; width: 50px; height: 50px; }
+        #btn-door { bottom: 15vh; left: 45vw; width: 60px; height: 60px; border-color: #ffcc00; color: #ffcc00; }
+        #btn-map { top: 20px; left: 20px; width: 50px; height: 50px; border-radius: 10px; }
+        
         body { margin: 0; padding: 0; font-family: 'Arial Black', sans-serif; overflow: hidden; user-select: none; background: #000; color: #fff; }
         canvas { display: block; width: 100vw; height: 100vh; }
         #vignette { position: absolute; top:0; left:0; width: 100%; height: 100%; background: radial-gradient(circle, transparent 30%, rgba(0,0,0,0.8) 100%); pointer-events: none; z-index: 2; }
@@ -192,7 +210,18 @@
 </head>
 <body>
 
-<div id="game-container">
+	<!-- MOBILE TOUCH OVERLAY -->
+	<div id="mobile-ui">
+		<div id="joystick-left" class="touch-zone"></div>
+		<div id="joystick-right" class="touch-zone"></div>
+		<div id="btn-shoot" class="mobile-btn">FIRE</div>
+		<div id="btn-jump" class="mobile-btn">JMP</div>
+		<div id="btn-reload" class="mobile-btn">REL</div>
+		<div id="btn-door" class="mobile-btn">DOOR</div>
+		<div id="btn-map" class="mobile-btn">MAP</div>
+	</div>
+
+	<div id="game-container">
 <!-- AUTO-MAP OVERLAY -->
     <div id="map-overlay">
         <div class="map-title">Auto-Map (Floor <span id="map-floor-display">0</span>)</div>

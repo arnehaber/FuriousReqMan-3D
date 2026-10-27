@@ -5,6 +5,12 @@ const container = document.getElementById('game-container'), scoreDisplay = docu
 const statsHpCount = document.getElementById('stats-hp-count'), statsTimeCount = document.getElementById('stats-time-count'), statsCoffeeCount = document.getElementById('stats-coffee-count'), statsLightningCount = document.getElementById('stats-lightning-count'), statsFreezeCount = document.getElementById('stats-freeze-count');
 const activePowerupsDisplay = document.getElementById('active-powerups-display');
 const keysPressed = { w: false, a: false, s: false, d: false };
+// --- TOUCH CONTROLS ---
+const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+let joyMoveX = 0, joyMoveY = 0;
+let joyLookX = 0, joyLookY = 0;
+let managerLeft = null, managerRight = null;
+
 let isJumping = false, jumpVelocity = 0, playerCurrentGroundY = 0;
 let collectedHp = 0, collectedTime = 0, collectedCoffee = 0, collectedLightning = 0, collectedFreeze = 0;
 let lastTeleportTime = 0; 
@@ -263,6 +269,13 @@ function animate3D() {
     const timeScale = clampedDt * 60;
 
     handlePlayerMovement(timeScale);
+	
+    // --- KAMERA-DREHUNG FÜR MOBILE (Rechter Joystick) ---
+    if (isTouchDevice && (joyLookX !== 0 || joyLookY !== 0) && document.getElementById('instructions-overlay').style.display !== 'flex') {
+        camera.rotation.y -= joyLookX * 0.035 * timeScale;
+        camera.rotation.x += joyLookY * 0.035 * timeScale;
+        camera.rotation.x = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, camera.rotation.x));
+    }
 
     // --- WAFFEN-ANIMATION ---
     if (playerWeapon) {
@@ -552,13 +565,23 @@ function animate3D() {
 }
 
 function handlePlayerMovement(timeScale) {
-    if (document.pointerLockElement !== document.body || isPaused || instructionsOverlay.style.display === 'flex' || hp <= 0) return;
+    // Auf Touch-Geräten den fehlenden Pointer-Lock ignorieren!
+    if ((!isTouchDevice && document.pointerLockElement !== document.body) || isPaused || instructionsOverlay.style.display === 'flex' || hp <= 0) return;
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion); const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion); forward.y = 0; forward.normalize(); right.y = 0; right.normalize();
     
     let moveVector = new THREE.Vector3(0, 0, 0);
     let dynamicSpeed = playerBaseSpeed * currentSpeedMultiplier * timeScale;
     
-    if (keysPressed.w) moveVector.addScaledVector(forward, dynamicSpeed); if (keysPressed.s) moveVector.addScaledVector(forward, -dynamicSpeed); if (keysPressed.d) moveVector.addScaledVector(right, dynamicSpeed); if (keysPressed.a) moveVector.addScaledVector(right, -dynamicSpeed);
+	// Tastatur und linken Joystick kombinieren
+    let moveF = (keysPressed.w ? 1 : 0) - (keysPressed.s ? 1 : 0) + joyMoveY;
+    let moveR = (keysPressed.d ? 1 : 0) - (keysPressed.a ? 1 : 0) + joyMoveX;
+
+    // Verhindert, dass man diagonal (oder mit Tastatur + Joystick) zu schnell läuft
+    let moveLength = Math.sqrt(moveF * moveF + moveR * moveR);
+    if (moveLength > 1) { moveF /= moveLength; moveR /= moveLength; }
+
+    if (moveF !== 0) moveVector.addScaledVector(forward, dynamicSpeed * moveF);
+    if (moveR !== 0) moveVector.addScaledVector(right, dynamicSpeed * moveR);
     let targetX = camera.position.x + moveVector.x; let targetZ = camera.position.z + moveVector.z; let targetGroundY = currentGameMode === 'LEVEL' ? playerCurrentGroundY : 0; let playerRadius = 0.6; let collisionBlocked = false;
 
     if (currentGameMode === 'FREE') {
@@ -682,7 +705,7 @@ function toggleHelp() {
         if (helpSourceScreen === 'loading') { loadingScreen.style.display = 'flex'; } 
         else if (helpSourceScreen === 'gameover') { gameOverScreen.style.display = 'flex'; } 
         else {
-            isPaused = false; document.body.requestPointerLock();
+            isPaused = false; if (!isTouchDevice) document.body.requestPointerLock();
             gameInterval = setInterval(updateTimer, 1000); 
             if (currentGameMode === 'FREE') spawnInterval = setInterval(spawnSchwein, 1000);
             powerupInterval = setInterval(spawnPowerUpPair, POWERUP_SPAWN_INTERVAL);
@@ -902,7 +925,7 @@ function pressStartButton(e) {
     initAudio(); 
     if (instructionsOverlay.style.display === 'flex') return; 
     
-    document.body.requestPointerLock(); 
+    if (!isTouchDevice) document.body.requestPointerLock(); 
     loadingScreen.style.opacity = 0; 
     gameOverScreen.style.display = 'none'; 
     
@@ -986,7 +1009,7 @@ function init3D() {
     dirLight = new THREE.DirectionalLight(0xffcccc, 0.75); dirLight.position.set(10, 20, -10); scene.add(dirLight);
 
     window.addEventListener('resize', onWindowResize);
-    document.body.addEventListener('click', () => { initAudio(); if (!isPaused && timeLeft > 0 && hp > 0 && loadingScreen.style.display === 'none' && gameOverScreen.style.display === 'none' && instructionsOverlay.style.display !== 'flex') { document.body.requestPointerLock(); } });
+    document.body.addEventListener('click', () => { initAudio(); if (!isPaused && timeLeft > 0 && hp > 0 && loadingScreen.style.display === 'none' && gameOverScreen.style.display === 'none' && instructionsOverlay.style.display !== 'flex') { if (!isTouchDevice) document.body.requestPointerLock(); } });
     document.body.addEventListener('contextmenu', e => e.preventDefault()); 
     document.addEventListener('mousemove', onMouseMove);
 
@@ -1067,7 +1090,7 @@ function startGame() {
     clock.getDelta(); 
 }
 
-function restartAndPlay() { initAudio(); gameOverScreen.style.display = 'none'; loadingScreen.style.display = 'none'; document.body.requestPointerLock(); startGame(); }
+function restartAndPlay() { initAudio(); gameOverScreen.style.display = 'none'; loadingScreen.style.display = 'none'; if (!isTouchDevice) document.body.requestPointerLock(); startGame(); }
 function updateTimer() { timeLeft--; if(timeLeft < 0) timeLeft = 0; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`; if (timeLeft <= 0) endGame(false); }
 
 function endGame(diedFromHp) { 
@@ -1121,6 +1144,66 @@ function updateHelpValues() {
     document.getElementById('help-val-ammotime').innerText = INFINITE_AMMO_TIMER;
     document.getElementById('help-val-freezetime').innerText = FREEZE_TIME;
 }
+
+function initMobileControls() {
+    if (!isTouchDevice) return;
+    
+    document.getElementById('mobile-ui').style.display = 'block';
+    
+    // Joystick Links (Bewegung)
+    managerLeft = nipplejs.create({ zone: document.getElementById('joystick-left'), mode: 'dynamic', color: 'white', size: 120 });
+    managerLeft.on('move', (e, data) => {
+        const force = Math.min(data.force, 1.0);
+        joyMoveX = Math.cos(data.angle.radian) * force;
+        joyMoveY = Math.sin(data.angle.radian) * force;
+    });
+    managerLeft.on('end', () => { joyMoveX = 0; joyMoveY = 0; });
+    
+    // Joystick Rechts (Zielen)
+    managerRight = nipplejs.create({ zone: document.getElementById('joystick-right'), mode: 'dynamic', color: 'red', size: 120 });
+    managerRight.on('move', (e, data) => {
+        const force = Math.min(data.force, 1.0);
+        joyLookX = Math.cos(data.angle.radian) * force;
+        joyLookY = Math.sin(data.angle.radian) * force;
+    });
+    managerRight.on('end', () => { joyLookX = 0; joyLookY = 0; });
+
+    // Button Events (touchstart ist auf Handys schneller als click)
+    document.getElementById('btn-shoot').addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        initAudio();
+        if (isReloading || isPaused || timeLeft <= 0 || hp <= 0) return;
+        if (infiniteAmmoEndTime > performance.now()) { perform3DShoot(); } 
+        else if (currentAmmo > 0) { currentAmmo--; updateAmmoUI(); perform3DShoot(); } 
+        else { playEmptyClickAudio(); }
+    }, {passive: false});
+
+    document.getElementById('btn-reload').addEventListener('touchstart', (e) => { e.preventDefault(); reload(); }, {passive: false});
+    document.getElementById('btn-jump').addEventListener('touchstart', (e) => { e.preventDefault(); startPlayerJump(); }, {passive: false});
+    
+    document.getElementById('btn-map').addEventListener('touchstart', (e) => { 
+        e.preventDefault(); 
+        const mapOverlay = document.getElementById('map-overlay');
+        if (mapOverlay && currentGameMode === 'LEVEL') {
+            isMapOpen = !isMapOpen; mapOverlay.style.display = isMapOpen ? 'flex' : 'none';
+        }
+    }, {passive: false});
+
+    document.getElementById('btn-door').addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (currentGameMode === 'LEVEL') {
+            levelDoors.forEach(door => {
+                if (door.state === 'closed' && Math.abs(door.y - playerCurrentGroundY) < 1.0) {
+                    let dx = camera.position.x - door.x; let dz = camera.position.z - door.z;
+                    if (Math.sqrt(dx * dx + dz * dz) < 3.5) { door.state = 'opening'; playAudio('hit'); }
+                }
+            });
+        }
+    }, {passive: false});
+}
+
+// Initialisiere die Mobile-Controls direkt beim Laden
+initMobileControls();
 
 updateHelpValues(); 
 init3D(); 
