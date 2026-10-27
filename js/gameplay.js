@@ -705,7 +705,11 @@ function toggleHelp() {
         if (helpSourceScreen === 'loading') { loadingScreen.style.display = 'flex'; } 
         else if (helpSourceScreen === 'gameover') { gameOverScreen.style.display = 'flex'; } 
         else {
-            isPaused = false; if (!isTouchDevice) document.body.requestPointerLock();
+            isPaused = false; 
+			
+			if (!isTouchDevice) document.body.requestPointerLock();
+			else document.getElementById('mobile-ui').style.display = 'block';
+			
             gameInterval = setInterval(updateTimer, 1000); 
             if (currentGameMode === 'FREE') spawnInterval = setInterval(spawnSchwein, 1000);
             powerupInterval = setInterval(spawnPowerUpPair, POWERUP_SPAWN_INTERVAL);
@@ -723,7 +727,9 @@ function toggleHelp() {
         else if (gameOverScreen.style.display === 'flex') { helpSourceScreen = 'gameover'; gameOverScreen.style.display = 'none'; } 
         else {
             if (timeLeft <= 0 || hp <= 0) return; 
-            helpSourceScreen = 'game'; isPaused = true; document.exitPointerLock();
+            helpSourceScreen = 'game'; isPaused = true; 
+			document.exitPointerLock();
+			if (isTouchDevice) document.getElementById('mobile-ui').style.display = 'block';
             clearInterval(gameInterval); clearInterval(spawnInterval); clearInterval(powerupInterval); clearTimeout(heartbeatTimeout);
             const now = performance.now();
             if(coffeeEndTime > now) coffeeEndTime = coffeeEndTime - now; else coffeeEndTime = 0;
@@ -1062,6 +1068,13 @@ function startGame() {
     const mo = document.getElementById('map-overlay');
     if (mo) mo.style.display = 'none';
 
+    // --- Mobile-UI beim Spielstart einblenden ---
+    if (isTouchDevice) {
+        const mobileUi = document.getElementById('mobile-ui');
+        if (mobileUi) mobileUi.style.display = 'block';
+    }
+    // -------------------------------------------------
+
     camera.fov = 75; camera.updateProjectionMatrix();
     isTransitioningLevel = false;
     
@@ -1107,6 +1120,13 @@ function endGame(diedFromHp) {
     const mo = document.getElementById('map-overlay');
     if (mo) mo.style.display = 'none';
 
+    // --- Mobile-UI beim Game Over ausblenden ---
+    if (isTouchDevice) {
+        const mobileUi = document.getElementById('mobile-ui');
+        if (mobileUi) mobileUi.style.display = 'none';
+    }
+    // ------------------------------------------------
+
     let hpMultiplier = hp / 100; let finalCalculatedScore = Math.round(score * hpMultiplier);
     scoreCalcText.innerText = `Points Scored: ${score} | Final Health: ${hp}% (Multiplier x${hpMultiplier.toFixed(2)})`;
     finalScoreDisplay.innerText = finalCalculatedScore;
@@ -1147,8 +1167,7 @@ function updateHelpValues() {
 
 function initMobileControls() {
     if (!isTouchDevice) return;
-    
-    document.getElementById('mobile-ui').style.display = 'block';
+     
     
     // Joystick Links (Bewegung)
     managerLeft = nipplejs.create({ zone: document.getElementById('joystick-left'), mode: 'dynamic', color: 'white', size: 120 });
