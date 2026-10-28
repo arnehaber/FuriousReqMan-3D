@@ -1171,19 +1171,19 @@ function initMobileControls() {
     
     // Joystick Links (Bewegung)
     managerLeft = nipplejs.create({ zone: document.getElementById('joystick-left'), mode: 'dynamic', color: 'white', size: 120 });
-    managerLeft.on('move', (e, data) => {
-        const force = Math.min(data.force, 1.0);
-        joyMoveX = Math.cos(data.angle.radian) * force;
-        joyMoveY = Math.sin(data.angle.radian) * force;
+    managerLeft.on('move', (evt) => {
+        const force = Math.min(evt.data.force, 1.0);
+        joyMoveX = Math.cos(evt.data.angle.radian) * force;
+        joyMoveY = Math.sin(evt.data.angle.radian) * force;
     });
     managerLeft.on('end', () => { joyMoveX = 0; joyMoveY = 0; });
     
     // Joystick Rechts (Zielen)
     managerRight = nipplejs.create({ zone: document.getElementById('joystick-right'), mode: 'dynamic', color: 'red', size: 120 });
-    managerRight.on('move', (e, data) => {
-        const force = Math.min(data.force, 1.0);
-        joyLookX = Math.cos(data.angle.radian) * force;
-        joyLookY = Math.sin(data.angle.radian) * force;
+    managerRight.on('move', (evt) => {
+        const force = Math.min(evt.data.force, 1.0);
+        joyLookX = Math.cos(evt.data.angle.radian) * force;
+        joyLookY = Math.sin(evt.data.angle.radian) * force;
     });
     managerRight.on('end', () => { joyLookX = 0; joyLookY = 0; });
 

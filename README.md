@@ -77,4 +77,5 @@ No server, no Node.js, and no installation required:
     *   `load.png` & `bullet.png`: Custom creations / assets generated with Google Gemini.
 *   **Libraries:**
     *   [Three.js (r128)](https://threejs.org/): Used under the MIT License. Copyright © 2010-2021 three.js authors. (See `lib/three.min-r128-LICENSE.txt`).
+    *   [nipplejs (1.0.4)](https://github.com/yoannmoinet/nipplejs): Virtual joystick library for mobile touch controls. Used under the MIT License. Copyright © 2025 Yoann Moinet. (See `lib/nipplejs-1.0.4-min-LICENSE.txt`).
 *   **Audio:** Completely procedurally generated via Web Audio API (oscillators, gain nodes, filters). No external audio files used.
