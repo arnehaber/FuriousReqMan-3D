@@ -460,7 +460,7 @@ function animate3D() {
                         if (!canSee) break;
                     }
                 }
-                if (canSee) pig.hasSeenPlayer = true; else continue;
+                if (canSee) { pig.hasSeenPlayer = true; playPigScreamAudio(); } else continue;
             }
             
 			if (distToPlayer < 1.4 && !pig.isFleeing && freezeEndTime <= now) {
@@ -503,7 +503,7 @@ function animate3D() {
 
             let targetPos = pig.isFleeing ? pig.fleeTarget : camera.position;
             let dirToTarget = new THREE.Vector3().subVectors(targetPos, pig.mesh.position); dirToTarget.y = 0; let distToTarget = dirToTarget.length(); dirToTarget.normalize();
-            if (pig.isFleeing && distToTarget < 3.0) pig.isFleeing = false;
+            if (pig.isFleeing && distToTarget < 3.0) { pig.isFleeing = false; playPigScreamAudio(); }
 
             let avoidance = new THREE.Vector3(0, 0, 0);
             if (currentGameMode === 'FREE') {

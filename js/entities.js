@@ -370,7 +370,8 @@ function spawnSchwein() {
     scene.add(pigData.mesh); pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
     
     // NEU: Im Free Mode sind die Schweine immer sofort wach
-    pigData.hasSeenPlayer = true; 
+    pigData.hasSeenPlayer = true;
+    playPigScreamAudio(); 
     
     pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0); pigs3D.push(pigData);
 }
