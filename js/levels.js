@@ -161,7 +161,7 @@ const episodes = [
             "RELOAD_TIME": 250,
             "HP_HEAL_AMOUNT": 20,
             "MAX_OVERHEAL_HP": 140,
-            "TIME_BONUS_AMOUNT": 8,
+            "TIME_BONUS_AMOUNT": 15,
             "COFFEE_TIMER": 7,
             "COFFEE_SPEED_MULTI": 1.4,
             "INFINITE_AMMO_TIMER": 6,
@@ -259,7 +259,7 @@ const episodes = [
                         "|||||||||||||||||||||||",
                         "|    D   |   |   D   E|",
                         "||||||   |   |   ||||||",
-                        "|I   | 2 D   D 2 |   F|",
+                        "|I   | 2 D T D 2 |   F|",
                         "|  - D   |   |   D -  |",
                         "|||||||||||||||||||||||"
                     ]
@@ -289,7 +289,7 @@ const episodes = [
                         "||||||||||||||||",
                         "|I  | 2  2 |  3|",
                         "|   D      D   |",
-                        "|   |      |   |",
+                        "|   |3    3| T |",
                         "| - |||||||| + |",
                         "||||||||||||||||"
                     ],
