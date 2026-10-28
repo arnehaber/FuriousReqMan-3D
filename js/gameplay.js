@@ -1181,8 +1181,10 @@ function endGame(diedFromHp) {
     }
     // ------------------------------------------------
 
-    let hpMultiplier = hp / 100; let finalCalculatedScore = Math.round(score * hpMultiplier);
-    scoreCalcText.innerText = `Points Scored: ${score} | Final Health: ${hp}% (Multiplier x${hpMultiplier.toFixed(2)})`;
+    const timeBonus = Math.max(0, timeLeft) * 50;
+    const hpMultiplier = hp / 100;
+    const finalCalculatedScore = Math.max(0, Math.round((score + timeBonus) * hpMultiplier));
+    scoreCalcText.innerText = `Points Scored: ${score} | Remaining Time: ${timeLeft}s (+${timeBonus}) | Remaining Health: ${hp}% (Multiplier x${hpMultiplier.toFixed(2)})`;
     finalScoreDisplay.innerText = finalCalculatedScore;
     
     statsHpCount.innerText = `x${collectedHp}`;
