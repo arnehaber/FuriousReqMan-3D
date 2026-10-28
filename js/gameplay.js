@@ -12,6 +12,7 @@ let joyLookX = 0, joyLookY = 0;
 let managerLeft = null, managerRight = null;
 
 let isJumping = false, jumpVelocity = 0, playerCurrentGroundY = 0;
+let isGameOver = true;
 let collectedHp = 0, collectedTime = 0, collectedCoffee = 0, collectedLightning = 0, collectedFreeze = 0;
 let lastTeleportTime = 0; 
 let isTransitioningLevel = false;
@@ -73,9 +74,9 @@ function showLevelBanner(title, subtitle) {
 }
 
 function transitionToNextLevel() {
-    activeLevelIndex++;
     const ep = episodes[activeEpisodeIndex];
-    if (activeLevelIndex < ep.levels.length) {
+    if (ep && activeLevelIndex + 1 < ep.levels.length) {
+        activeLevelIndex++;
         applyGameConfiguration();
         buildLevelFromData(ep.levels[activeLevelIndex]);
         showLevelBanner(ep.levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
@@ -268,10 +269,12 @@ function animate3D() {
     const clampedDt = Math.min(dt, 0.1);
     const timeScale = clampedDt * 60;
 
-    handlePlayerMovement(timeScale);
+    if (!isGameOver && gameOverScreen.style.display !== 'flex' && loadingScreen.style.display === 'none') {
+        handlePlayerMovement(timeScale);
+    }
 	
     // --- KAMERA-DREHUNG FÜR MOBILE (Rechter Joystick) ---
-    if (isTouchDevice && (joyLookX !== 0 || joyLookY !== 0) && document.getElementById('instructions-overlay').style.display !== 'flex') {
+    if (!isGameOver && gameOverScreen.style.display !== 'flex' && loadingScreen.style.display === 'none' && isTouchDevice && (joyLookX !== 0 || joyLookY !== 0) && document.getElementById('instructions-overlay').style.display !== 'flex') {
         camera.rotation.y -= joyLookX * 0.035 * timeScale;
         camera.rotation.x += joyLookY * 0.035 * timeScale;
         camera.rotation.x = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, camera.rotation.x));
@@ -314,7 +317,7 @@ function animate3D() {
         }
     }
 
-    if (!isPaused && timeLeft > 0 && hp > 0 && loadingScreen.style.display === 'none' && instructionsOverlay.style.display !== 'flex') {
+    if (!isGameOver && gameOverScreen.style.display !== 'flex' && !isPaused && timeLeft > 0 && hp > 0 && loadingScreen.style.display === 'none' && instructionsOverlay.style.display !== 'flex') {
 		const now = performance.now();
         let activeHtml = '';
         const crosshairElem = document.getElementById('crosshair'); 
@@ -548,9 +551,10 @@ function animate3D() {
                 discoveredMaps = []; // Reset on level change
             }
 
-            const activeLevel = episodes[activeEpisodeIndex].levels[activeLevelIndex];
+            const activeEpisode = episodes[activeEpisodeIndex];
+            const activeLevel = activeEpisode && activeEpisode.levels ? activeEpisode.levels[activeLevelIndex] : null;
             const layerIdx = Math.round(playerCurrentGroundY / LAYER_HEIGHT);
-            const layerData = activeLevel.layers[layerIdx];
+            const layerData = activeLevel && activeLevel.layers ? activeLevel.layers[layerIdx] : null;
             
             if (layerData) {
                 updateMapDiscovery(layerIdx, layerData);
@@ -565,8 +569,9 @@ function animate3D() {
 }
 
 function handlePlayerMovement(timeScale) {
+    if (isGameOver || gameOverScreen.style.display === 'flex' || loadingScreen.style.display !== 'none') return;
     // Auf Touch-Geräten den fehlenden Pointer-Lock ignorieren!
-    if ((!isTouchDevice && document.pointerLockElement !== document.body) || isPaused || instructionsOverlay.style.display === 'flex' || hp <= 0) return;
+    if ((!isTouchDevice && document.pointerLockElement !== document.body) || isPaused || instructionsOverlay.style.display === 'flex' || hp <= 0 || timeLeft <= 0) return;
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion); const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion); forward.y = 0; forward.normalize(); right.y = 0; right.normalize();
     
     let moveVector = new THREE.Vector3(0, 0, 0);
@@ -596,7 +601,9 @@ function handlePlayerMovement(timeScale) {
     const now = performance.now();
 
     if (currentGameMode === 'LEVEL') {
-        const activeLevel = episodes[activeEpisodeIndex].levels[activeLevelIndex];
+        const activeEpisode = episodes[activeEpisodeIndex];
+        const activeLevel = activeEpisode && activeEpisode.levels ? activeEpisode.levels[activeLevelIndex] : null;
+        if (!activeLevel || !activeLevel.layers) return;
         const layerIdx = Math.round(playerCurrentGroundY / LAYER_HEIGHT);
         const layer = activeLevel.layers[layerIdx];
         
@@ -652,10 +659,11 @@ function handlePlayerMovement(timeScale) {
                 if (distToExit < 1.8 && pigs3D.length === 0) {
                     levelExits = [];
                     setTimeout(() => {
-                        activeLevelIndex++;
-                        if (activeLevelIndex < episodes[activeEpisodeIndex].levels.length) {
-                            buildLevelFromData(episodes[activeEpisodeIndex].levels[activeLevelIndex]);
-                            showLevelBanner(episodes[activeEpisodeIndex].levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
+                        const ep = episodes[activeEpisodeIndex];
+                        if (ep && activeLevelIndex + 1 < ep.levels.length) {
+                            activeLevelIndex++;
+                            buildLevelFromData(ep.levels[activeLevelIndex]);
+                            showLevelBanner(ep.levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
                         } else {
                             endGame();
                         }
@@ -1059,6 +1067,7 @@ function init3D() {
 function startGame() {
 	applyGameConfiguration(); 
 	
+    isGameOver = false;
     score = 0; currentAmmo = MAX_AMMO; hp = 100; isReloading = false; isPaused = false; isJumping = false; jumpVelocity = 0; playerCurrentGroundY = 0;
     collectedHp = 0; collectedTime = 0; collectedCoffee = 0; collectedLightning = 0; collectedFreeze = 0;
     coffeeEndTime = 0; infiniteAmmoEndTime = 0; freezeEndTime = 0; activePowerupsDisplay.innerHTML = '';
@@ -1072,6 +1081,12 @@ function startGame() {
     if (isTouchDevice) {
         const mobileUi = document.getElementById('mobile-ui');
         if (mobileUi) mobileUi.style.display = 'block';
+        // Enter browser fullscreen on mobile
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(() => {});
+        } else if (document.documentElement.webkitRequestFullscreen) {
+            document.documentElement.webkitRequestFullscreen();
+        }
     }
     // -------------------------------------------------
 
@@ -1107,6 +1122,8 @@ function restartAndPlay() { initAudio(); gameOverScreen.style.display = 'none'; 
 function updateTimer() { timeLeft--; if(timeLeft < 0) timeLeft = 0; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`; if (timeLeft <= 0) endGame(false); }
 
 function endGame(diedFromHp) { 
+    isGameOver = true;
+    joyMoveX = 0; joyMoveY = 0; joyLookX = 0; joyLookY = 0;
     if(typeof heartbeatTimeout !== 'undefined') clearTimeout(heartbeatTimeout); 
     if(typeof gameInterval !== 'undefined') clearInterval(gameInterval); 
     if(typeof spawnInterval !== 'undefined') clearInterval(spawnInterval); 
@@ -1124,6 +1141,12 @@ function endGame(diedFromHp) {
     if (isTouchDevice) {
         const mobileUi = document.getElementById('mobile-ui');
         if (mobileUi) mobileUi.style.display = 'none';
+        // Exit browser fullscreen on mobile
+        if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+        } else if (document.webkitFullscreenElement) {
+            document.webkitExitFullscreen();
+        }
     }
     // ------------------------------------------------
 
