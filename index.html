@@ -12,7 +12,7 @@
     
     	/* --- MOBILE TOUCH UI --- */
         body, html { touch-action: none; /* Verhindert Wischen/Zoomen durch den Browser */ }
-        #mobile-ui { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1500; pointer-events: none; }
+        #mobile-ui { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2500; pointer-events: none; }
         .touch-zone { position: absolute; width: 40vw; height: 100%; top: 0; pointer-events: auto; }
         #joystick-left { left: 0; }
         #joystick-right { right: 0; }
@@ -24,7 +24,8 @@
         #btn-jump { bottom: 30vh; right: 5vw; width: 50px; height: 50px; }
         #btn-reload { bottom: 30vh; right: 18vw; width: 50px; height: 50px; }
         #btn-door { bottom: 15vh; left: 45vw; width: 60px; height: 60px; border-color: #ffcc00; color: #ffcc00; }
-        #btn-map { top: 20px; left: 20px; width: 50px; height: 50px; border-radius: 10px; }
+        #btn-map { top: 20px; left: 20px; width: 50px; height: 50px; border-radius: 10px; z-index: 2600; }
+        #btn-map.active { background: rgba(255, 50, 50, 0.5); border-color: #ff3333; color: #fff; }
         
         body { margin: 0; padding: 0; font-family: 'Arial Black', sans-serif; overflow: hidden; user-select: none; background: #000; color: #fff; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -141,24 +142,63 @@
             position: absolute;
             top: 20px;
             right: 20px;
-            background: rgba(15, 15, 15, 0.9);
+            background: rgba(15, 15, 15, 0.95);
             border: 2px solid #555;
-            border-radius: 5px;
+            border-radius: 8px;
             z-index: 2000;
             display: none; /* Initial versteckt */
             flex-direction: column;
             align-items: center;
             padding: 10px;
             box-shadow: 0px 0px 15px rgba(0,0,0,0.8);
+            max-width: calc(100vw - 40px);
+            box-sizing: border-box;
+        }
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 8px;
+            gap: 10px;
         }
         #map-overlay .map-title {
             color: #ffcc00;
             font-family: 'Arial Black', sans-serif;
             font-size: 14px;
-            margin-bottom: 8px;
+            margin: 0;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
+        .map-close-btn {
+            background: rgba(255, 50, 50, 0.3);
+            border: 1px solid #ff3333;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 18px;
+            font-weight: bold;
+            line-height: 1;
+            padding: 2px 8px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        .map-close-btn:active { background: rgba(255, 50, 50, 0.8); }
+        .map-bottom-close-btn {
+            margin-top: 8px;
+            width: 100%;
+            background: rgba(255, 50, 50, 0.3);
+            border: 1px solid #ff3333;
+            color: #fff;
+            font-family: 'Arial Black', sans-serif;
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            pointer-events: auto;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .map-bottom-close-btn:active { background: rgba(255, 50, 50, 0.8); }
         #map-canvas {
             background: #000;
             border: 1px solid #333;
@@ -225,8 +265,12 @@
 	<div id="game-container">
 <!-- AUTO-MAP OVERLAY -->
     <div id="map-overlay">
-        <div class="map-title">Auto-Map (Floor <span id="map-floor-display">0</span>)</div>
+        <div class="map-header">
+            <div class="map-title">Auto-Map (Floor <span id="map-floor-display">0</span>)</div>
+            <button id="map-close-btn" class="map-close-btn" type="button" aria-label="Close Map">&times;</button>
+        </div>
         <canvas id="map-canvas" width="300" height="300"></canvas>
+        <button id="map-bottom-close-btn" class="map-bottom-close-btn" type="button">CLOSE MAP</button>
     </div>
 		<div id="loading-screen">
 			<h1>Furious Requirement Manager 3D</h1>

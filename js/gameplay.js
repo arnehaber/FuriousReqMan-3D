@@ -262,6 +262,45 @@ function drawMap(layerIdx, layerData) {
     ctx.restore();
 }
 
+let lastMapToggleTime = 0;
+function toggleMap(e) {
+    if (e) {
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+    }
+    const now = performance.now();
+    if (now - lastMapToggleTime < 250) return;
+    lastMapToggleTime = now;
+
+    const mapOverlay = document.getElementById('map-overlay');
+    if (!mapOverlay || currentGameMode !== 'LEVEL') return;
+
+    isMapOpen = !isMapOpen;
+    mapOverlay.style.display = isMapOpen ? 'flex' : 'none';
+
+    const btnMap = document.getElementById('btn-map');
+    if (btnMap) {
+        if (isMapOpen) {
+            btnMap.classList.add('active');
+            btnMap.innerText = '✕';
+        } else {
+            btnMap.classList.remove('active');
+            btnMap.innerText = 'MAP';
+        }
+    }
+}
+
+function closeMap() {
+    isMapOpen = false;
+    const mo = document.getElementById('map-overlay');
+    if (mo) mo.style.display = 'none';
+    const btnMap = document.getElementById('btn-map');
+    if (btnMap) {
+        btnMap.classList.remove('active');
+        btnMap.innerText = 'MAP';
+    }
+}
+
 // --- MAIN RENDER LOOP ---
 function animate3D() {
     requestAnimationFrame(animate3D);
@@ -1041,11 +1080,7 @@ function init3D() {
 
         // NEU: Karte aufrufen ('M')
         if (key === 'm') {
-            const mapOverlay = document.getElementById('map-overlay');
-            if (mapOverlay && currentGameMode === 'LEVEL') {
-                isMapOpen = !isMapOpen;
-                mapOverlay.style.display = isMapOpen ? 'flex' : 'none';
-            }
+            toggleMap();
         }
 
         if (key === 'e' && currentGameMode === 'LEVEL') {
@@ -1073,9 +1108,7 @@ function startGame() {
     coffeeEndTime = 0; infiniteAmmoEndTime = 0; freezeEndTime = 0; activePowerupsDisplay.innerHTML = '';
     
     // Map Reset
-    isMapOpen = false;
-    const mo = document.getElementById('map-overlay');
-    if (mo) mo.style.display = 'none';
+    closeMap();
 
     // --- Mobile-UI beim Spielstart einblenden ---
     if (isTouchDevice) {
@@ -1133,9 +1166,7 @@ function endGame(diedFromHp) {
     document.exitPointerLock(); 
     
     // Map verstecken
-    isMapOpen = false;
-    const mo = document.getElementById('map-overlay');
-    if (mo) mo.style.display = 'none';
+    closeMap();
 
     // --- Mobile-UI beim Game Over ausblenden ---
     if (isTouchDevice) {
@@ -1223,13 +1254,21 @@ function initMobileControls() {
     document.getElementById('btn-reload').addEventListener('touchstart', (e) => { e.preventDefault(); reload(); }, {passive: false});
     document.getElementById('btn-jump').addEventListener('touchstart', (e) => { e.preventDefault(); startPlayerJump(); }, {passive: false});
     
-    document.getElementById('btn-map').addEventListener('touchstart', (e) => { 
-        e.preventDefault(); 
-        const mapOverlay = document.getElementById('map-overlay');
-        if (mapOverlay && currentGameMode === 'LEVEL') {
-            isMapOpen = !isMapOpen; mapOverlay.style.display = isMapOpen ? 'flex' : 'none';
-        }
-    }, {passive: false});
+    const btnMap = document.getElementById('btn-map');
+    if (btnMap) {
+        btnMap.addEventListener('touchstart', toggleMap, {passive: false});
+        btnMap.addEventListener('click', toggleMap);
+    }
+    const mapCloseBtn = document.getElementById('map-close-btn');
+    if (mapCloseBtn) {
+        mapCloseBtn.addEventListener('touchstart', toggleMap, {passive: false});
+        mapCloseBtn.addEventListener('click', toggleMap);
+    }
+    const mapBottomCloseBtn = document.getElementById('map-bottom-close-btn');
+    if (mapBottomCloseBtn) {
+        mapBottomCloseBtn.addEventListener('touchstart', toggleMap, {passive: false});
+        mapBottomCloseBtn.addEventListener('click', toggleMap);
+    }
 
     document.getElementById('btn-door').addEventListener('touchstart', (e) => {
         e.preventDefault();
