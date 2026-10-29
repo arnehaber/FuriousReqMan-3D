@@ -512,36 +512,28 @@ function buildLevelFromData(levelData) {
                     if (Math.random() < 0.05) {
                         // Prüfen, an welchen Seiten der Wand Platz für ein Bild ist (leeres Feld ' ')
                         let freeFaces = [];
-                        if (col < layer[row].length - 1 && layer[row][col+1] === ' ') freeFaces.push({ rot: 0, dx: TILE_SIZE / 2 + 0.02, dz: 0 }); // Rechts
-                        if (col > 0 && layer[row][col-1] === ' ') freeFaces.push({ rot: Math.PI, dx: -TILE_SIZE / 2 - 0.02, dz: 0 }); // Links
-                        if (row < layer.length - 1 && layer[row+1] && layer[row+1][col] === ' ') freeFaces.push({ rot: Math.PI / 2, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); // Vorne
-                        if (row > 0 && layer[row-1] && layer[row-1][col] === ' ') freeFaces.push({ rot: -Math.PI / 2, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); // Hinten
+                        // Prüfen, welche Seiten frei sind, und exakte Rotation für die Ebene festlegen:
+                        if (col < layer[row].length - 1 && layer[row][col+1] === ' ') freeFaces.push({ rot: -Math.PI / 2, dx: TILE_SIZE / 2 + 0.02, dz: 0 }); // Rechts (+X)
+                        if (col > 0 && layer[row][col-1] === ' ') freeFaces.push({ rot: Math.PI / 2, dx: -TILE_SIZE / 2 - 0.02, dz: 0 }); // Links (-X)
+                        if (row < layer.length - 1 && layer[row+1] && layer[row+1][col] === ' ') freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); // Vorne (+Z)
+                        if (row > 0 && layer[row-1] && layer[row-1][col] === ' ') freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); // Hinten (-Z)
 
-                        // Wenn mindestens eine Seite frei ist, hänge an JEDE freie Seite ein Bild
                         if (freeFaces.length > 0) {
                             freeFaces.forEach(face => {
-                                // Wähle ein zufälliges Bild aus dem Konstanten-Array
                                 const imgPath = WALL_PAINTINGS[Math.floor(Math.random() * WALL_PAINTINGS.length)];
-                                
-                                // Lade das Bild als Textur
                                 const texture = new THREE.TextureLoader().load(imgPath);
                                 
-                                // Erstelle einen goldenen/holzernen Rahmen als flachen 3D-Kasten (Breite 2.0, Höhe 2.8, Dicke 0.1)
-                                const frameGeo = new THREE.BoxGeometry(0.1, 2.8, 2.0); 
+                                // Flache Ebene statt Quader, damit das Bild garantiert richtig herum sitzt
+                                const planeGeo = new THREE.PlaneGeometry(2.0, 2.8); 
+                                const pictureMat = new THREE.MeshStandardMaterial({ 
+                                    map: texture, 
+                                    roughness: 0.8,
+                                    side: THREE.DoubleSide // Sicherheitshalber von beiden Seiten sichtbar
+                                });
                                 
-                                // Materialien für den Kasten zuweisen (Front-Fläche bekommt das Bild)
-                                const frameMat = new THREE.MeshStandardMaterial({ color: 0x22150b, roughness: 0.9 }); // Dunkles Holz für den Rahmen
-                                const pictureMat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.8 });
+                                const painting = new THREE.Mesh(planeGeo, pictureMat);
                                 
-                                // Array-Index für BoxGeometry-Seiten: 0:Rechts, 1:Links, 2:Oben, 3:Unten, 4:Vorne, 5:Hinten
-                                const materials = [
-                                    pictureMat, // Die rechte Seite (wird unsere Front durch Drehung)
-                                    frameMat, frameMat, frameMat, frameMat, frameMat
-                                ];
-                                
-                                const painting = new THREE.Mesh(frameGeo, materials);
-                                
-                                // Gemälde positionieren (Mitte der Wand + leichter Versatz nach außen)
+                                // Positionieren und exakt in den Raum ausrichten
                                 painting.position.set(xPos + face.dx, yOffset + WALL_HEIGHT / 2 + 0.2, zPos + face.dz);
                                 painting.rotation.y = face.rot;
                                 
@@ -549,6 +541,7 @@ function buildLevelFromData(levelData) {
                                 levelEnvironmentMeshes.push(painting);
                             });
                         }
+                    }
                 }
                 else if (cell === 'P') {
                     camera.position.set(xPos, yOffset + playerBaseY, zPos);
