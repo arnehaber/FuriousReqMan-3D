@@ -18,6 +18,9 @@ const MAP_MAX_Z = 10;
 const playerBaseY = 2; 
 const playerHeightOffset = 2; 
 
+// --- DECORATION ---
+const WALL_PAINTINGS = ['img/wall/p1.png'];
+
 
 // Episode configuration
 // Diese Werte mit 'let' definieren, damit sie überschrieben werden können!

@@ -63,6 +63,69 @@ function getGrassMaterial() {
     return new THREE.MeshStandardMaterial({ map: cachedGrassTexture, roughness: 1.0, metalness: 0.0 });
 }
 
+let cachedSlaughterWallTexture = null;
+
+function generateSlaughterhouseWallTexture() {
+    if (cachedSlaughterWallTexture) return cachedSlaughterWallTexture;
+
+    const width = 512;
+    const height = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+
+    // 1. Basis: Dreckige, dunkelgrün/graue Schlachthaus-Kacheln
+    ctx.fillStyle = '#1e2420'; 
+    ctx.fillRect(0, 0, width, height);
+
+    // Kachel-Fugen zeichnen
+    ctx.strokeStyle = '#0a0c0a';
+    ctx.lineWidth = 4;
+    for (let i = 0; i <= width; i += 64) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, height); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(width, i); ctx.stroke();
+    }
+
+    // 2. Schmutz und Schimmel (Dunkle Flecken)
+    for (let i = 0; i < 1500; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(10, 15, 10, 0.4)' : 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(Math.random() * width, Math.random() * height, Math.random() * 8 + 2, Math.random() * 8 + 2);
+    }
+
+    // 3. Blutige Schlieren (an den Wänden herunterlaufend)
+    for (let i = 0; i < 45; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * (height * 0.4); // Starten meist in der oberen Hälfte
+        const length = Math.random() * 300 + 100;
+        const streakWidth = Math.random() * 12 + 4;
+        
+        // Farbverlauf für geronnenes Blut (Dunkelrot bis fast Schwarz transparent)
+        const bloodGradient = ctx.createLinearGradient(x, y, x, y + length);
+        bloodGradient.addColorStop(0, 'rgba(80, 0, 0, 0.9)'); 
+        bloodGradient.addColorStop(1, 'rgba(30, 0, 0, 0.0)');  
+        
+        ctx.fillStyle = bloodGradient;
+        ctx.fillRect(x, y, streakWidth, length);
+    }
+
+    // 4. Frische und eingetrocknete Blutspritzer (Kreise)
+    for (let i = 0; i < 200; i++) {
+        ctx.fillStyle = Math.random() > 0.3 ? 'rgba(110, 5, 5, 0.8)' : 'rgba(50, 0, 0, 0.9)';
+        ctx.beginPath();
+        ctx.arc(Math.random() * width, Math.random() * height, Math.random() * 6 + 1, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    cachedSlaughterWallTexture = new THREE.CanvasTexture(canvas);
+    cachedSlaughterWallTexture.wrapS = THREE.RepeatWrapping;
+    cachedSlaughterWallTexture.wrapT = THREE.RepeatWrapping;
+    // Textur auf der Wand kacheln (4x horizontal, 1x vertikal, damit die Schlieren nach unten laufen)
+    cachedSlaughterWallTexture.repeat.set(4, 1); 
+    
+    return cachedSlaughterWallTexture;
+}
+
 function createProceduralRock() { const size = 1.4 + Math.random() * 2.2; const rockGeo = new THREE.DodecahedronGeometry(size, 0); const rockMat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(0, 0, 0.15 + Math.random() * 0.1), roughness: 1.0, metalness: 0.1 }); const rock = new THREE.Mesh(rockGeo, rockMat); rock.scale.set(1 + Math.random() * 0.3, 0.6 + Math.random() * 0.4, 1 + Math.random() * 0.3); rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0); return rock; }
 function createProceduralDeadTree() { const treeGroup = new THREE.Group(); const woodMat = new THREE.MeshStandardMaterial({ color: 0x1f1713, roughness: 1.0 }); const trunkHeight = 4 + Math.random() * 4; const trunkGeo = new THREE.CylinderGeometry(0.15, 0.3, trunkHeight, 8); const trunk = new THREE.Mesh(trunkGeo, woodMat); trunk.position.y = trunkHeight / 2; treeGroup.add(trunk); for (let i = 0; i < 4; i++) { const branchLength = 1.5 + Math.random() * 2; const branchGeo = new THREE.CylinderGeometry(0.04, 0.1, branchLength, 6); const branch = new THREE.Mesh(branchGeo, woodMat); branch.position.y = (trunkHeight * 0.4) + (Math.random() * (trunkHeight * 0.5)); branch.rotation.z = (Math.random() - 0.5) * 1.2 + (branch.position.x > 0 ? 0.5 : -0.5); branch.rotation.x = (Math.random() - 0.5) * 1.2; branch.position.x = Math.sin(branch.rotation.z) * (branchLength / 2); treeGroup.add(branch); } return treeGroup; }
 function generateProceduralFenceTexture(length) { const width = 2048; const height = 256; const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#0a0503'; ctx.fillRect(0, 0, width, height); const boardWidth = 16; const numBoards = width / boardWidth; for (let i = 0; i < numBoards; i++) { const x = i * boardWidth; const isBroken = Math.random() > 0.92; const boardHeight = isBroken ? height * (0.5 + Math.random() * 0.3) : height - (Math.random() * 15); const baseColors = ['#4a3325', '#3b261a', '#543d30', '#2e1f14', '#422f22']; let color = baseColors[Math.floor(Math.random() * baseColors.length)]; ctx.fillStyle = color; ctx.fillRect(x, height - boardHeight, boardWidth - 1, boardHeight); ctx.globalAlpha = 0.15; ctx.fillStyle = '#000000'; for (let g = 0; g < 3; g++) { const gx = x + Math.random() * (boardWidth - 3); ctx.fillRect(gx, height - boardHeight, Math.random() * 2 + 1, boardHeight); } if (Math.random() > 0.7) { ctx.globalAlpha = 0.6; ctx.fillStyle = '#120a05'; const knotY = (height - boardHeight) + Math.random() * (boardHeight - 20); const knotRadius = 2 + Math.random() * 3; ctx.beginPath(); ctx.arc(x + boardWidth/2 + (Math.random()-0.5)*4, knotY, knotRadius, 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1.0; } const texture = new THREE.CanvasTexture(canvas); texture.wrapS = THREE.RepeatWrapping; texture.repeat.set(length / 4, 1); return texture; }
@@ -387,8 +450,16 @@ function buildLevelFromData(levelData) {
     const WALL_HEIGHT = LAYER_HEIGHT - THICKNESS; // 5.0 - 0.4 = 4.6
 
     // Geometrien verwenden nun die exakte Wandhöhe
+    // Geometrien verwenden nun die exakte Wandhöhe
     const wallGeo = new THREE.BoxGeometry(TILE_SIZE, WALL_HEIGHT, TILE_SIZE);
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 });
+    
+    // NEU: Schlachthaus-Material mit Blut-Textur und leichtem Glanz (feucht)
+    const wallMat = new THREE.MeshStandardMaterial({ 
+        map: generateSlaughterhouseWallTexture(),
+        roughness: 0.45, // Etwas glänzender, als wäre das Blut/Kondenswasser noch feucht
+        metalness: 0.1,
+        color: 0xdddddd  // Leicht abdunkeln, damit die Kacheln schmuddeliger wirken
+    });
     const floorGeo = new THREE.BoxGeometry(TILE_SIZE, THICKNESS, TILE_SIZE);
     const floorMat = getGrassMaterial();
     const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
@@ -436,6 +507,50 @@ function buildLevelFromData(levelData) {
                     wall.position.set(xPos, yOffset + WALL_HEIGHT / 2, zPos);
                     scene.add(wall); levelEnvironmentMeshes.push(wall);
                     levelWallHitboxes.push({ x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2 });
+
+                    // --- NEU: Zufälliges Gemälde an der Wand (1 zu 50) ---
+                    if (Math.random() < 0.05) {
+                        // Prüfen, an welchen Seiten der Wand Platz für ein Bild ist (leeres Feld ' ')
+                        let freeFaces = [];
+                        if (col < layer[row].length - 1 && layer[row][col+1] === ' ') freeFaces.push({ rot: 0, dx: TILE_SIZE / 2 + 0.02, dz: 0 }); // Rechts
+                        if (col > 0 && layer[row][col-1] === ' ') freeFaces.push({ rot: Math.PI, dx: -TILE_SIZE / 2 - 0.02, dz: 0 }); // Links
+                        if (row < layer.length - 1 && layer[row+1] && layer[row+1][col] === ' ') freeFaces.push({ rot: Math.PI / 2, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); // Vorne
+                        if (row > 0 && layer[row-1] && layer[row-1][col] === ' ') freeFaces.push({ rot: -Math.PI / 2, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); // Hinten
+
+                        // Wenn mindestens eine Seite frei ist, hänge ein Bild auf
+                        if (freeFaces.length > 0) {
+                            // Wähle eine zufällige freie Wandseite
+                            const face = freeFaces[Math.floor(Math.random() * freeFaces.length)];
+                            
+                            // Wähle ein zufälliges Bild aus dem Konstanten-Array
+                            const imgPath = WALL_PAINTINGS[Math.floor(Math.random() * WALL_PAINTINGS.length)];
+                            
+                            // Lade das Bild als Textur
+                            const texture = new THREE.TextureLoader().load(imgPath);
+                            
+                            // Erstelle einen goldenen/holzernen Rahmen als flachen 3D-Kasten (Breite 2.0, Höhe 2.8, Dicke 0.1)
+                            const frameGeo = new THREE.BoxGeometry(0.1, 2.8, 2.0); 
+                            
+                            // Materialien für den Kasten zuweisen (Front-Fläche bekommt das Bild)
+                            const frameMat = new THREE.MeshStandardMaterial({ color: 0x22150b, roughness: 0.9 }); // Dunkles Holz für den Rahmen
+                            const pictureMat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.8 });
+                            
+                            // Array-Index für BoxGeometry-Seiten: 0:Rechts, 1:Links, 2:Oben, 3:Unten, 4:Vorne, 5:Hinten
+                            const materials = [
+                                pictureMat, // Die rechte Seite (wird unsere Front durch Drehung)
+                                frameMat, frameMat, frameMat, frameMat, frameMat
+                            ];
+                            
+                            const painting = new THREE.Mesh(frameGeo, materials);
+                            
+                            // Gemälde positionieren (Mitte der Wand + leichter Versatz nach außen)
+                            painting.position.set(xPos + face.dx, yOffset + WALL_HEIGHT / 2 + 0.2, zPos + face.dz);
+                            painting.rotation.y = face.rot;
+                            
+                            scene.add(painting);
+                            levelEnvironmentMeshes.push(painting);
+                        }
+                    }
                 }
                 else if (cell === 'P') {
                     camera.position.set(xPos, yOffset + playerBaseY, zPos);
