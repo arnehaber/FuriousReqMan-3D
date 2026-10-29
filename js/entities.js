@@ -517,40 +517,38 @@ function buildLevelFromData(levelData) {
                         if (row < layer.length - 1 && layer[row+1] && layer[row+1][col] === ' ') freeFaces.push({ rot: Math.PI / 2, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); // Vorne
                         if (row > 0 && layer[row-1] && layer[row-1][col] === ' ') freeFaces.push({ rot: -Math.PI / 2, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); // Hinten
 
-                        // Wenn mindestens eine Seite frei ist, hänge ein Bild auf
+                        // Wenn mindestens eine Seite frei ist, hänge an JEDE freie Seite ein Bild
                         if (freeFaces.length > 0) {
-                            // Wähle eine zufällige freie Wandseite
-                            const face = freeFaces[Math.floor(Math.random() * freeFaces.length)];
-                            
-                            // Wähle ein zufälliges Bild aus dem Konstanten-Array
-                            const imgPath = WALL_PAINTINGS[Math.floor(Math.random() * WALL_PAINTINGS.length)];
-                            
-                            // Lade das Bild als Textur
-                            const texture = new THREE.TextureLoader().load(imgPath);
-                            
-                            // Erstelle einen goldenen/holzernen Rahmen als flachen 3D-Kasten (Breite 2.0, Höhe 2.8, Dicke 0.1)
-                            const frameGeo = new THREE.BoxGeometry(0.1, 2.8, 2.0); 
-                            
-                            // Materialien für den Kasten zuweisen (Front-Fläche bekommt das Bild)
-                            const frameMat = new THREE.MeshStandardMaterial({ color: 0x22150b, roughness: 0.9 }); // Dunkles Holz für den Rahmen
-                            const pictureMat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.8 });
-                            
-                            // Array-Index für BoxGeometry-Seiten: 0:Rechts, 1:Links, 2:Oben, 3:Unten, 4:Vorne, 5:Hinten
-                            const materials = [
-                                pictureMat, // Die rechte Seite (wird unsere Front durch Drehung)
-                                frameMat, frameMat, frameMat, frameMat, frameMat
-                            ];
-                            
-                            const painting = new THREE.Mesh(frameGeo, materials);
-                            
-                            // Gemälde positionieren (Mitte der Wand + leichter Versatz nach außen)
-                            painting.position.set(xPos + face.dx, yOffset + WALL_HEIGHT / 2 + 0.2, zPos + face.dz);
-                            painting.rotation.y = face.rot;
-                            
-                            scene.add(painting);
-                            levelEnvironmentMeshes.push(painting);
+                            freeFaces.forEach(face => {
+                                // Wähle ein zufälliges Bild aus dem Konstanten-Array
+                                const imgPath = WALL_PAINTINGS[Math.floor(Math.random() * WALL_PAINTINGS.length)];
+                                
+                                // Lade das Bild als Textur
+                                const texture = new THREE.TextureLoader().load(imgPath);
+                                
+                                // Erstelle einen goldenen/holzernen Rahmen als flachen 3D-Kasten (Breite 2.0, Höhe 2.8, Dicke 0.1)
+                                const frameGeo = new THREE.BoxGeometry(0.1, 2.8, 2.0); 
+                                
+                                // Materialien für den Kasten zuweisen (Front-Fläche bekommt das Bild)
+                                const frameMat = new THREE.MeshStandardMaterial({ color: 0x22150b, roughness: 0.9 }); // Dunkles Holz für den Rahmen
+                                const pictureMat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.8 });
+                                
+                                // Array-Index für BoxGeometry-Seiten: 0:Rechts, 1:Links, 2:Oben, 3:Unten, 4:Vorne, 5:Hinten
+                                const materials = [
+                                    pictureMat, // Die rechte Seite (wird unsere Front durch Drehung)
+                                    frameMat, frameMat, frameMat, frameMat, frameMat
+                                ];
+                                
+                                const painting = new THREE.Mesh(frameGeo, materials);
+                                
+                                // Gemälde positionieren (Mitte der Wand + leichter Versatz nach außen)
+                                painting.position.set(xPos + face.dx, yOffset + WALL_HEIGHT / 2 + 0.2, zPos + face.dz);
+                                painting.rotation.y = face.rot;
+                                
+                                scene.add(painting);
+                                levelEnvironmentMeshes.push(painting);
+                            });
                         }
-                    }
                 }
                 else if (cell === 'P') {
                     camera.position.set(xPos, yOffset + playerBaseY, zPos);

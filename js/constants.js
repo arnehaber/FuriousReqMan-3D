@@ -19,7 +19,11 @@ const playerBaseY = 2;
 const playerHeightOffset = 2; 
 
 // --- DECORATION ---
-const WALL_PAINTINGS = ['img/wall/p1.png'];
+const WALL_PAINTINGS = [
+    'img/wall/p1.png',
+    'img/wall/p2.png',
+    'img/wall/p3.png'
+    ];
 
 
 // Episode configuration
