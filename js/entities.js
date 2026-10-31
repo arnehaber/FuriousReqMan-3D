@@ -490,6 +490,19 @@ function buildLevelFromData(levelData) {
 
     levelData.layers.forEach((layer, layerIndex) => {
         const yOffset = layerIndex * LAYER_HEIGHT;
+        
+        // Hilfsfunktion: Prüft ob ein Feld eine feste Wand/Tür ist (für Rotations-Erkennung)
+        const isWallLike = (r, c) => {
+            if (r < 0 || r >= layer.length || c < 0 || c >= layer[r].length) return false;
+            return layer[r][c] === '|' || layer[r][c] === 'S' || layer[r][c] === 'D';
+        };
+        
+        // Hilfsfunktion: Prüft ob das Nachbarfeld frei für ein Gemälde ist (alles außer Wände/Türen/Treppen)
+        const isFreeForPainting = (r, c) => {
+            if (r < 0 || r >= layer.length || c < 0 || c >= layer[r].length) return false;
+            const char = layer[r][c];
+            return char !== undefined && char !== '|' && char !== 'S' && char !== 'D' && char !== '+' && char !== '-';
+        };
 
         for (let row = 0;row < layer.length;row++) {
             for (let col = 0;col < layer[row].length;col++) {
@@ -536,7 +549,7 @@ function buildLevelFromData(levelData) {
                     // Ausrichtung der Secret Door prüfen
                     let isRotated = false;
                     if (isSecretDoor) {
-                        if (layer[row - 1] && layer[row - 1][col] === '|' && layer[row + 1] && layer[row + 1][col] === '|') {
+                        if (isWallLike(row - 1, col) && isWallLike(row + 1, col)) {
                             wallGroup.rotation.y = Math.PI / 2;
                             isRotated = true;
                         }
@@ -562,19 +575,18 @@ function buildLevelFromData(levelData) {
                         if (isSecretDoor) {
                              if (!isRotated) {
                                  // Horizontal Wand -> vorne oder hinten frei?
-                                 if (row < layer.length - 1 && layer[row+1] && layer[row+1][col] === ' ') freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); 
-                                 if (row > 0 && layer[row-1] && layer[row-1][col] === ' ') freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); 
+                                 if (isFreeForPainting(row+1, col)) freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); 
+                                 if (isFreeForPainting(row-1, col)) freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); 
                              } else {
                                  // Vertikale Wand -> rechts oder links frei?
-                                 // Da wallGroup gedreht ist, sind die lokalen Achsen anders, dx ist lokales Z
-                                 if (col < layer[row].length - 1 && layer[row][col+1] === ' ') freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); 
-                                 if (col > 0 && layer[row][col-1] === ' ') freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); 
+                                 if (isFreeForPainting(row, col+1)) freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); 
+                                 if (isFreeForPainting(row, col-1)) freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); 
                              }
                         } else {
-                            if (col < layer[row].length - 1 && layer[row][col+1] === ' ') freeFaces.push({ rot: -Math.PI / 2, dx: TILE_SIZE / 2 + 0.02, dz: 0 }); // Rechts (+X)
-                            if (col > 0 && layer[row][col-1] === ' ') freeFaces.push({ rot: Math.PI / 2, dx: -TILE_SIZE / 2 - 0.02, dz: 0 }); // Links (-X)
-                            if (row < layer.length - 1 && layer[row+1] && layer[row+1][col] === ' ') freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); // Vorne (+Z)
-                            if (row > 0 && layer[row-1] && layer[row-1][col] === ' ') freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); // Hinten (-Z)
+                            if (isFreeForPainting(row, col+1)) freeFaces.push({ rot: -Math.PI / 2, dx: TILE_SIZE / 2 + 0.02, dz: 0 }); // Rechts (+X)
+                            if (isFreeForPainting(row, col-1)) freeFaces.push({ rot: Math.PI / 2, dx: -TILE_SIZE / 2 - 0.02, dz: 0 }); // Links (-X)
+                            if (isFreeForPainting(row+1, col)) freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); // Vorne (+Z)
+                            if (isFreeForPainting(row-1, col)) freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); // Hinten (-Z)
                         }
 
                         if (freeFaces.length > 0) {
