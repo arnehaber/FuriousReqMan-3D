@@ -521,24 +521,38 @@ function buildLevelFromData(levelData) {
                         if (freeFaces.length > 0) {
                             freeFaces.forEach(face => {
                                 const imgPath = WALL_PAINTINGS[Math.floor(Math.random() * WALL_PAINTINGS.length)];
-                                const texture = new THREE.TextureLoader().load(imgPath);
+                                const texture = new THREE.TextureLoader().load(imgPath,
+                                    // onSuccess: Textur wurde fehlerfrei geladen
+                                    (texture) => {
+                                        // Flache Ebene statt Quader, damit das Bild garantiert richtig herum sitzt
+                                        const planeGeo = new THREE.PlaneGeometry(2.0, 2.8); 
+                                        const pictureMat = new THREE.MeshStandardMaterial({ 
+                                            map: texture, 
+                                            roughness: 0.8,
+                                            side: THREE.DoubleSide // Sicherheitshalber von beiden Seiten sichtbar
+                                        });
+                                        
+                                        const painting = new THREE.Mesh(planeGeo, pictureMat);
+                                        
+                                        // Positionieren und exakt in den Raum ausrichten
+                                        painting.position.set(xPos + face.dx, yOffset + WALL_HEIGHT / 2 + 0.2, zPos + face.dz);
+                                        painting.rotation.y = face.rot;
+                                        
+                                        scene.add(painting);
+                                        levelEnvironmentMeshes.push(painting);
+                                    },
+                                    // onProgress: wird nicht benötigt
+                                    undefined, 
+                                    // onError: CORS-Fehler oder 404
+                                    (error) => {
+                                        // Wir tun hier absichtlich nichts (kein Mesh wird der Wand hinzugefügt).
+                                        // Optional als Info für dich in der Konsole:
+                                        console.warn(`Zombieschwein-Porträt blockiert (CORS) oder nicht gefunden: ${imagePath}. Wand bleibt kahl.`);
+                                    }
+                                );
                                 
-                                // Flache Ebene statt Quader, damit das Bild garantiert richtig herum sitzt
-                                const planeGeo = new THREE.PlaneGeometry(2.0, 2.8); 
-                                const pictureMat = new THREE.MeshStandardMaterial({ 
-                                    map: texture, 
-                                    roughness: 0.8,
-                                    side: THREE.DoubleSide // Sicherheitshalber von beiden Seiten sichtbar
-                                });
                                 
-                                const painting = new THREE.Mesh(planeGeo, pictureMat);
-                                
-                                // Positionieren und exakt in den Raum ausrichten
-                                painting.position.set(xPos + face.dx, yOffset + WALL_HEIGHT / 2 + 0.2, zPos + face.dz);
-                                painting.rotation.y = face.rot;
-                                
-                                scene.add(painting);
-                                levelEnvironmentMeshes.push(painting);
+ 
                             });
                         }
                     }
