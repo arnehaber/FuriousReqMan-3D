@@ -22,8 +22,21 @@ const playerHeightOffset = 2;
 const WALL_PAINTINGS = [
     'img/wall/p1.png',
     'img/wall/p2.png',
-    'img/wall/p3.png'
-    ];
+    'img/wall/p3.png',
+    'img/wall/p4.png',
+    'img/wall/p5.png',
+    'img/wall/p6.png',
+    'img/wall/p7.png',
+    'img/wall/p8.png',
+    'img/wall/p9.png',
+    'img/wall/p10.png',
+    'img/wall/p11.png',
+    'img/wall/p12.png',
+    'img/wall/p13.png',
+    'img/wall/p14.png',
+    'img/wall/p15.png',
+    'img/wall/p16.png'
+];
 
 
 // Episode configuration
