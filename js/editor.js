@@ -24,7 +24,10 @@ const PALETTE_TILES = [
     { char: 'T', name: 'Time', class: 'tile-T' },
     { char: 'C', name: 'Coffee', class: 'tile-C' },
     { char: 'I', name: 'Infinite', class: 'tile-I' },
-    { char: 'F', name: 'Freeze', class: 'tile-F' }
+    { char: 'F', name: 'Freeze', class: 'tile-F' },
+    // NEU: Secret Door und Treasure zum Editor hinzugefügt
+    { char: 'S', name: 'Secret Door', class: 'tile-S' },
+    { char: '$', name: 'Treasure (20k Pts)', class: 'tile-Dollar' }
 ];
 
 const DEFAULT_CONFIG = { timeLeft: 180, currentSpeedMultiplier: 1.0, MAX_AMMO: 10, RELOAD_TIME: 250, HP_HEAL_AMOUNT: 20, MAX_OVERHEAL_HP: 140, TIME_BONUS_AMOUNT: 8, COFFEE_TIMER: 7.0, COFFEE_SPEED_MULTI: 1.4, INFINITE_AMMO_TIMER: 6.0, FREEZE_TIME: 6.0, POWERUP_SCORE_BONUS: 1000, playerBaseSpeed: 0.18, gravity: 0.015 };

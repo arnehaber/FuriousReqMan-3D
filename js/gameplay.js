@@ -13,7 +13,7 @@ let managerLeft = null, managerRight = null;
 
 let isJumping = false, jumpVelocity = 0, playerCurrentGroundY = 0;
 let isGameOver = true;
-let collectedHp = 0, collectedTime = 0, collectedCoffee = 0, collectedLightning = 0, collectedFreeze = 0;
+let collectedHp = 0, collectedTime = 0, collectedCoffee = 0, collectedLightning = 0, collectedFreeze = 0, collectedTreasure = 0; // NEU
 let lastTeleportTime = 0; 
 let isTransitioningLevel = false;
 let levelBannerTimeout = null;
@@ -192,9 +192,10 @@ function updateMapDiscovery(layerIdx, layerData) {
                 discoveredMaps[layerIdx][r][c] = true;
                 let cell = layerData[r] && layerData[r][c] ? layerData[r][c] : ' ';
                 if(cell === '|') break; 
-                if(cell === 'D') {
-                    let doorObj = levelDoors.find(d => Math.abs(d.y - playerCurrentGroundY) < 1.0 && Math.round((d.x + (levelMaxCols * TILE_SIZE) / 2) / TILE_SIZE) === c && Math.round((d.z + (levelMaxRows * TILE_SIZE) / 2) / TILE_SIZE) === r);
-                    if (!doorObj || doorObj.state !== 'open') break; // Blockiert Sicht, wenn Tür zu
+                // NEU: Secret Door verbirgt auch die Sicht!
+                if(cell === 'D' || cell === 'S') {
+                    let doorObj = levelDoors.find(d => Math.abs(d.y - playerCurrentGroundY) < 1.0 && Math.round((d.x + (levelMaxCols * TILE_SIZE) / 2) / TILE_SIZE) === c && Math.round((d.z + (levelMaxRows * TILE_SIZE) / TILE_SIZE) === r));
+                    if (!doorObj || doorObj.state !== 'open') break; 
                 }
             } else break; 
         }
@@ -229,7 +230,8 @@ function drawMap(layerIdx, layerData) {
                 let y = offsetY + r * cellSize;
                 
                 ctx.fillStyle = '#111'; // Floor
-                if (cell === '|') ctx.fillStyle = '#777'; 
+                // Secret door sieht auf der Karte wie eine Wand aus
+                if (cell === '|' || cell === 'S') ctx.fillStyle = '#777'; 
                 else if (cell === 'D') ctx.fillStyle = '#8b5a2b'; 
                 else if (cell === 'E') ctx.fillStyle = '#0088ff'; 
                 else if (cell === '+') ctx.fillStyle = '#22aa22'; 
@@ -383,30 +385,33 @@ function animate3D() {
 
             if (distToPup < pup.radius + 0.5 && isSameFloor) {
                 playPowerupAudio(pup.type);
-                score += POWERUP_SCORE_BONUS;
+                let finalBonus = (pup.type === 'treasure') ? 20000 : POWERUP_SCORE_BONUS;
+                score += finalBonus;
                 scoreDisplay.innerText = `PIGS BLASTED: ${score}`;
                 const popup = document.createElement('div'); popup.className = 'score-popup'; popup.style.left = '50%'; popup.style.top = '40%';
 
                 if (pup.type === 'hp') {
                     hp += HP_HEAL_AMOUNT; if (hp > MAX_OVERHEAL_HP) hp = MAX_OVERHEAL_HP;
                     healthValueDisplay.innerText = `HP: ${hp}`; collectedHp++;
-                    popup.innerText = `HEALTH +${HP_HEAL_AMOUNT} (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#ff3333";
+                    popup.innerText = `HEALTH +${HP_HEAL_AMOUNT} (+${finalBonus} PTS)`; popup.style.color = "#ff3333";
                     let alphaValue = Math.max(0, (1 - (hp / 100)) * RED_FILTER_MAX_OPACITY); damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${alphaValue})`;
                     if (hp > 90) clearTimeout(heartbeatTimeout);
                 } else if (pup.type === 'time') {
                     timeLeft += TIME_BONUS_AMOUNT; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`;
-                    collectedTime++; popup.innerText = `BONUS TIME +${TIME_BONUS_AMOUNT}s (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#00ffaa";
+                    collectedTime++; popup.innerText = `BONUS TIME +${TIME_BONUS_AMOUNT}s (+${finalBonus} PTS)`; popup.style.color = "#00ffaa";
                 } else if (pup.type === 'speed') {
                     coffeeEndTime = Math.max(coffeeEndTime, performance.now()) + (COFFEE_TIMER * 1000); 
                     currentSpeedMultiplier = COFFEE_SPEED_MULTI; collectedCoffee++;
-                    camera.fov = 90; camera.updateProjectionMatrix(); popup.innerText = `COFFEE OVERCLOCK! (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#ffffff";
+                    camera.fov = 90; camera.updateProjectionMatrix(); popup.innerText = `COFFEE OVERCLOCK! (+${finalBonus} PTS)`; popup.style.color = "#ffffff";
                 } else if (pup.type === 'infinite') {
                     infiniteAmmoEndTime = Math.max(infiniteAmmoEndTime, performance.now()) + (INFINITE_AMMO_TIMER * 1000); 
                     currentAmmo = MAX_AMMO; updateAmmoUI(); collectedLightning++;
-                    popup.innerText = `INFINITE AMMO! (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#ffcc00";
+                    popup.innerText = `INFINITE AMMO! (+${finalBonus} PTS)`; popup.style.color = "#ffcc00";
                 } else if (pup.type === 'freeze') {
                     freezeEndTime = Math.max(freezeEndTime, performance.now()) + (FREEZE_TIME * 1000); 
-                    collectedFreeze++; popup.innerText = `TASK-KILLER (FREEZE)! (+${POWERUP_SCORE_BONUS} PTS)`; popup.style.color = "#00ccff";
+                    collectedFreeze++; popup.innerText = `TASK-KILLER (FREEZE)! (+${finalBonus} PTS)`; popup.style.color = "#00ccff";
+                } else if (pup.type === 'treasure') {
+                    collectedTreasure++; popup.innerText = `DIAMOND FOUND! (+${finalBonus} PTS)`; popup.style.color = "#00ffff"; // NEU
                 }
                 container.appendChild(popup); setTimeout(() => popup.remove(), SCORE_POPUP_TIME);
                 
@@ -802,7 +807,6 @@ window.addEventListener('mousedown', (e) => {
             updateAmmoUI(); 
             perform3DShoot(); 
         } else {
-            // NEU: Wenn keine Munition da ist, spiele das leere mechanische Klicken!
             playEmptyClickAudio();
         }
     } else if (e.button === 2 && infiniteAmmoEndTime <= performance.now()) { 
@@ -813,7 +817,7 @@ window.addEventListener('mousedown', (e) => {
 function perform3DShoot() {
 	playShotgunAudio();
 	
-    // --- NEU: Rückstoß und Mündungsfeuer aktivieren ---
+    // --- Rückstoß und Mündungsfeuer aktivieren ---
     weaponRecoil = 1.0;
     if (muzzleFlash) muzzleFlash.intensity = 2.5;
     // Den visuellen Blitz anschalten
@@ -840,8 +844,7 @@ function perform3DShoot() {
             if (pigData.type === 1 && localHit.y > 0.1 && localHit.z < -0.5) isHeadshot = true;
             if (pigData.type === 2 && localHit.y > 1.2) isHeadshot = true;
             if (pigData.type === 3 && localHit.y > 1.1) isHeadshot = true;
-			// Innerhalb der perform3DShoot() / hit3DPig() Logik
-			if (pigData.type === 4 && localHit.y > 1.15) isHeadshot = true; // Kopfschuss-Registrierung für Kürbiskopf!
+			if (pigData.type === 4 && localHit.y > 1.15) isHeadshot = true;
             
             hit3DPig(pigData, isHeadshot); return; 
         }
@@ -1078,7 +1081,7 @@ function init3D() {
         if (key === ' ' || e.key === 'Spacebar') { e.preventDefault(); startPlayerJump(); }
         if (e.key === "F1") { e.preventDefault(); initAudio(); toggleHelp(); }
 
-        // NEU: Karte aufrufen ('M')
+        // Karte aufrufen ('M')
         if (key === 'm') {
             toggleMap();
         }
@@ -1104,7 +1107,7 @@ function startGame() {
 	
     isGameOver = false;
     score = 0; currentAmmo = MAX_AMMO; hp = 100; isReloading = false; isPaused = false; isJumping = false; jumpVelocity = 0; playerCurrentGroundY = 0;
-    collectedHp = 0; collectedTime = 0; collectedCoffee = 0; collectedLightning = 0; collectedFreeze = 0;
+    collectedHp = 0; collectedTime = 0; collectedCoffee = 0; collectedLightning = 0; collectedFreeze = 0; collectedTreasure = 0;
     coffeeEndTime = 0; infiniteAmmoEndTime = 0; freezeEndTime = 0; activePowerupsDisplay.innerHTML = '';
     
     // Map Reset

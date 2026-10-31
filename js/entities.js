@@ -212,6 +212,24 @@ function buildCoffeeCupMesh() { const cupGroup = new THREE.Group(); const cupMat
 function buildLightningAmmoMesh() { const ammoGroup = new THREE.Group(); const bulletMat = new THREE.MeshStandardMaterial({ color: 0xcc9900, roughness: 0.2, metalness: 0.9 }); for(let i = -1; i <= 1; i++) { const bGroup = new THREE.Group(); const caseMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 16), bulletMat); const tipMesh = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.25, 16), bulletMat); tipMesh.position.y = 0.425; bGroup.add(caseMesh); bGroup.add(tipMesh); bGroup.position.x = i * 0.35; ammoGroup.add(bGroup); } return ammoGroup; }
 function buildExtinguisherMesh() { const extGroup = new THREE.Group(); const redMat = new THREE.MeshStandardMaterial({ color: 0xdd2222, roughness: 0.3 }); const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 }); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.1, 16), redMat); extGroup.add(body); const topCap = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), blackMat); topCap.position.y = 0.55; extGroup.add(topCap); const hose = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 8), blackMat); hose.position.set(0.2, 0.1, 0.1); hose.rotation.z = -0.2; extGroup.add(hose); return extGroup; }
 
+// NEU: Diamond Treasure Mesh für 20k Punkte
+function buildTreasureMesh() {
+    const treasureGroup = new THREE.Group();
+    // Ein glänzender Diamant (Oktaeder)
+    const diamondMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, roughness: 0.1, metalness: 0.8, transparent: true, opacity: 0.8 });
+    const diamond = new THREE.Mesh(new THREE.OctahedronGeometry(0.5, 0), diamondMat);
+    diamond.position.y = 0.5;
+    
+    // Kleiner Goldsockel
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.3, metalness: 1.0 });
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.6, 0.2, 16), baseMat);
+    base.position.y = 0.1;
+    
+    treasureGroup.add(diamond);
+    treasureGroup.add(base);
+    return treasureGroup;
+}
+
 function spawnSpecificPowerUp(x, y, z, type) {
     const pGroup = new THREE.Group(); pGroup.position.set(x, y, z);
     let model; let lightColor = 0xffffff;
@@ -219,7 +237,8 @@ function spawnSpecificPowerUp(x, y, z, type) {
     else if(type === 'time') { model = buildTimeClockMesh(); lightColor = 0x00ffaa; } 
     else if(type === 'speed') { model = buildCoffeeCupMesh(); lightColor = 0xffffff; } 
     else if(type === 'infinite') { model = buildLightningAmmoMesh(); lightColor = 0xffcc00; } 
-    else { model = buildExtinguisherMesh(); lightColor = 0x00ccff; }
+    else if(type === 'freeze') { model = buildExtinguisherMesh(); lightColor = 0x00ccff; }
+    else if(type === 'treasure') { model = buildTreasureMesh(); lightColor = 0x00ffff; } // NEU
     pGroup.add(model); const pLight = new THREE.PointLight(lightColor, 1.5, 5); pLight.position.set(0, 0.5, 0); pGroup.add(pLight);
     scene.add(pGroup); powerups3D.push({ mesh: pGroup, type: type, radius: 1.5 });
 }
@@ -501,58 +520,92 @@ function buildLevelFromData(levelData) {
                     }
                 }
 
-                if (cell === '|') {
+                if (cell === '|' || cell === 'S') { // NEU: 'S' wird wie eine Wand gezeichnet
+                    const isSecretDoor = (cell === 'S');
+                    
+                    // NEU: Container für das korrekte, lokale Sliden der Tür
+                    const outerGroup = new THREE.Group(); 
+                    outerGroup.position.set(xPos, yOffset + WALL_HEIGHT / 2, zPos);
+                    
+                    const wallGroup = new THREE.Group();
                     const wall = new THREE.Mesh(wallGeo, wallMat);
-                    // Wand steht auf yOffset (0) und geht bis yOffset + WALL_HEIGHT (4.6)
-                    wall.position.set(xPos, yOffset + WALL_HEIGHT / 2, zPos);
-                    scene.add(wall); levelEnvironmentMeshes.push(wall);
-                    levelWallHitboxes.push({ x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2 });
+                    
+                    wallGroup.add(wall);
+                    outerGroup.add(wallGroup); // Wand in den Container packen
+                    
+                    // Ausrichtung der Secret Door prüfen
+                    let isRotated = false;
+                    if (isSecretDoor) {
+                        if (layer[row - 1] && layer[row - 1][col] === '|' && layer[row + 1] && layer[row + 1][col] === '|') {
+                            wallGroup.rotation.y = Math.PI / 2;
+                            isRotated = true;
+                        }
+                    }
 
-                    // --- NEU: Zufälliges Gemälde an der Wand (1 zu 50) ---
-                    if (Math.random() < 0.05) {
-                        // Prüfen, an welchen Seiten der Wand Platz für ein Bild ist (leeres Feld ' ')
+                    scene.add(outerGroup); levelEnvironmentMeshes.push(outerGroup);
+                    
+                    if (!isSecretDoor) {
+                        levelWallHitboxes.push({ x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2 });
+                    } else {
+                        // Secret Door wird wie eine normale Tür in levelDoors registriert
+                        levelDoors.push({
+                            x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2,
+                            mesh: wallGroup, state: 'closed', slideAmount: 0, maxSlide: TILE_SIZE * 0.95,
+                            isRotated: isRotated
+                        });
+                    }
+
+                    // --- Zufälliges Gemälde an der Wand (Bei 'S' immer!) ---
+                    if (isSecretDoor || Math.random() < 0.05) {
                         let freeFaces = [];
-                        // Prüfen, welche Seiten frei sind, und exakte Rotation für die Ebene festlegen:
-                        if (col < layer[row].length - 1 && layer[row][col+1] === ' ') freeFaces.push({ rot: -Math.PI / 2, dx: TILE_SIZE / 2 + 0.02, dz: 0 }); // Rechts (+X)
-                        if (col > 0 && layer[row][col-1] === ' ') freeFaces.push({ rot: Math.PI / 2, dx: -TILE_SIZE / 2 - 0.02, dz: 0 }); // Links (-X)
-                        if (row < layer.length - 1 && layer[row+1] && layer[row+1][col] === ' ') freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); // Vorne (+Z)
-                        if (row > 0 && layer[row-1] && layer[row-1][col] === ' ') freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); // Hinten (-Z)
+                        
+                        if (isSecretDoor) {
+                             if (!isRotated) {
+                                 // Horizontal Wand -> vorne oder hinten frei?
+                                 if (row < layer.length - 1 && layer[row+1] && layer[row+1][col] === ' ') freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); 
+                                 if (row > 0 && layer[row-1] && layer[row-1][col] === ' ') freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); 
+                             } else {
+                                 // Vertikale Wand -> rechts oder links frei?
+                                 // Da wallGroup gedreht ist, sind die lokalen Achsen anders, dx ist lokales Z
+                                 if (col < layer[row].length - 1 && layer[row][col+1] === ' ') freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); 
+                                 if (col > 0 && layer[row][col-1] === ' ') freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); 
+                             }
+                        } else {
+                            if (col < layer[row].length - 1 && layer[row][col+1] === ' ') freeFaces.push({ rot: -Math.PI / 2, dx: TILE_SIZE / 2 + 0.02, dz: 0 }); // Rechts (+X)
+                            if (col > 0 && layer[row][col-1] === ' ') freeFaces.push({ rot: Math.PI / 2, dx: -TILE_SIZE / 2 - 0.02, dz: 0 }); // Links (-X)
+                            if (row < layer.length - 1 && layer[row+1] && layer[row+1][col] === ' ') freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); // Vorne (+Z)
+                            if (row > 0 && layer[row-1] && layer[row-1][col] === ' ') freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); // Hinten (-Z)
+                        }
 
                         if (freeFaces.length > 0) {
                             freeFaces.forEach(face => {
                                 const imgPath = WALL_PAINTINGS[Math.floor(Math.random() * WALL_PAINTINGS.length)];
                                 const texture = new THREE.TextureLoader().load(imgPath,
-                                    // onSuccess: Textur wurde fehlerfrei geladen
                                     (texture) => {
-                                        // Flache Ebene statt Quader, damit das Bild garantiert richtig herum sitzt
                                         const planeGeo = new THREE.PlaneGeometry(2.0, 2.8); 
                                         const pictureMat = new THREE.MeshStandardMaterial({ 
                                             map: texture, 
                                             roughness: 0.8,
-                                            side: THREE.DoubleSide // Sicherheitshalber von beiden Seiten sichtbar
+                                            side: THREE.DoubleSide
                                         });
                                         
                                         const painting = new THREE.Mesh(planeGeo, pictureMat);
-                                        
-                                        // Positionieren und exakt in den Raum ausrichten
-                                        painting.position.set(xPos + face.dx, yOffset + WALL_HEIGHT / 2 + 0.2, zPos + face.dz);
-                                        painting.rotation.y = face.rot;
-                                        
-                                        scene.add(painting);
-                                        levelEnvironmentMeshes.push(painting);
+                                        if (isSecretDoor) {
+                                            painting.position.set(face.dx, 0.2, face.dz);
+                                            painting.rotation.y = face.rot;
+                                            wallGroup.add(painting); // Bild an die Secret Door hängen!
+                                        } else {
+                                            painting.position.set(xPos + face.dx, yOffset + WALL_HEIGHT / 2 + 0.2, zPos + face.dz);
+                                            painting.rotation.y = face.rot;
+                                            scene.add(painting);
+                                            levelEnvironmentMeshes.push(painting);
+                                        }
                                     },
-                                    // onProgress: wird nicht benötigt
                                     undefined, 
-                                    // onError: CORS-Fehler oder 404
                                     (error) => {
-                                        // Wir tun hier absichtlich nichts (kein Mesh wird der Wand hinzugefügt).
-                                        // Optional als Info für dich in der Konsole:
-                                        console.warn(`Zombieschwein-Porträt blockiert (CORS) oder nicht gefunden: ${imagePath}. Wand bleibt kahl.`);
+                                        console.warn(`Zombieschwein-Porträt blockiert: ${imagePath}`);
                                     }
                                 );
-                                
-                                
- 
                             });
                         }
                     }
@@ -570,8 +623,9 @@ function buildLevelFromData(levelData) {
                     pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0);
                     pigs3D.push(pigData);
                 }
-                else if (['H', 'T', 'C', 'I', 'F'].includes(cell)) {
-                    let type = cell === 'H' ? 'hp' : (cell === 'T' ? 'time' : (cell === 'C' ? 'speed' : (cell === 'I' ? 'infinite' : 'freeze')));
+                else if (['H', 'T', 'C', 'I', 'F', '$'].includes(cell)) {
+                    // NEU: '$' ist der Treasure
+                    let type = cell === 'H' ? 'hp' : (cell === 'T' ? 'time' : (cell === 'C' ? 'speed' : (cell === 'I' ? 'infinite' : (cell === 'F' ? 'freeze' : 'treasure'))));
                     spawnSpecificPowerUp(xPos, yOffset + 1.3, zPos, type);
                 }
                 else if (cell === '+') {

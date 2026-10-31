@@ -1,5 +1,4 @@
 // --- LEVEL-DATENSTRUKTUR ---
-// --- LEVEL-DATENSTRUKTUR ---
 /**
  * ============================================================================
  * CAMPAIGN MODE: EPISODE AND LEVEL DATA STRUCTURE (DOCUMENTATION)
@@ -62,18 +61,22 @@
  *    '1'    │ Zombie Pig 1          │ Existing enemy type 1 (Standard)
  *    '2'    │ Zombie Pig 2          │ Existing enemy type 2 (Stronger)
  *    '3'    │ Zombie Pig 3          │ Existing enemy type 3 (Boss / Heavy)
+ *    '4'    │ Zombie Pig 4          │ Pumpkin Zombie Pig
  *    'H'    │ Power-Up: Health      │ Medkit (Healing / Overheal)
  *    'T'    │ Power-Up: Time        │ Time bonus
  *    'C'    │ Power-Up: Coffee      │ Speed overclock (Coffee)
  *    'I'    │ Power-Up: Infinite    │ Infinite ammo
  *    'F'    │ Power-Up: Freeze      │ Task Killer (Enemy freeze)
+ *    '$'    │ Treasure              │ Diamond treasure (awards 20,000 Pts)
  *    '+'    │ Up-Stair / Ascend     │ Teleporter to the next higher layer
  *    '-'    │ Down-Stair / Descend  │ Teleporter to the next lower layer
  *    '|'    │ Wall                  │ Solid wall obstacle (blocks player/enemies)
+ *    'D'    │ Door                  │ Sliding door obstacle
+ *    'S'    │ Secret Door           │ Looks like a solid wall with a portrait. 
+ *                                   │ Sliding door obstacle exactly like 'D'.
  *    'P'    │ Player Start          │ Starting position of the player on this layer
  *    'E'    │ Level Exit (Gate)     │ Blue glowing portal (opens when all 
  *                                   pigs in the level have been eliminated)
- *    'D'    │ Door                  │ Sliding door obstacle
  * ============================================================================
  */
 const episodes = [
@@ -98,20 +101,25 @@ const episodes = [
         },
         levels: [
             {
-                name: "Level 1: Simple Start",
-                description: "Demo.",
-                layers: [
-                    [ // Ebene 0 (Basis)
-                        "||||||||||||||||||||||||",
-                        "|P                    ||", // P = Player Start
-                        "|  |||||             |1|",
-                        "|  | E |    |D|        |",
-                        "|  || ||    | |        |",
-                        "|           |H|   ||||||",
-                        "|           |T|   D   3|",
-                        "||||||||||||||||||||||||"
-                    ]
+            "name": "Level 1: Simple Start",
+            "description": "Demo.",
+            "layers": [
+                [
+                "||||||||||||||||||||||||",
+                "|P                    ||",
+                "|  |||||             |1|",
+                "|  | E |    |D|        |",
+                "|  || ||    | |        |",
+                "|           |H|   ||||||",
+                "|           |T|   D   3|",
+                "|||||||||||||S||||||||||",
+                "          |$$$|         ",
+                "          |$$$|         ",
+                "          |||||         ",
+                "                        ",
+                "                        "
                 ]
+            ]
             },
             {
                 name: "Level 2: Basement Bugs",
@@ -326,15 +334,22 @@ const episodes = [
         },
         levels: [
             {
-                name: "Level 1: Simple Dump",
-                description: "Demo.",
-                layers: [
-                    [ // Ebene 0 (Basis)
-                        "||||||||||||||||||||||||",
-                        "|P                   DE|", // P = Player Start
-                        "||||||||||||||||||||||||"
-                    ]
+            "name": "Level 1: Simple Dump",
+            "description": "Demo.",
+            "layers": [
+                [
+                "|||||||||||||||||||||||| ",
+                "|P                   DE| ",
+                "||||||||||S||||||||||||||",
+                "         |              |",
+                "         |              |",
+                "         |||||||||||||| |",
+                "                      |$|",
+                "                      |$|",
+                "                      |$|",
+                "                      |||"
                 ]
+            ]
             },
             {
                 name: "Level 2: Ups and Downs",

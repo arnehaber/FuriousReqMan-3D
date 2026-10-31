@@ -227,12 +227,10 @@
         .editor-palette { display: flex; gap: 5px; margin-bottom: 20px; background: #222; padding: 10px; border-radius: 5px; border: 1px solid #444; flex-wrap: wrap; justify-content: center; }
         .palette-btn { width: 40px; height: 40px; font-weight: bold; font-size: 18px; cursor: pointer; border: 2px solid transparent; border-radius: 4px; display: flex; justify-content: center; align-items: center; }
         .palette-btn.selected { border-color: #ffcc00; transform: scale(1.1); }
-        
         #editor-grid-container { background: #000; border: 2px solid #555; display: inline-block; cursor: crosshair; }
         .editor-row { display: flex; }
         .editor-cell { width: 24px; height: 24px; border-right: 1px solid #222; border-bottom: 1px solid #222; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 14px; user-select: none; }
-        .editor-cell:hover { border: 1px solid #fff; z-index: 10; }
-        
+        .editor-cell:hover { border: 1px solid #fff; z-index: 10; }  
         /* Tile Colors */
         .tile- { background: #000; }
         .tile-\| { background: #666; color: transparent; }
@@ -247,6 +245,9 @@
         .tile-C { background: #ffffff; color: black; }
         .tile-I { background: #ffcc00; color: black; }
         .tile-F { background: #00ccff; color: black; }
+        /* NEU: Editor Styles für Secret Door und Treasure */
+        .tile-S { background: #555; color: #ffcc00; border: 1px solid #888; }
+        .tile-Dollar { background: #00ffff; color: #000; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -341,7 +342,7 @@
                         <tr><td>Look Around & Aim</td><td><strong>Mouse Movement</strong></td></tr>
                         <tr><td>Fire Weapon</td><td><strong>Left Click</strong></td></tr>
                         <tr><td>Reload Magazine</td><td><strong>Key R</strong> or <strong>Right Click</strong></td></tr>
-                        <tr><td>Open Door</td><td><strong>Key E</strong></td></tr>
+                        <tr><td>Open Door / Secret Wall</td><td><strong>Key E</strong></td></tr>
                         <tr><td>Map</td><td><strong>Key M</strong></td></tr>
                         <tr><td>Super Jump</td><td><strong>Spacebar</strong></td></tr>
                         <tr><td>Open Manual / Pause</td><td><strong>Key F1</strong></td></tr>
@@ -357,6 +358,8 @@
                     <li><strong>Coffee Overclock (☕):</strong> +<span id="help-val-speed"></span>% Movement Speed & FOV rush for <span id="help-val-coffeetime"></span> seconds.</li>
                     <li><strong>Infinite Ammo (⚡):</strong> Infinite shotgun ammo without reloading for <span id="help-val-ammotime"></span> seconds.</li>
                     <li><strong>Task-Killer (🧯):</strong> Freezes all pigs on the map for <span id="help-val-freezetime"></span> seconds.</li>
+                    <li><strong>Secret Door (S):</strong> Hidden passages marked by portraits. Approach and press E!</li>
+                    <li><strong>Treasure ($):</strong> Rare diamond worth 20,000 Points!</li>
                 </ul>
             </div>
 
