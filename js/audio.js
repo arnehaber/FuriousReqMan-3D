@@ -40,8 +40,8 @@ function triggerThunderstorm() {
             if(dirLight) dirLight.intensity = flashIntensityDir - 0.8; 
             if(scene) scene.fog.color.setHex(0x221a1a);
             setTimeout(() => { 
-                if(ambientLight) ambientLight.intensity = 0.22; 
-                if(dirLight) dirLight.intensity = 0.75; 
+                if(ambientLight) ambientLight.intensity = AMBIENT_LIGHT; 
+                if(dirLight) dirLight.intensity = GLOBAL_DIR_LIGHT; 
                 if(scene) scene.fog.color.setHex(0x050404); 
             }, 60);
         }, 80);
