@@ -11,6 +11,25 @@ let levelEnvironmentMeshes = [];
 let levelExits = [];
 let levelDoors = [];
 
+const levelStats = {
+    totalPigs: 0,
+    killedPigs: 0,
+    totalSecrets: 0,
+    foundSecrets: 0,
+    totalTreasures: 0,
+    collectedTreasures: 0,
+    
+    // Wird beim Laden einer neuen Map aufgerufen
+    reset: function() {
+        this.totalPigs = 0;
+        this.killedPigs = 0;
+        this.totalSecrets = 0;
+        this.foundSecrets = 0;
+        this.totalTreasures = 0;
+        this.collectedTreasures = 0;
+    }
+};
+
 // --- MESH MERGER (DRAW CALL REDUKTION) ---
 function mergeMeshesIntoSingleGeometry(meshes) {
     let totalVertices = 0, totalIndices = 0;
@@ -132,6 +151,8 @@ function generateProceduralFenceTexture(length) { const width = 2048; const heig
 
 // --- UMWELT-MANAGEMENT ---
 function clearEnvironment() {
+    levelStats.reset();
+
     if (typeof levelEnvironmentMeshes !== 'undefined') {
         levelEnvironmentMeshes.forEach(m => { dispose3dObject(m); scene.remove(m); });
     }
@@ -233,12 +254,12 @@ function buildTreasureMesh() {
 function spawnSpecificPowerUp(x, y, z, type) {
     const pGroup = new THREE.Group(); pGroup.position.set(x, y, z);
     let model; let lightColor = 0xffffff;
-    if(type === 'hp') { model = buildHpCrossMesh(); lightColor = 0xff0000; } 
-    else if(type === 'time') { model = buildTimeClockMesh(); lightColor = 0x00ffaa; } 
-    else if(type === 'speed') { model = buildCoffeeCupMesh(); lightColor = 0xffffff; } 
-    else if(type === 'infinite') { model = buildLightningAmmoMesh(); lightColor = 0xffcc00; } 
-    else if(type === 'freeze') { model = buildExtinguisherMesh(); lightColor = 0x00ccff; }
-    else if(type === 'treasure') { model = buildTreasureMesh(); lightColor = 0x00ffff; } // NEU
+    if (type === 'hp') { model = buildHpCrossMesh(); lightColor = 0xff0000; }
+    else if (type === 'time') { model = buildTimeClockMesh(); lightColor = 0x00ffaa; }
+    else if (type === 'speed') { model = buildCoffeeCupMesh(); lightColor = 0xffffff; }
+    else if (type === 'infinite') { model = buildLightningAmmoMesh(); lightColor = 0xffcc00; }
+    else if (type === 'freeze') { model = buildExtinguisherMesh(); lightColor = 0x00ccff; }
+    else if (type === 'treasure') { model = buildTreasureMesh(); lightColor = 0x00ffff; levelStats.totalTreasures++ }
     pGroup.add(model); const pLight = new THREE.PointLight(lightColor, 1.5, 5); pLight.position.set(0, 0.5, 0); pGroup.add(pLight);
     scene.add(pGroup); powerups3D.push({ mesh: pGroup, type: type, radius: 1.5 });
 }
@@ -551,6 +572,7 @@ function buildLevelFromData(levelData) {
                     // Ausrichtung der Secret Door prüfen
                     let isRotated = false;
                     if (isSecretDoor) {
+                        levelStats.totalSecrets++;
                         if (isWallLike(row - 1, col) && isWallLike(row + 1, col)) {
                             wallGroup.rotation.y = Math.PI / 2;
                             isRotated = true;
@@ -566,7 +588,7 @@ function buildLevelFromData(levelData) {
                         levelDoors.push({
                             x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2,
                             mesh: wallGroup, state: 'closed', slideAmount: 0, maxSlide: TILE_SIZE * 0.95,
-                            isRotated: isRotated
+                            isRotated: isRotated, isSecret: true
                         });
                     }
 
@@ -629,6 +651,7 @@ function buildLevelFromData(levelData) {
                     playerCurrentGroundY = yOffset;
                 }
                 else if (cell === '1' || cell === '2' || cell === '3' || cell === '4') {
+                    levelStats.totalPigs++;
                     let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : (cell === '3' ? createPigKlasse3() : createPigMesh(4)));
                     pigData.mesh.position.set(xPos, yOffset + (pigData.type === 1 ? 1.1 : 1.0), zPos);
                     scene.add(pigData.mesh);
@@ -764,7 +787,7 @@ function buildLevelFromData(levelData) {
                     levelDoors.push({
                         x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2,
                         mesh: doorMesh, state: 'closed', slideAmount: 0, maxSlide: TILE_SIZE * 0.95,
-                        isRotated: isRotated // NEU: Wird an gameplay.js übergeben
+                        isRotated: isRotated, isSecret: false // NEU: Wird an gameplay.js übergeben
                     });
                 }
             }

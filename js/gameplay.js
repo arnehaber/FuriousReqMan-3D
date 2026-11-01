@@ -415,6 +415,7 @@ function animate3D() {
                     collectedFreeze++; popup.innerText = `TASK-KILLER (FREEZE)! (+${finalBonus} PTS)`; popup.style.color = "#00ccff";
                 } else if (pup.type === 'treasure') {
                     collectedTreasure++; popup.innerText = `DIAMOND FOUND! (+${finalBonus} PTS)`; popup.style.color = "#00ffff"; // NEU
+                    levelStats.collectedTreasures++;
                 }
                 container.appendChild(popup); setTimeout(() => popup.remove(), SCORE_POPUP_TIME);
                 
@@ -713,7 +714,14 @@ function handlePlayerMovement(timeScale) {
 	                        warning.style.display = 'block';
 	                        setTimeout(() => { warning.style.display = 'none'; }, 1500);
 	                    }
+	                }
+                    else {
+	                    levelExits = [];
+	                    // Hier wurde vorher per setTimeout direkt das nächste Level geladen.
+	                    // Jetzt rufen wir stattdessen den Tally-Screen auf:
+	                    showLevelEndScreen(); 
 	                } 
+                    /**
 					else {
 	                    levelExits = [];
 	                    setTimeout(() => {
@@ -728,6 +736,7 @@ function handlePlayerMovement(timeScale) {
 	                        }
 	                    }, 20); 
 	                }
+                     */
 	            }
 	        }
 	    });
@@ -908,6 +917,7 @@ function hit3DPig(pig, isHeadshot) {
     dispose3dObject(pig.mesh);
     scene.remove(pig.mesh); 
     pigs3D = pigs3D.filter(p => p !== pig);
+    levelStats.killedPigs++;
 }
 
 function reload() {
@@ -1109,6 +1119,9 @@ function init3D() {
                     if (Math.sqrt(dx * dx + dz * dz) < 3.5) {
                         door.state = 'opening';
                         playAudio('hit'); 
+                        if (door.isSecret) {
+                            levelStats.foundSecrets++;
+                        }
                     }
                 }
             });
@@ -1302,6 +1315,72 @@ function initMobileControls() {
             });
         }
     }, {passive: false});
+}
+
+let isAtLevelEnd = false; // Neuer Status für die Engine
+
+function showLevelEndScreen() {
+    const calculatePercentage = (current, total) => {
+        if (total === 0) return 100;
+        return Math.round((current / total) * 100);
+    };
+
+    // DOM updaten
+    document.getElementById('stat-pigs').innerText = calculatePercentage(levelStats.killedPigs, levelStats.totalPigs) + '%';
+    document.getElementById('stat-secrets').innerText = calculatePercentage(levelStats.foundSecrets, levelStats.totalSecrets) + '%';
+    document.getElementById('stat-treasures').innerText = calculatePercentage(levelStats.collectedTreasures, levelStats.totalTreasures) + '%';
+
+    // Screen einblenden
+    document.getElementById('level-end-screen').style.display = 'flex';
+
+    // Engine-Status einfrieren (Mouselook und Movement blockieren)
+    isAtLevelEnd = true;
+    isPaused = true; 
+    document.exitPointerLock();
+    
+    // Alle laufenden Timer anhalten, damit die Zeit nicht weiter abläuft
+    if (typeof gameInterval !== 'undefined') clearInterval(gameInterval);
+    if (typeof spawnInterval !== 'undefined') clearInterval(spawnInterval);
+    if (typeof powerupInterval !== 'undefined') clearInterval(powerupInterval);
+    if (typeof heartbeatTimeout !== 'undefined') clearTimeout(heartbeatTimeout);
+
+    // Weiterleitung per Leertaste
+    document.addEventListener('keydown', nextLevelListener);
+    
+    // Weiterleitung für Mobile per Touch auf den Bildschirm
+    if (isTouchDevice) {
+        document.getElementById('level-end-screen').addEventListener('touchstart', proceedToNextLevelOrEnd, {once: true});
+    }
+}
+
+function nextLevelListener(e) {
+    if (e.code === 'Space' && isAtLevelEnd) {
+        document.removeEventListener('keydown', nextLevelListener);
+        proceedToNextLevelOrEnd();
+    }
+}
+
+function proceedToNextLevelOrEnd() {
+    if (!isAtLevelEnd) return;
+    isAtLevelEnd = false;
+    isPaused = false;
+    document.getElementById('level-end-screen').style.display = 'none';
+    
+    const ep = episodes[activeEpisodeIndex];
+    if (ep && activeLevelIndex + 1 < ep.levels.length) {
+        // Nächstes Level laden
+        activeLevelIndex++;
+        buildLevelFromData(ep.levels[activeLevelIndex]);
+        showLevelBanner(ep.levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
+        
+        // Timer wieder anwerfen
+        gameInterval = setInterval(updateTimer, 1000); 
+        powerupInterval = setInterval(spawnPowerUpPair, POWERUP_SPAWN_INTERVAL);
+        if (!isTouchDevice) document.body.requestPointerLock();
+    } else {
+        // Episode komplett abgeschlossen -> Ab zum finalen Game Over Screen
+        endGame(false); 
+    }
 }
 
 // Initialisiere die Mobile-Controls direkt beim Laden

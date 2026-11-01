@@ -525,6 +525,23 @@
 <div id="exit-warning"
 	style="display: none; position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); color: #ff3333; font-size: 24px; font-weight: bold; text-shadow: 1px 1px 4px #000; pointer-events: none; z-index: 190;">
 	Säubere erst alle Schweine!</div>
+<!-- Level End Screen Overlay -->
+<div id="level-end-screen" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); color: #fff; font-family: 'Courier New', Courier, monospace; text-align: center; z-index: 100; flex-direction: column; justify-content: center; align-items: center;">
+    
+    <h1 style="color: #ff0000; font-size: 3rem; text-shadow: 2px 2px #000; margin-bottom: 40px;">LEVEL ABGESCHLOSSEN</h1>
+    
+    <div style="font-size: 1.5rem; text-align: left; background: rgba(255, 255, 255, 0.1); padding: 30px; border: 2px solid #555;">
+        <p style="margin: 15px 0;">SCHWEINE ELIMINIERT: <span id="stat-pigs" style="color: #ff5555; float: right; margin-left: 40px;">0%</span></p>
+        <p style="margin: 15px 0;">SECRETS GEFUNDEN: <span id="stat-secrets" style="color: #55ff55; float: right; margin-left: 40px;">0%</span></p>
+        <p style="margin: 15px 0;">SCHÄTZE GESAMMELT: <span id="stat-treasures" style="color: #ffff55; float: right; margin-left: 40px;">0%</span></p>
+    </div>
+
+    <style>
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+        .blink-text { animation: blink 1.5s infinite; margin-top: 50px; font-size: 1.2rem; color: #aaa; }
+    </style>
+    <p class="blink-text">DRÜCKE [LEERTASTE] FÜR DAS NÄCHSTE LEVEL</p>
+</div>
 
 	
 	
