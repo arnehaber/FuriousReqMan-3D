@@ -46,6 +46,7 @@
  *   POWERUP_SCORE_BONUS    │ 1000    │ Points awarded for collecting any Power-Up.
  *   playerBaseSpeed        │ 0.18    │ The absolute base movement speed of the player.
  *   gravity                │ 0.015   │ Strength of the gravity (affects jumping/falling).
+ *   AllPigsShallBeCleared  │ true    │ If true, level exit only works when all pigs are cleared.
  * 
  * ----------------------------------------------------------------------------
  * 3. LAYER STRUCTURE & TILE SCHEMA (layers)
@@ -97,7 +98,8 @@ const episodes = [
             FREEZE_TIME: 6.0,
             POWERUP_SCORE_BONUS: 1000,
             playerBaseSpeed: 0.18,
-            gravity: 0.015
+            gravity: 0.015,
+            AllPigsShallBeCleared: true
         },
         levels: [
             {
@@ -176,7 +178,8 @@ const episodes = [
             "FREEZE_TIME": 6,
             "POWERUP_SCORE_BONUS": 1000,
             "playerBaseSpeed": 0.18,
-            "gravity": 0.015
+            "gravity": 0.015,
+            "AllPigsShallBeCleared": true
         },
         "levels": [
             {
@@ -330,7 +333,8 @@ const episodes = [
             "FREEZE_TIME": 6,
             "POWERUP_SCORE_BONUS": 1000,
             "playerBaseSpeed": 0.18,
-            "gravity": 0.015
+            "gravity": 0.015,
+            "AllPigsShallBeCleared": false
         },
         levels: [
 			{
@@ -417,7 +421,8 @@ const episodes = [
             FREEZE_TIME: 10.0,
             POWERUP_SCORE_BONUS: 5000,
             playerBaseSpeed: 0.5,       // Schnellerer Basis-Speed
-            gravity: 0.005               // Fühlt sich an wie auf dem Mond!
+            gravity: 0.005,               // Fühlt sich an wie auf dem Mond!
+            AllPigsShallBeCleared: true
         },
         levels: [
             {

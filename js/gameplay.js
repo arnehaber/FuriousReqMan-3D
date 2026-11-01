@@ -52,6 +52,9 @@ function applyGameConfiguration() {
     playerBaseSpeed = config.playerBaseSpeed !== undefined ? config.playerBaseSpeed : 0.18;
     gravity = config.gravity !== undefined ? config.gravity : 0.015;
     
+	// Einlesen der Konfiguration (Fallback auf false im FREE-Modus)
+	AllPigsShallBeCleared = config.AllPigsShallBeCleared !== undefined ? config.AllPigsShallBeCleared : true;
+		
     if (typeof updateHelpValues === 'function') updateHelpValues();
 }
 
@@ -697,24 +700,37 @@ function handlePlayerMovement(timeScale) {
             }
         });
 
-        levelExits.forEach(exit => {
-            if (Math.abs(exit.y - playerCurrentGroundY) < 1.0) {
-                let distToExit = new THREE.Vector3(camera.position.x, 0, camera.position.z).distanceTo(new THREE.Vector3(exit.x, 0, exit.z));
-                if (distToExit < 1.8 && pigs3D.length === 0) {
-                    levelExits = [];
-                    setTimeout(() => {
-                        const ep = episodes[activeEpisodeIndex];
-                        if (ep && activeLevelIndex + 1 < ep.levels.length) {
-                            activeLevelIndex++;
-                            buildLevelFromData(ep.levels[activeLevelIndex]);
-                            showLevelBanner(ep.levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
-                        } else {
-                            endGame();
-                        }
-                    }, 20); 
-                }
-            }
-        });
+		levelExits.forEach(exit => {
+	        if (Math.abs(exit.y - playerCurrentGroundY) < 1.0) {
+	            let distToExit = new THREE.Vector3(camera.position.x, 0, camera.position.z).distanceTo(new THREE.Vector3(exit.x, 0, exit.z));
+	            
+	            // Bedingtes Beenden basierend auf der Konfiguration
+	            if (distToExit < 1.8) {
+	                if (AllPigsShallBeCleared && pigs3D.length > 0) {
+	                    // Zeigt die bereits vorhandene HTML-Warnmeldung (#exit-warning) an
+	                    const warning = document.getElementById('exit-warning');
+	                    if (warning) {
+	                        warning.style.display = 'block';
+	                        setTimeout(() => { warning.style.display = 'none'; }, 1500);
+	                    }
+	                } 
+					else {
+	                    levelExits = [];
+	                    setTimeout(() => {
+	                        const ep = episodes[activeEpisodeIndex];
+	                        if (ep && activeLevelIndex + 1 < ep.levels.length) {
+	                            activeLevelIndex++;
+	                            buildLevelFromData(ep.levels[activeLevelIndex]);
+	                            showLevelBanner(ep.levels[activeLevelIndex].name, "Eliminate targets & find the exit!");
+	                        } 
+							else {
+	                            endGame();
+	                        }
+	                    }, 20); 
+	                }
+	            }
+	        }
+	    });
     }
 
     if (!collisionBlocked) { camera.position.x = targetX; camera.position.z = targetZ; playerCurrentGroundY = targetGroundY; }

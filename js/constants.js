@@ -53,6 +53,8 @@ let FREEZE_TIME = 6.0;
 let POWERUP_SCORE_BONUS = 1000; 
 let playerBaseSpeed = 0.18;
 let gravity = 0.015;
+// Konfigurations-Variable für das Level-Ende
+let AllPigsShallBeCleared = true;
 
 
 // Global Game States (used by all modules)

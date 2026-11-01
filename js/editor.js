@@ -30,7 +30,7 @@ const PALETTE_TILES = [
     { char: '$', name: 'Treasure (20k Pts)', class: 'tile-Dollar' }
 ];
 
-const DEFAULT_CONFIG = { timeLeft: 180, currentSpeedMultiplier: 1.0, MAX_AMMO: 10, RELOAD_TIME: 250, HP_HEAL_AMOUNT: 20, MAX_OVERHEAL_HP: 140, TIME_BONUS_AMOUNT: 8, COFFEE_TIMER: 7.0, COFFEE_SPEED_MULTI: 1.4, INFINITE_AMMO_TIMER: 6.0, FREEZE_TIME: 6.0, POWERUP_SCORE_BONUS: 1000, playerBaseSpeed: 0.18, gravity: 0.015 };
+const DEFAULT_CONFIG = { timeLeft: 180, currentSpeedMultiplier: 1.0, MAX_AMMO: 10, RELOAD_TIME: 250, HP_HEAL_AMOUNT: 20, MAX_OVERHEAL_HP: 140, TIME_BONUS_AMOUNT: 8, COFFEE_TIMER: 7.0, COFFEE_SPEED_MULTI: 1.4, INFINITE_AMMO_TIMER: 6.0, FREEZE_TIME: 6.0, POWERUP_SCORE_BONUS: 1000, playerBaseSpeed: 0.18, gravity: 0.015, AllPigsShallBeCleared: true};
 
 function openEditor() {
     document.getElementById('editor-overlay').style.display = 'flex';
@@ -102,14 +102,21 @@ function refreshEditorUI() {
     document.getElementById('edit-grid-cols').value = EDITOR_COLS;
     document.getElementById('edit-grid-rows').value = EDITOR_ROWS;
 
-    // Config aufbauen
-    const confCont = document.getElementById('editor-config-container');
-    confCont.innerHTML = '<h3>Configuration</h3>';
-    Object.keys(DEFAULT_CONFIG).forEach(key => {
-        let val = editData.configuration[key];
-        if (val === undefined) val = DEFAULT_CONFIG[key];
-        confCont.innerHTML += `<div class="editor-input-group"><label>${key}</label><input type="number" step="any" id="conf_${key}" value="${val}"></div>`;
-    });
+	// Config aufbauen
+	    const confCont = document.getElementById('editor-config-container');
+	    confCont.innerHTML = '<h3>Configuration</h3>';
+	    Object.keys(DEFAULT_CONFIG).forEach(key => {
+	        let val = editData.configuration[key];
+	        if (val === undefined) val = DEFAULT_CONFIG[key];
+	        
+	        // NEU: Boolean-Werte als Checkboxen rendern
+	        if (typeof DEFAULT_CONFIG[key] === 'boolean') {
+	            let checked = val ? "checked" : "";
+	            confCont.innerHTML += `<div class="editor-input-group"><label>${key}</label><input type="checkbox" id="conf_${key}" ${checked}></div>`;
+	        } else {
+	            confCont.innerHTML += `<div class="editor-input-group"><label>${key}</label><input type="number" step="any" id="conf_${key}" value="${val}"></div>`;
+	        }
+	    });
 
     // Level & Layer Selects
     const lvlSel = document.getElementById('edit-level-select'); lvlSel.innerHTML = '';
@@ -231,13 +238,18 @@ function saveUIToEditData() {
     editData.levels[curLvl].name = document.getElementById('edit-lvl-name').value;
     editData.levels[curLvl].description = document.getElementById('edit-lvl-desc').value;
 
-    Object.keys(DEFAULT_CONFIG).forEach(key => {
-        let elem = document.getElementById(`conf_${key}`);
-        if (elem) {
-            let val = parseFloat(elem.value);
-            if(!isNaN(val)) editData.configuration[key] = val;
-        }
-    });
+	Object.keys(DEFAULT_CONFIG).forEach(key => {
+	        let elem = document.getElementById(`conf_${key}`);
+	        if (elem) {
+	            // Type-Prüfung beim Speichern
+	            if (typeof DEFAULT_CONFIG[key] === 'boolean') {
+	                editData.configuration[key] = elem.checked;
+	            } else {
+	                let val = parseFloat(elem.value);
+	                if(!isNaN(val)) editData.configuration[key] = val;
+	            }
+	        }
+	    });
 }
 
 function editorExportJSON() {
