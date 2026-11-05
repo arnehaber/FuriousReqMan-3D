@@ -2,7 +2,7 @@
 let EDITOR_COLS = 32;
 let EDITOR_ROWS = 24;
 
-let editData = null; // Hält das aktuelle JSON der Episode
+let editData = null; 
 let curLvl = 0;
 let curLyr = 0;
 let curBrush = '|';
@@ -25,7 +25,6 @@ const PALETTE_TILES = [
     { char: 'C', name: 'Coffee', class: 'tile-C' },
     { char: 'I', name: 'Infinite', class: 'tile-I' },
     { char: 'F', name: 'Freeze', class: 'tile-F' },
-    // NEU: Secret Door und Treasure zum Editor hinzugefügt
     { char: 'S', name: 'Secret Door', class: 'tile-S' },
     { char: '$', name: 'Treasure (20k Pts)', class: 'tile-Dollar' }
 ];
@@ -37,13 +36,12 @@ function openEditor() {
     document.exitPointerLock();
     if (!editData) initNewEpisode();
     
-    // Dropdown Templates befüllen
     const templSelect = document.getElementById('editor-template-select');
-    templSelect.innerHTML = '<option value="">-- Load Template --</option>';
+    templSelect.innerHTML = `<option value="">${t('editor_load_template')}</option>`;
     episodes.forEach((ep, idx) => {
         if (!ep.name.startsWith("[TEST]")) {
             let opt = document.createElement('option');
-            opt.value = idx; opt.innerText = ep.name;
+            opt.value = idx; opt.innerText = t(ep.name);
             templSelect.appendChild(opt);
         }
     });
@@ -60,15 +58,14 @@ function openEditor() {
 function closeEditor() { document.getElementById('editor-overlay').style.display = 'none'; }
 
 function initNewEpisode() {
-    editData = { name: "Custom Episode", description: "Created in Editor", configuration: Object.assign({}, DEFAULT_CONFIG), levels: [] };
+    editData = { name: t('editor_default_ep_name'), description: t('editor_default_ep_desc'), configuration: Object.assign({}, DEFAULT_CONFIG), levels: [] };
     editorAddLevel();
     refreshEditorUI();
 }
 
 function loadEpisodeIntoEditor(epObj) {
-    editData = JSON.parse(JSON.stringify(epObj)); // Deep Copy
+    editData = JSON.parse(JSON.stringify(epObj)); 
     
-    // Automatisch die Rastergröße an das erste Layer des ersten Levels anpassen
     if (editData.levels && editData.levels.length > 0 && editData.levels[0].layers && editData.levels[0].layers.length > 0) {
         EDITOR_ROWS = editData.levels[0].layers[0].length;
         EDITOR_COLS = editData.levels[0].layers[0][0].length;
@@ -93,34 +90,29 @@ function refreshEditorUI() {
     document.getElementById('edit-ep-name').value = editData.name;
     document.getElementById('edit-ep-desc').value = editData.description;
     
-    // Aktuelles Level laden für Meta-Felder
     const currentLevel = editData.levels[curLvl];
     document.getElementById('edit-lvl-name').value = currentLevel.name || "";
     document.getElementById('edit-lvl-desc').value = currentLevel.description || "";
     
-    // Raster-Größen Inputs aktualisieren
     document.getElementById('edit-grid-cols').value = EDITOR_COLS;
     document.getElementById('edit-grid-rows').value = EDITOR_ROWS;
 
-	// Config aufbauen
-	    const confCont = document.getElementById('editor-config-container');
-	    confCont.innerHTML = '<h3>Configuration</h3>';
-	    Object.keys(DEFAULT_CONFIG).forEach(key => {
-	        let val = editData.configuration[key];
-	        if (val === undefined) val = DEFAULT_CONFIG[key];
-	        
-	        // NEU: Boolean-Werte als Checkboxen rendern
-	        if (typeof DEFAULT_CONFIG[key] === 'boolean') {
-	            let checked = val ? "checked" : "";
-	            confCont.innerHTML += `<div class="editor-input-group"><label>${key}</label><input type="checkbox" id="conf_${key}" ${checked}></div>`;
-	        } else {
-	            confCont.innerHTML += `<div class="editor-input-group"><label>${key}</label><input type="number" step="any" id="conf_${key}" value="${val}"></div>`;
-	        }
-	    });
+	const confCont = document.getElementById('editor-config-container');
+    confCont.innerHTML = `<h3 data-i18n="editor_config">${t('editor_config')}</h3>`;
+    Object.keys(DEFAULT_CONFIG).forEach(key => {
+        let val = editData.configuration[key];
+        if (val === undefined) val = DEFAULT_CONFIG[key];
+        
+        if (typeof DEFAULT_CONFIG[key] === 'boolean') {
+            let checked = val ? "checked" : "";
+            confCont.innerHTML += `<div class="editor-input-group"><label>${key}</label><input type="checkbox" id="conf_${key}" ${checked}></div>`;
+        } else {
+            confCont.innerHTML += `<div class="editor-input-group"><label>${key}</label><input type="number" step="any" id="conf_${key}" value="${val}"></div>`;
+        }
+    });
 
-    // Level & Layer Selects
     const lvlSel = document.getElementById('edit-level-select'); lvlSel.innerHTML = '';
-    editData.levels.forEach((l, i) => { lvlSel.innerHTML += `<option value="${i}">Level ${i+1}: ${l.name}</option>`; });
+    editData.levels.forEach((l, i) => { lvlSel.innerHTML += `<option value="${i}">Level ${i+1}: ${t(l.name)}</option>`; });
     lvlSel.value = curLvl;
 
     const lyrSel = document.getElementById('edit-layer-select'); lyrSel.innerHTML = '';
@@ -132,7 +124,7 @@ function refreshEditorUI() {
 
 function editorAddLevel() {
     const blankLayer = Array.from({length: EDITOR_ROWS}, () => " ".repeat(EDITOR_COLS));
-    editData.levels.push({ name: "New Level", description: "Level Description", layers: [blankLayer] });
+    editData.levels.push({ name: t('editor_default_lvl_name'), description: t('editor_default_lvl_desc'), layers: [blankLayer] });
     curLvl = editData.levels.length - 1; curLyr = 0;
     refreshEditorUI();
 }
@@ -145,11 +137,10 @@ function editorAddLayer() {
 }
 
 function editorSelectLevel(idx) { 
-    saveUIToEditData(); // Vorher aktuelles Level speichern
+    saveUIToEditData(); 
     curLvl = parseInt(idx); 
     curLyr = 0; 
     
-    // Grid-Größe an das neue Level anpassen (nimmt das 0. Layer als Referenz)
     const lyr = editData.levels[curLvl].layers[0];
     EDITOR_ROWS = lyr.length;
     EDITOR_COLS = lyr[0].length;
@@ -162,20 +153,18 @@ function editorSelectLayer(idx) {
     refreshEditorUI(); 
 }
 
-// Raster-Größe dynamisch anpassen (Resize)
 function resizeGridDimensions() {
     const newCols = parseInt(document.getElementById('edit-grid-cols').value);
     const newRows = parseInt(document.getElementById('edit-grid-rows').value);
     
     if (isNaN(newCols) || newCols < 5 || isNaN(newRows) || newRows < 5) {
-        alert("Mindestgröße ist 5x5!");
+        alert(t('editor_alert_size'));
         return;
     }
     
     EDITOR_COLS = newCols;
     EDITOR_ROWS = newRows;
     
-    // Alle Layer im aktuellen Level anpassen (abschneiden oder mit Leerzeichen auffüllen)
     editData.levels[curLvl].layers = editData.levels[curLvl].layers.map(layer => {
         let newLayer = [];
         for (let r = 0; r < EDITOR_ROWS; r++) {
@@ -208,7 +197,6 @@ function renderGrid() {
     }
 }
 
-// Painting Logic
 function setCell(r, c) {
     let layer = editData.levels[curLvl].layers[curLyr];
     while(layer.length <= r) layer.push(" ".repeat(EDITOR_COLS));
@@ -227,21 +215,18 @@ function editorStartPaint(e) { if(e.target.classList.contains('editor-cell')) { 
 function editorDragPaint(e) { if(isPainting && e.target.classList.contains('editor-cell')) { setCell(parseInt(e.target.dataset.r), parseInt(e.target.dataset.c)); } }
 function editorStopPaint() { isPainting = false; }
 
-// Save & Export/Import
 function saveUIToEditData() {
     if (!editData || !editData.levels[curLvl]) return;
     
     editData.name = document.getElementById('edit-ep-name').value;
     editData.description = document.getElementById('edit-ep-desc').value;
     
-    // Level-spezifische Meta-Daten sichern
     editData.levels[curLvl].name = document.getElementById('edit-lvl-name').value;
     editData.levels[curLvl].description = document.getElementById('edit-lvl-desc').value;
 
 	Object.keys(DEFAULT_CONFIG).forEach(key => {
 	        let elem = document.getElementById(`conf_${key}`);
 	        if (elem) {
-	            // Type-Prüfung beim Speichern
 	            if (typeof DEFAULT_CONFIG[key] === 'boolean') {
 	                editData.configuration[key] = elem.checked;
 	            } else {
@@ -272,16 +257,14 @@ function editorImportJSON(e) {
         } catch(err) { alert("Invalid JSON file!"); }
     };
     reader.readAsText(file);
-    e.target.value = ""; // Reset input
+    e.target.value = ""; 
 }
 
-// Integration into Engine
 function editorTestPlay() {
     saveUIToEditData();
     let testEp = JSON.parse(JSON.stringify(editData));
-    testEp.name = "[TEST] " + testEp.name; // Markiere als Test-Episode
+    testEp.name = "[TEST] " + testEp.name; 
     
-    // Alte Tests entfernen
     const tempIndex = episodes.findIndex(e => e.name.startsWith("[TEST]"));
     let targetIndex = tempIndex !== -1 ? tempIndex : episodes.length;
     

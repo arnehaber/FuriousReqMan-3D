@@ -1,557 +1,515 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Furious Requirement Manager 3D: Ultimate Power-Up Edition</title>
-    <!-- Three.js Base -->
-    <script src="./lib/three.min-r128.js"></script>
-    <script src="./lib/nipplejs-1.0.4-min.js"></script>
-   
-    <style>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Furious Requirement Manager 3D: Ultimate Power-Up Edition</title>
+        <!-- Three.js Base -->
+        <script src="./lib/three.min-r128.js"></script>
+        <script src="./lib/nipplejs-1.0.4-min.js"></script>
     
-    	/* --- MOBILE TOUCH UI --- */
-        body, html { touch-action: none; /* Verhindert Wischen/Zoomen durch den Browser */ }
-        #mobile-ui { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2500; pointer-events: none; }
-        .touch-zone { position: absolute; width: 40vw; height: 100%; top: 0; pointer-events: auto; }
-        #joystick-left { left: 0; }
-        #joystick-right { right: 0; }
+        <style>
         
-        .mobile-btn { position: absolute; background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.5); border-radius: 50%; color: white; font-weight: bold; font-family: 'Arial Black', sans-serif; display: flex; justify-content: center; align-items: center; pointer-events: auto; user-select: none; font-size: 18px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
-        .mobile-btn:active { background: rgba(255, 0, 0, 0.5); transform: scale(0.9); }
-        
-        #btn-shoot { bottom: 15vh; right: 10vw; width: 70px; height: 70px; border-color: #ff3333; color: #ff3333; font-size: 24px; background: rgba(255, 50, 50, 0.2); }
-        #btn-jump { bottom: 30vh; right: 5vw; width: 50px; height: 50px; }
-        #btn-reload { bottom: 30vh; right: 18vw; width: 50px; height: 50px; }
-        #btn-door { bottom: 15vh; left: 45vw; width: 60px; height: 60px; border-color: #ffcc00; color: #ffcc00; }
-        #btn-map { top: 20px; left: 20px; width: 50px; height: 50px; border-radius: 10px; z-index: 2600; }
-        #btn-map.active { background: rgba(255, 50, 50, 0.5); border-color: #ff3333; color: #fff; }
-        
-        body { margin: 0; padding: 0; font-family: 'Arial Black', sans-serif; overflow: hidden; user-select: none; background: #000; color: #fff; }
-        canvas { display: block; width: 100vw; height: 100vh; }
-        #vignette { position: absolute; top:0; left:0; width: 100%; height: 100%; background: radial-gradient(circle, transparent 30%, rgba(0,0,0,0.8) 100%); pointer-events: none; z-index: 2; }
-        #damage-vignette { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 0, 0, 0); pointer-events: none; z-index: 3; transition: background-color 0.3s ease; }
-        
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 24px; height: 24px; transform: translate(-50%, -50%); z-index: 10; pointer-events: none; }
-        #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(255, 0, 0, 0.8); box-shadow: 0 0 4px #000; }
-        #crosshair::before { top: 11px; left: 0; width: 24px; height: 2px; }
-        #crosshair::after { top: 0; left: 11px; width: 2px; height: 24px; }
-        .crosshair-center { position: absolute; top: 10px; left: 10px; width: 4px; height: 4px; background: #fff; border-radius: 50%; }
-
-        #loading-screen, #game-over, #instructions-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url('img/load.png'); background-size: cover; background-position: center; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; z-index: 2000; transition: opacity 0.8s ease; text-align: center; padding-top: 40px; box-sizing: border-box; overflow-y: auto; background-color: rgba(0,0,0,0.7); background-blend-mode: multiply; }
-        #game-over { display: none; z-index: 1000; }
-        #instructions-overlay { display: none; z-index: 4000; background: rgba(10, 5, 5, 0.95); }
-        
-        #loading-screen h1, #game-over h1, #instructions-overlay h1 { color: #ff2222; font-size: 55px; margin: 0; letter-spacing: 3px; text-transform: uppercase; text-shadow: 4px 4px 4px #000, 0 0 25px #ff0000; }
-        #loading-screen h2 { color: #bbb; font-size: 24px; font-family: 'Georgia', serif; font-style: italic; margin-top: 10px; text-shadow: 2px 2px 4px #000; margin-bottom: 15px; }
-        
-        #ui-panel { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; font-size: 28px; z-index: 10; text-shadow: 3px 3px 0px #000; align-items: center; pointer-events: none; }
-        .score-box { color: #5cb85c; }
-        .timer-box { color: #d9534f; }
-        .help-hint { color: #f0ad4e; font-size: 22px; }
-        
-        #ammo-display { position: absolute; bottom: 20px; left: 20px; display: flex; gap: 5px; height: 45px; align-items: center; z-index: 10; pointer-events: none; }
-        .bullet-sprite { height: 42px; width: auto; transition: opacity 0.1s ease, filter 0.1s ease, transform 0.1s ease; }
-        .bullet-spent { opacity: 0.12; filter: grayscale(100%) brightness(30%); transform: translateY(4px); }
-        
-        #health-display { position: absolute; bottom: 20px; right: 20px; background: rgba(0, 0, 0, 0.65); padding: 10px 20px; border-radius: 6px; font-size: 28px; border: 2px solid #d9534f; pointer-events: none; display: flex; align-items: center; gap: 12px; text-shadow: 2px 2px 0px #000; box-shadow: 0 0 15px rgba(0,0,0,0.5); z-index: 10; }
-        .health-cross { color: #ff2222; font-size: 34px; font-weight: bold; line-height: 1; }
-        .health-text { color: #fff; font-weight: bold; }
-
-        #active-powerups-display { position: absolute; bottom: 20px; right: 220px; display: flex; gap: 12px; z-index: 10; pointer-events: none; }
-        .active-buff { background: rgba(0, 0, 0, 0.65); padding: 10px 15px; border-radius: 6px; font-size: 22px; display: flex; align-items: center; gap: 8px; color: #fff; border: 2px solid #555; text-shadow: 2px 2px 0px #000; box-shadow: 0 0 15px rgba(0,0,0,0.5); font-family: monospace; font-weight: bold; }
-        .buff-coffee { border-color: #fff; }
-        .buff-lightning { border-color: #ffcc00; color: #ffcc00; }
-        .buff-freeze { border-color: #00ccff; color: #00ccff; }
-
-        .score-popup { position: absolute; font-family: 'Arial Black', sans-serif; font-size: 28px; font-weight: bold; color: #fff; text-shadow: 2px 2px 0px #000; pointer-events: none; z-index: 150; transform: translate(-50%, -50%); animation: scoreFloatUp 0.75s forwards; }
-        @keyframes scoreFloatUp { 0% { opacity: 0; transform: translate(-50%, -50%) translateY(10px); } 20% { opacity: 1; transform: translate(-50%, -50%) translateY(0); } 100% { opacity: 0; transform: translate(-50%, -50%) translateY(-40px); } }
-
-        .powerup-stats-container { display: flex; gap: 20px; margin: 15px 0; justify-content: center; font-size: 20px; text-shadow: 2px 2px 2px #000; background: rgba(255,255,255,0.03); padding: 10px 20px; border-radius: 8px; border: 1px dashed #555; }
-        .stat-item { display: flex; align-items: center; gap: 6px; }
-        .icon-cross-ui { color: #ff3333; font-weight: bold; font-size: 26px; }
-        .icon-clock-ui { font-size: 24px; }
-        .icon-coffee-ui { font-size: 24px; }
-        .icon-lightning-ui { color: #ffcc00; font-weight: bold; font-size: 24px; }
-        .icon-freeze-ui { font-size: 24px; }
-
-        .scrollable-feature-container { max-width: 750px; width: 90%; max-height: 65vh; overflow-y: auto; background: rgba(0,0,0,0.85); padding: 25px; border-radius: 8px; border: 2px solid #555; margin: 25px 0; text-align: left; box-shadow: 0 0 20px #000; scrollbar-width: thin; scrollbar-color: #d9534f #222; }
-        .scrollable-feature-container::-webkit-scrollbar { width: 8px; }
-        .scrollable-feature-container::-webkit-scrollbar-track { background: #222; border-radius: 4px; }
-        .scrollable-feature-container::-webkit-scrollbar-thumb { background: #d9534f; border-radius: 4px; }
-        
-        .feature-list-section { margin-bottom: 25px; font-family: sans-serif; font-size: 16px; line-height: 1.6; }
-        .feature-list-section h3 { font-family: 'Arial Black', sans-serif; color: #ff3333; font-size: 20px; margin: 0 0 10px 0; border-bottom: 1px solid #444; padding-bottom: 5px; text-transform: uppercase; }
-        .feature-list-section ul { margin: 5px 0 0 20px; padding: 0; }
-        .feature-list-section strong { color: #f0ad4e; }
-        .lore-text { font-style: italic; color: #ddd; font-size: 16px; margin-bottom: 25px; border-left: 3px solid #ff2222; padding-left: 15px; }
-        
-        .control-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .control-table th, .control-table td { padding: 10px; border-bottom: 1px solid #333; font-size: 15px; }
-        .control-table th { background-color: #1a1a1a; text-align: left; color: #f0ad4e; font-family: 'Arial Black', sans-serif; font-size: 14px; }
-        .control-table td strong { color: #ff2222; font-family: monospace; font-size: 16px; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 3px; }
-        
-        #game-over p { font-size: 24px; margin: 10px 0 10px 0; color: #fff; text-shadow: 2px 2px 4px #000; }
-        .score-calculation { font-size: 16px !important; color: #aaa; font-family: monospace; }
-        #final-score { font-weight: bold; color: #5cb85c; font-size: 32px; }
-        
-        #highscore-form input { padding: 10px; font-size: 18px; border: 2px solid #555; background: #222; color: #fff; border-radius: 5px; }
-        #highscore-form button, #game-over button, #loading-screen button, .close-btn { padding: 12px 35px; font-size: 20px; font-family: 'Arial Black', sans-serif; background: #d9534f; color: white; border: 3px solid #fff; cursor: pointer; transition: 0.2s; margin: 5px; box-shadow: 0 4px 10px #000; }
-        #highscore-form button:hover, #game-over button:hover, #loading-screen button:hover, .close-btn:hover { background: #b52b27; transform: scale(1.05); }
-
-        .highscore-container { width: 80%; max-width: 700px; background: rgba(15, 15, 15, 0.9); padding: 15px; border-radius: 10px; border: 1px solid #444; box-shadow: 0 0 20px rgba(0,0,0,0.8); margin-top: 15px; }
-        .highscore-container h3 { margin: 0 0 10px 0; font-size: 20px; color: #ff3333; text-transform: uppercase; text-align: center; }
-        .highscore-table { border-collapse: collapse; width: 100%; font-family: sans-serif; font-size: 15px; }
-        .highscore-table th, .highscore-table td { text-align: left; padding: 8px; border-bottom: 1px solid #333; }
-        .highscore-table th { background-color: #222; color: #bbb; }
-        .rank-col { width: 12%; color: #888; font-weight: bold; }
-        .score-col { width: 25%; font-weight: bold; color: #5cb85c; }
-        #crosshair.infinite-ammo::before, #crosshair.infinite-ammo::after { background: rgba(255, 204, 0, 0.9); box-shadow: 0 0 6px #ffcc00; }
-		#crosshair.infinite-ammo .crosshair-center { background: #ffcc00; box-shadow: 0 0 6px #ffcc00; }
-		
-		/* Bluttropfen-Effekt beim Treffer */
-		.blood-splatter {
-		    position: absolute;
-		    width: 12px;
-		    height: 16px;
-		    background: #cc0000;
-		    border-radius: 50% 50% 40% 40%;
-		    pointer-events: none;
-		    z-index: 150;
-		    transform: translate(-50%, -50%);
-		    animation: bloodSplash 0.5s forwards ease-out;
-		    box-shadow: 0 0 6px #ff0000;
-		}
-		@keyframes bloodSplash {
-		    0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
-		    50% { opacity: 0.9; transform: translate(calc(-50% + var(--rand-x)), calc(-50% + var(--rand-y))) scale(1.4); }
-		    100% { opacity: 0; transform: translate(calc(-50% + var(--rand-x) * 1.5), calc(-50% + var(--rand-y) * 1.5 + 20px)) scale(0.8); }
-		}
-		/* Hervorhebung des eigenen neuen Highscores */
-		.highscore-table tr.highlighted-score {
-		    background-color: rgba(92, 184, 92, 0.25);
-		    font-weight: bold;
-		    color: #5cb85c;
-		}
-		.highscore-table tr.highlighted-score td {
-		    border-bottom: 1px solid #5cb85c;
-		}
-		
-		/* --- AUTO-MAP STYLES --- */
-        #map-overlay {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(15, 15, 15, 0.95);
-            border: 2px solid #555;
-            border-radius: 8px;
-            z-index: 2000;
-            display: none; /* Initial versteckt */
-            flex-direction: column;
-            align-items: center;
-            padding: 10px;
-            box-shadow: 0px 0px 15px rgba(0,0,0,0.8);
-            max-width: calc(100vw - 40px);
-            box-sizing: border-box;
-        }
-        .map-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            margin-bottom: 8px;
-            gap: 10px;
-        }
-        #map-overlay .map-title {
-            color: #ffcc00;
-            font-family: 'Arial Black', sans-serif;
-            font-size: 14px;
-            margin: 0;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .map-close-btn {
-            background: rgba(255, 50, 50, 0.3);
-            border: 1px solid #ff3333;
-            color: #fff;
-            border-radius: 4px;
-            font-size: 18px;
-            font-weight: bold;
-            line-height: 1;
-            padding: 2px 8px;
-            cursor: pointer;
-            pointer-events: auto;
-        }
-        .map-close-btn:active { background: rgba(255, 50, 50, 0.8); }
-        .map-bottom-close-btn {
-            margin-top: 8px;
-            width: 100%;
-            background: rgba(255, 50, 50, 0.3);
-            border: 1px solid #ff3333;
-            color: #fff;
-            font-family: 'Arial Black', sans-serif;
-            font-size: 12px;
-            padding: 6px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            pointer-events: auto;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .map-bottom-close-btn:active { background: rgba(255, 50, 50, 0.8); }
-        #map-canvas {
-            background: #000;
-            border: 1px solid #333;
-            image-rendering: pixelated;
-        }
-		
-		/* --- EPISODE EDITOR STYLES --- */
-        #editor-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 5000; display: none; flex-direction: column; color: #fff; font-family: sans-serif; overflow: hidden; }
-        .editor-header { display: flex; justify-content: space-between; align-items: center; background: #222; padding: 10px 20px; border-bottom: 2px solid #444; }
-        .editor-header h2 { margin: 0; color: #ffcc00; font-family: 'Arial Black', sans-serif; text-transform: uppercase; }
-        .editor-toolbar { display: flex; gap: 10px; align-items: center; }
-        .editor-btn { background: #444; color: white; border: 1px solid #777; padding: 8px 15px; cursor: pointer; font-weight: bold; border-radius: 3px; }
-        .editor-btn:hover { background: #555; }
-        .editor-btn.play-btn { background: #5cb85c; border-color: #4cae4c; }
-        .editor-btn.play-btn:hover { background: #449d44; }
-        
-        .editor-body { display: flex; flex: 1; overflow: hidden; }
-        .editor-sidebar { width: 320px; background: #1a1a1a; border-right: 2px solid #444; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
-        .editor-section { background: #222; padding: 10px; border-radius: 5px; border: 1px solid #333; }
-        .editor-section h3 { margin: 0 0 10px 0; font-size: 16px; color: #bbb; border-bottom: 1px solid #444; padding-bottom: 5px; }
-        .editor-input-group { display: flex; justify-content: space-between; margin-bottom: 5px; align-items: center; }
-        .editor-input-group label { font-size: 12px; color: #999; }
-        .editor-input-group input, .editor-input-group select { background: #000; color: #fff; border: 1px solid #555; padding: 4px; width: 120px; font-family: monospace; }
-        
-        .editor-main { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; padding: 20px; align-items: center; overflow: auto; }
-        .editor-palette { display: flex; gap: 5px; margin-bottom: 20px; background: #222; padding: 10px; border-radius: 5px; border: 1px solid #444; flex-wrap: wrap; justify-content: center; }
-        .palette-btn { width: 40px; height: 40px; font-weight: bold; font-size: 18px; cursor: pointer; border: 2px solid transparent; border-radius: 4px; display: flex; justify-content: center; align-items: center; }
-        .palette-btn.selected { border-color: #ffcc00; transform: scale(1.1); }
-        #editor-grid-container { background: #000; border: 2px solid #555; display: inline-block; cursor: crosshair; }
-        .editor-row { display: flex; }
-        .editor-cell { width: 24px; height: 24px; border-right: 1px solid #222; border-bottom: 1px solid #222; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 14px; user-select: none; }
-        .editor-cell:hover { border: 1px solid #fff; z-index: 10; }  
-        /* Tile Colors */
-        .tile- { background: #000; }
-        .tile-\| { background: #666; color: transparent; }
-        .tile-P { background: #0044aa; color: white; }
-        .tile-E { background: #0088ff; color: white; }
-        .tile-D { background: #5a3a22; color: white; }
-        .tile-\+ { background: #22aa22; color: white; }
-        .tile-- { background: #aa2222; color: white; }
-        .tile-1, .tile-2, .tile-3, .tile-4{ background: #bc667b; color: #000; }
-        .tile-H { background: #ff3333; color: white; }
-        .tile-T { background: #00ffaa; color: black; }
-        .tile-C { background: #ffffff; color: black; }
-        .tile-I { background: #ffcc00; color: black; }
-        .tile-F { background: #00ccff; color: black; }
-        /* NEU: Editor Styles für Secret Door und Treasure */
-        .tile-S { background: #555; color: #ffcc00; border: 1px solid #888; }
-        .tile-Dollar { background: #00ffff; color: #000; font-weight: bold; }
-    </style>
-</head>
-<body>
-
-	<!-- MOBILE TOUCH OVERLAY -->
-	<div id="mobile-ui">
-		<div id="joystick-left" class="touch-zone"></div>
-		<div id="joystick-right" class="touch-zone"></div>
-		<div id="btn-shoot" class="mobile-btn">FIRE</div>
-		<div id="btn-jump" class="mobile-btn">JMP</div>
-		<div id="btn-reload" class="mobile-btn">REL</div>
-		<div id="btn-door" class="mobile-btn">DOOR</div>
-		<div id="btn-map" class="mobile-btn">MAP</div>
-	</div>
-
-	<div id="game-container">
-<!-- AUTO-MAP OVERLAY -->
-    <div id="map-overlay">
-        <div class="map-header">
-            <div class="map-title">Auto-Map (Floor <span id="map-floor-display">0</span>)</div>
-            <button id="map-close-btn" class="map-close-btn" type="button" aria-label="Close Map">&times;</button>
-        </div>
-        <canvas id="map-canvas" width="300" height="300"></canvas>
-        <button id="map-bottom-close-btn" class="map-bottom-close-btn" type="button">CLOSE MAP</button>
-    </div>
-		<div id="loading-screen">
-			<h1>Furious Requirement Manager 3D</h1>
-			<h2>Attack of the Zombie Pigs</h2>
-			<div style="display: flex; gap: 20px; margin-top: 10px;">
-				<!-- NEU: Episoden-Auswahl -->
-				<div
-					style="margin-top: 15px; margin-bottom: 15px; text-align: center;">
-					<label for="episode-select"
-						style="color: white; font-size: 18px; font-weight: bold; margin-right: 10px; font-family: 'Courier New', monospace;">EPISODE:</label>
-					<select id="episode-select"
-						style="padding: 10px; font-size: 16px; font-family: 'Courier New', monospace; background: #111; color: #ffcc00; border: 2px solid #ffcc00; cursor: pointer; outline: none;">
-						<!-- Wird automatisch von JavaScript befüllt -->
-					</select>
-				</div>
-				<button onclick="startSelectedMode(event)"
-					style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #3366ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000;">
-					START</button>
-				<button onclick="openEditor()" style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #8833ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000; margin-left: 10px;">
-				    EDITOR
-				</button>
-			</div>
-			<div class="highscore-container">
-				<h3 id="highscore-title-start">Hall of Fame</h3>
-				<table class="highscore-table">
-					<thead>
-						<tr>
-							<th class="rank-col">Rank</th>
-							<th>Name</th>
-							<th class="score-col">Score</th>
-							<th>Date</th>
-						</tr>
-					</thead>
-					<tbody id="loading-highscore-body"></tbody>
-				</table>
-			</div>
-		</div>
-
-		<div id="vignette"></div>
-    <div id="damage-vignette"></div>
-    <div id="crosshair"><div class="crosshair-center"></div></div>
-    
-    <div id="active-powerups-display"></div>
-
-    <div id="health-display">
-        <span class="health-cross">+</span>
-        <span id="health-value" class="health-text">HP: 100</span>
-    </div>
-    
-    <div id="ui-panel">
-        <div id="score-display" class="score-box">SCORE: 0</div>
-        <div class="help-hint">F1 for Help</div>
-        <div id="timer-display" class="timer-box">TIME LEFT: 60</div>
-    </div>
-    <div id="ammo-display"></div>
-
-    <div id="instructions-overlay">
-        <h1>Sprint Manual & Features</h1>
-        <div class="scrollable-feature-container">
-            <div class="lore-text">"The project was close to release, when the unthinkable happened. Uncontrolled feature requests and incomplete user stories mutated into an unstoppable plague within the legacy code. The requirements came to life – in the form of insatiable, undead zombie pigs... Sort out the bugs. Radically. Precisely. Before the final sprint runs out..."</div>
+            /* --- MOBILE TOUCH UI --- */
+            body, html { touch-action: none; /* Verhindert Wischen/Zoomen durch den Browser */ }
+            #mobile-ui { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2500; pointer-events: none; }
+            .touch-zone { position: absolute; width: 40vw; height: 100%; top: 0; pointer-events: auto; }
+            #joystick-left { left: 0; }
+            #joystick-right { right: 0; }
             
-            <div class="feature-list-section">
-                <h3>Controls</h3>
-                <table class="control-table">
-                    <thead><tr><th>Action</th><th>Key / Input</th></tr></thead>
-                    <tbody>
-                        <tr><td>Tactical Movement</td><td><strong>W, A, S, D</strong></td></tr>
-                        <tr><td>Look Around & Aim</td><td><strong>Mouse Movement</strong></td></tr>
-                        <tr><td>Fire Weapon</td><td><strong>Left Click</strong></td></tr>
-                        <tr><td>Reload Magazine</td><td><strong>Key R</strong> or <strong>Right Click</strong></td></tr>
-                        <tr><td>Open Door / Secret Wall</td><td><strong>Key E</strong></td></tr>
-                        <tr><td>Map</td><td><strong>Key M</strong></td></tr>
-                        <tr><td>Super Jump</td><td><strong>Spacebar</strong></td></tr>
-                        <tr><td>Open Manual / Pause</td><td><strong>Key F1</strong></td></tr>
-                    </tbody>
-                </table>
-            </div>
+            .mobile-btn { position: absolute; background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.5); border-radius: 50%; color: white; font-weight: bold; font-family: 'Arial Black', sans-serif; display: flex; justify-content: center; align-items: center; pointer-events: auto; user-select: none; font-size: 18px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+            .mobile-btn:active { background: rgba(255, 0, 0, 0.5); transform: scale(0.9); }
             
-            <div class="feature-list-section">
-                <h3>Features & Power-Ups</h3>
-                <ul>
-                    <li><strong>HP Cross (+):</strong> Heals you for <span id="help-val-hp"></span> HP up to max. <span id="help-val-hpmax"></span> HP overheal.</li>
-                    <li><strong>Bonus Time (🕒):</strong> Instantly adds <span id="help-val-time"></span> seconds to the timer.</li>
-                    <li><strong>Coffee Overclock (☕):</strong> +<span id="help-val-speed"></span>% Movement Speed & FOV rush for <span id="help-val-coffeetime"></span> seconds.</li>
-                    <li><strong>Infinite Ammo (⚡):</strong> Infinite shotgun ammo without reloading for <span id="help-val-ammotime"></span> seconds.</li>
-                    <li><strong>Task-Killer (🧯):</strong> Freezes all pigs on the map for <span id="help-val-freezetime"></span> seconds.</li>
-                    <li><strong>Secret Door (S):</strong> Hidden passages marked by portraits. Approach and press E!</li>
-                    <li><strong>Treasure ($):</strong> Rare diamond worth 20,000 Points!</li>
-                </ul>
-            </div>
-
-            <div class="feature-list-section">
-                <h3>Credits &amp; Libraries</h3>
-                <ul>
-                    <li><strong>Three.js (r128):</strong> 3D rendering library. Used under the MIT License. &copy; 2010-2021 three.js authors.</li>
-                    <li><strong>nipplejs (1.0.4):</strong> Virtual joystick library for mobile touch controls. Used under the MIT License. &copy; 2025 Yoann Moinet.</li>
-                </ul>
-            </div>
-        </div>
-        <button class="close-btn" onclick="toggleHelp()">BACK (F1)</button>
-    </div>
-
-		<div id="game-over">
-			<h1 id="game-over-title">PROJECT COMPLETED!</h1>
-			<p class="score-calculation" id="score-calc-text">Points Scored:
-				0 | Remaining Time: 0s (+0) | Remaining HP: 100%</p>
-			<div class="powerup-stats-container">
-				<div class="stat-item">
-					<span class="icon-cross-ui">+</span> <span id="stats-hp-count">x0</span>
-				</div>
-				<div class="stat-item">
-					<span class="icon-clock-ui">🕒</span> <span id="stats-time-count">x0</span>
-				</div>
-				<div class="stat-item">
-					<span class="icon-coffee-ui">☕</span> <span id="stats-coffee-count">x0</span>
-				</div>
-				<div class="stat-item">
-					<span class="icon-lightning-ui">⚡</span> <span
-						id="stats-lightning-count">x0</span>
-				</div>
-				<div class="stat-item">
-					<span class="icon-freeze-ui">🧯</span> <span
-						id="stats-freeze-count">x0</span>
-				</div>
-			</div>
-			<p>
-				Final Score: <span id="final-score">0</span>
-			</p>
-			<div id="highscore-form" style="display: none;">
-				<p>Congratulations! You made the Top 10.</p>
-				<input type="text" id="player-name" placeholder="Your Name"
-					maxlength="20"
-					onkeydown="if(event.key==='Enter') submitHighscore(event)">
-				<button type="button" onclick="submitHighscore(event)">SAVE SCORE</button>
-			</div>
-			<!-- NEU: Modus-Auswahl auf dem Game Over Screen -->
-			<div style="margin-bottom: 20px; text-align: center;">
-				<label for="gameover-episode-select"
-					style="color: white; font-size: 18px; font-weight: bold; margin-right: 10px; font-family: 'Courier New', monospace;">EPISODE:</label>
-				<select id="gameover-episode-select"
-					style="padding: 10px; font-size: 16px; font-family: 'Courier New', monospace; background: #111; color: #ffcc00; border: 2px solid #ffcc00; cursor: pointer; outline: none;">
-					<!-- Wird automatisch befüllt -->
-				</select>
-			</div>
-
-			<div style="display: flex; gap: 20px; margin-bottom: 30px;">
-				<button onclick="startSelectedMode(event)"
-					style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #3366ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000;">
-					START</button>
-				<button onclick="openEditor()" style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #8833ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000; margin-left: 10px;">
-				    EDITOR
-				</button>
-			</div>
-			<div class="highscore-container">
-				<h3 id="highscore-title-gameover">Hall of Fame</h3>
-				<table class="highscore-table">
-					<thead>
-						<tr>
-							<th class="rank-col">Rank</th>
-							<th>Name</th>
-							<th class="score-col">Score</th>
-							<th>Date</th>
-						</tr>
-					</thead>
-					<tbody id="gameover-highscore-body"></tbody>
-				</table>
-			</div>
-		</div>
-	</div>
-
-
-	
-	<!-- NEU: Level-Banner und Warnmeldung -->
-
-	<div id="level-title-banner"
-	style="display: none; position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); color: white; text-align: center; z-index: 200; pointer-events: none; text-shadow: 2px 2px 10px #000;">
-	<h1 id="level-title-text"
-		style="font-size: 60px; margin: 0; color: #ffcc00; font-family: 'Courier New', monospace;">LEVEL
-		1</h1>
-	<p id="level-title-sub"
-		style="font-size: 24px; margin-top: 5px; font-weight: bold;"></p>
-</div>
-
-<!-- EPISODE EDITOR OVERLAY -->
-<div id="editor-overlay">
-    <div class="editor-header">
-        <h2>Episode Editor</h2>
-        <div class="editor-toolbar">
-            <select id="editor-template-select" class="editor-btn" style="background:#000;">
-                <option value="">-- Load Template --</option>
-            </select>
-            <button class="editor-btn" onclick="document.getElementById('editor-import-file').click()">Load JSON</button>
-            <input type="file" id="editor-import-file" style="display:none;" accept=".json" onchange="editorImportJSON(event)">
-            <button class="editor-btn" onclick="editorExportJSON()">Export JSON</button>
-            <button class="editor-btn play-btn" onclick="editorTestPlay()">▶ TEST PLAY</button>
-            <button class="editor-btn" style="background:#d9534f;" onclick="closeEditor()">X CLOSE</button>
-        </div>
-    </div>
-    <div class="editor-body">
-        <div class="editor-sidebar">
-            <div class="editor-section">
-                <h3>Episode Meta</h3>
-                <div class="editor-input-group"><label>Name</label><input type="text" id="edit-ep-name" value="Custom Episode"></div>
-                <div class="editor-input-group"><label>Description</label><input type="text" id="edit-ep-desc" value="Created in Editor"></div>
-            </div>
+            #btn-shoot { bottom: 15vh; right: 10vw; width: 70px; height: 70px; border-color: #ff3333; color: #ff3333; font-size: 24px; background: rgba(255, 50, 50, 0.2); }
+            #btn-jump { bottom: 30vh; right: 5vw; width: 50px; height: 50px; }
+            #btn-reload { bottom: 30vh; right: 18vw; width: 50px; height: 50px; }
+            #btn-door { bottom: 15vh; left: 45vw; width: 60px; height: 60px; border-color: #ffcc00; color: #ffcc00; }
+            #btn-map { top: 20px; left: 20px; width: 50px; height: 50px; border-radius: 10px; z-index: 2600; }
+            #btn-map.active { background: rgba(255, 50, 50, 0.5); border-color: #ff3333; color: #fff; }
             
-            <div class="editor-section" id="editor-config-container">
-                <h3>Configuration</h3>
-                <!-- Config inputs will be generated here by JS -->
-            </div>
+            body { margin: 0; padding: 0; font-family: 'Arial Black', sans-serif; overflow: hidden; user-select: none; background: #000; color: #fff; }
+            canvas { display: block; width: 100vw; height: 100vh; }
+            #vignette { position: absolute; top:0; left:0; width: 100%; height: 100%; background: radial-gradient(circle, transparent 30%, rgba(0,0,0,0.8) 100%); pointer-events: none; z-index: 2; }
+            #damage-vignette { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 0, 0, 0); pointer-events: none; z-index: 3; transition: background-color 0.3s ease; }
+            
+            #crosshair { position: absolute; top: 50%; left: 50%; width: 24px; height: 24px; transform: translate(-50%, -50%); z-index: 10; pointer-events: none; }
+            #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(255, 0, 0, 0.8); box-shadow: 0 0 4px #000; }
+            #crosshair::before { top: 11px; left: 0; width: 24px; height: 2px; }
+            #crosshair::after { top: 0; left: 11px; width: 2px; height: 24px; }
+            .crosshair-center { position: absolute; top: 10px; left: 10px; width: 4px; height: 4px; background: #fff; border-radius: 50%; }
 
-            <div class="editor-section">
-                <h3>Level & Layers</h3>
-                <div class="editor-input-group">
-                    <label>Level</label>
-                    <select id="edit-level-select" onchange="editorSelectLevel(this.value)"></select>
+            #loading-screen, #game-over, #instructions-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url('img/load.png'); background-size: cover; background-position: center; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; z-index: 2000; transition: opacity 0.8s ease; text-align: center; padding-top: 40px; box-sizing: border-box; overflow-y: auto; background-color: rgba(0,0,0,0.7); background-blend-mode: multiply; }
+            #game-over { display: none; z-index: 1000; }
+            #instructions-overlay { display: none; z-index: 4000; background: rgba(10, 5, 5, 0.95); }
+            
+            #loading-screen h1, #game-over h1, #instructions-overlay h1 { color: #ff2222; font-size: 55px; margin: 0; letter-spacing: 3px; text-transform: uppercase; text-shadow: 4px 4px 4px #000, 0 0 25px #ff0000; }
+            #loading-screen h2 { color: #bbb; font-size: 24px; font-family: 'Georgia', serif; font-style: italic; margin-top: 10px; text-shadow: 2px 2px 4px #000; margin-bottom: 15px; }
+            
+            #ui-panel { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; font-size: 28px; z-index: 10; text-shadow: 3px 3px 0px #000; align-items: center; pointer-events: none; }
+            .score-box { color: #5cb85c; }
+            .timer-box { color: #d9534f; }
+            .help-hint { color: #f0ad4e; font-size: 22px; }
+            
+            #ammo-display { position: absolute; bottom: 20px; left: 20px; display: flex; gap: 5px; height: 45px; align-items: center; z-index: 10; pointer-events: none; }
+            .bullet-sprite { height: 42px; width: auto; transition: opacity 0.1s ease, filter 0.1s ease, transform 0.1s ease; }
+            .bullet-spent { opacity: 0.12; filter: grayscale(100%) brightness(30%); transform: translateY(4px); }
+            
+            #health-display { position: absolute; bottom: 20px; right: 20px; background: rgba(0, 0, 0, 0.65); padding: 10px 20px; border-radius: 6px; font-size: 28px; border: 2px solid #d9534f; pointer-events: none; display: flex; align-items: center; gap: 12px; text-shadow: 2px 2px 0px #000; box-shadow: 0 0 15px rgba(0,0,0,0.5); z-index: 10; }
+            .health-cross { color: #ff2222; font-size: 34px; font-weight: bold; line-height: 1; }
+            .health-text { color: #fff; font-weight: bold; }
+
+            #active-powerups-display { position: absolute; bottom: 20px; right: 220px; display: flex; gap: 12px; z-index: 10; pointer-events: none; }
+            .active-buff { background: rgba(0, 0, 0, 0.65); padding: 10px 15px; border-radius: 6px; font-size: 22px; display: flex; align-items: center; gap: 8px; color: #fff; border: 2px solid #555; text-shadow: 2px 2px 0px #000; box-shadow: 0 0 15px rgba(0,0,0,0.5); font-family: monospace; font-weight: bold; }
+            .buff-coffee { border-color: #fff; }
+            .buff-lightning { border-color: #ffcc00; color: #ffcc00; }
+            .buff-freeze { border-color: #00ccff; color: #00ccff; }
+
+            .score-popup { position: absolute; font-family: 'Arial Black', sans-serif; font-size: 28px; font-weight: bold; color: #fff; text-shadow: 2px 2px 0px #000; pointer-events: none; z-index: 150; transform: translate(-50%, -50%); animation: scoreFloatUp 0.75s forwards; }
+            @keyframes scoreFloatUp { 0% { opacity: 0; transform: translate(-50%, -50%) translateY(10px); } 20% { opacity: 1; transform: translate(-50%, -50%) translateY(0); } 100% { opacity: 0; transform: translate(-50%, -50%) translateY(-40px); } }
+
+            .powerup-stats-container { display: flex; gap: 20px; margin: 15px 0; justify-content: center; font-size: 20px; text-shadow: 2px 2px 2px #000; background: rgba(255,255,255,0.03); padding: 10px 20px; border-radius: 8px; border: 1px dashed #555; }
+            .stat-item { display: flex; align-items: center; gap: 6px; }
+            .icon-cross-ui { color: #ff3333; font-weight: bold; font-size: 26px; }
+            .icon-clock-ui { font-size: 24px; }
+            .icon-coffee-ui { font-size: 24px; }
+            .icon-lightning-ui { color: #ffcc00; font-weight: bold; font-size: 24px; }
+            .icon-freeze-ui { font-size: 24px; }
+
+            .scrollable-feature-container { max-width: 750px; width: 90%; max-height: 65vh; overflow-y: auto; background: rgba(0,0,0,0.85); padding: 25px; border-radius: 8px; border: 2px solid #555; margin: 25px 0; text-align: left; box-shadow: 0 0 20px #000; scrollbar-width: thin; scrollbar-color: #d9534f #222; }
+            .scrollable-feature-container::-webkit-scrollbar { width: 8px; }
+            .scrollable-feature-container::-webkit-scrollbar-track { background: #222; border-radius: 4px; }
+            .scrollable-feature-container::-webkit-scrollbar-thumb { background: #d9534f; border-radius: 4px; }
+            
+            .feature-list-section { margin-bottom: 25px; font-family: sans-serif; font-size: 16px; line-height: 1.6; }
+            .feature-list-section h3 { font-family: 'Arial Black', sans-serif; color: #ff3333; font-size: 20px; margin: 0 0 10px 0; border-bottom: 1px solid #444; padding-bottom: 5px; text-transform: uppercase; }
+            .feature-list-section ul { margin: 5px 0 0 20px; padding: 0; }
+            .feature-list-section strong { color: #f0ad4e; }
+            .lore-text { font-style: italic; color: #ddd; font-size: 16px; margin-bottom: 25px; border-left: 3px solid #ff2222; padding-left: 15px; }
+            
+            .control-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            .control-table th, .control-table td { padding: 10px; border-bottom: 1px solid #333; font-size: 15px; }
+            .control-table th { background-color: #1a1a1a; text-align: left; color: #f0ad4e; font-family: 'Arial Black', sans-serif; font-size: 14px; }
+            .control-table td strong { color: #ff2222; font-family: monospace; font-size: 16px; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 3px; }
+            
+            #game-over p { font-size: 24px; margin: 10px 0 10px 0; color: #fff; text-shadow: 2px 2px 4px #000; }
+            .score-calculation { font-size: 16px !important; color: #aaa; font-family: monospace; }
+            #final-score { font-weight: bold; color: #5cb85c; font-size: 32px; }
+            
+            #highscore-form input { padding: 10px; font-size: 18px; border: 2px solid #555; background: #222; color: #fff; border-radius: 5px; }
+            #highscore-form button, #game-over button, #loading-screen button, .close-btn { padding: 12px 35px; font-size: 20px; font-family: 'Arial Black', sans-serif; background: #d9534f; color: white; border: 3px solid #fff; cursor: pointer; transition: 0.2s; margin: 5px; box-shadow: 0 4px 10px #000; }
+            #highscore-form button:hover, #game-over button:hover, #loading-screen button:hover, .close-btn:hover { background: #b52b27; transform: scale(1.05); }
+
+            .highscore-container { width: 80%; max-width: 700px; background: rgba(15, 15, 15, 0.9); padding: 15px; border-radius: 10px; border: 1px solid #444; box-shadow: 0 0 20px rgba(0,0,0,0.8); margin-top: 15px; }
+            .highscore-container h3 { margin: 0 0 10px 0; font-size: 20px; color: #ff3333; text-transform: uppercase; text-align: center; }
+            .highscore-table { border-collapse: collapse; width: 100%; font-family: sans-serif; font-size: 15px; }
+            .highscore-table th, .highscore-table td { text-align: left; padding: 8px; border-bottom: 1px solid #333; }
+            .highscore-table th { background-color: #222; color: #bbb; }
+            .rank-col { width: 12%; color: #888; font-weight: bold; }
+            .score-col { width: 25%; font-weight: bold; color: #5cb85c; }
+            #crosshair.infinite-ammo::before, #crosshair.infinite-ammo::after { background: rgba(255, 204, 0, 0.9); box-shadow: 0 0 6px #ffcc00; }
+            #crosshair.infinite-ammo .crosshair-center { background: #ffcc00; box-shadow: 0 0 6px #ffcc00; }
+            
+            /* Bluttropfen-Effekt beim Treffer */
+            .blood-splatter {
+                position: absolute;
+                width: 12px;
+                height: 16px;
+                background: #cc0000;
+                border-radius: 50% 50% 40% 40%;
+                pointer-events: none;
+                z-index: 150;
+                transform: translate(-50%, -50%);
+                animation: bloodSplash 0.5s forwards ease-out;
+                box-shadow: 0 0 6px #ff0000;
+            }
+            @keyframes bloodSplash {
+                0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+                50% { opacity: 0.9; transform: translate(calc(-50% + var(--rand-x)), calc(-50% + var(--rand-y))) scale(1.4); }
+                100% { opacity: 0; transform: translate(calc(-50% + var(--rand-x) * 1.5), calc(-50% + var(--rand-y) * 1.5 + 20px)) scale(0.8); }
+            }
+            /* Hervorhebung des eigenen neuen Highscores */
+            .highscore-table tr.highlighted-score {
+                background-color: rgba(92, 184, 92, 0.25);
+                font-weight: bold;
+                color: #5cb85c;
+            }
+            .highscore-table tr.highlighted-score td {
+                border-bottom: 1px solid #5cb85c;
+            }
+            
+            /* --- AUTO-MAP STYLES --- */
+            #map-overlay {
+                position: absolute;
+                top: 20px;
+                right: 20px;
+                background: rgba(15, 15, 15, 0.95);
+                border: 2px solid #555;
+                border-radius: 8px;
+                z-index: 2000;
+                display: none; /* Initial versteckt */
+                flex-direction: column;
+                align-items: center;
+                padding: 10px;
+                box-shadow: 0px 0px 15px rgba(0,0,0,0.8);
+                max-width: calc(100vw - 40px);
+                box-sizing: border-box;
+            }
+            .map-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                width: 100%;
+                margin-bottom: 8px;
+                gap: 10px;
+            }
+            #map-overlay .map-title {
+                color: #ffcc00;
+                font-family: 'Arial Black', sans-serif;
+                font-size: 14px;
+                margin: 0;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+            .map-close-btn {
+                background: rgba(255, 50, 50, 0.3);
+                border: 1px solid #ff3333;
+                color: #fff;
+                border-radius: 4px;
+                font-size: 18px;
+                font-weight: bold;
+                line-height: 1;
+                padding: 2px 8px;
+                cursor: pointer;
+                pointer-events: auto;
+            }
+            .map-close-btn:active { background: rgba(255, 50, 50, 0.8); }
+            .map-bottom-close-btn {
+                margin-top: 8px;
+                width: 100%;
+                background: rgba(255, 50, 50, 0.3);
+                border: 1px solid #ff3333;
+                color: #fff;
+                font-family: 'Arial Black', sans-serif;
+                font-size: 12px;
+                padding: 6px 10px;
+                border-radius: 4px;
+                cursor: pointer;
+                pointer-events: auto;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+            .map-bottom-close-btn:active { background: rgba(255, 50, 50, 0.8); }
+            #map-canvas {
+                background: #000;
+                border: 1px solid #333;
+                image-rendering: pixelated;
+            }
+            
+            /* --- EPISODE EDITOR STYLES --- */
+            #editor-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 5000; display: none; flex-direction: column; color: #fff; font-family: sans-serif; overflow: hidden; }
+            .editor-header { display: flex; justify-content: space-between; align-items: center; background: #222; padding: 10px 20px; border-bottom: 2px solid #444; }
+            .editor-header h2 { margin: 0; color: #ffcc00; font-family: 'Arial Black', sans-serif; text-transform: uppercase; }
+            .editor-toolbar { display: flex; gap: 10px; align-items: center; }
+            .editor-btn { background: #444; color: white; border: 1px solid #777; padding: 8px 15px; cursor: pointer; font-weight: bold; border-radius: 3px; }
+            .editor-btn:hover { background: #555; }
+            .editor-btn.play-btn { background: #5cb85c; border-color: #4cae4c; }
+            .editor-btn.play-btn:hover { background: #449d44; }
+            
+            .editor-body { display: flex; flex: 1; overflow: hidden; }
+            .editor-sidebar { width: 320px; background: #1a1a1a; border-right: 2px solid #444; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+            .editor-section { background: #222; padding: 10px; border-radius: 5px; border: 1px solid #333; }
+            .editor-section h3 { margin: 0 0 10px 0; font-size: 16px; color: #bbb; border-bottom: 1px solid #444; padding-bottom: 5px; }
+            .editor-input-group { display: flex; justify-content: space-between; margin-bottom: 5px; align-items: center; }
+            .editor-input-group label { font-size: 12px; color: #999; }
+            .editor-input-group input, .editor-input-group select { background: #000; color: #fff; border: 1px solid #555; padding: 4px; width: 120px; font-family: monospace; }
+            
+            .editor-main { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; padding: 20px; align-items: center; overflow: auto; }
+            .editor-palette { display: flex; gap: 5px; margin-bottom: 20px; background: #222; padding: 10px; border-radius: 5px; border: 1px solid #444; flex-wrap: wrap; justify-content: center; }
+            .palette-btn { width: 40px; height: 40px; font-weight: bold; font-size: 18px; cursor: pointer; border: 2px solid transparent; border-radius: 4px; display: flex; justify-content: center; align-items: center; }
+            .palette-btn.selected { border-color: #ffcc00; transform: scale(1.1); }
+            #editor-grid-container { background: #000; border: 2px solid #555; display: inline-block; cursor: crosshair; }
+            .editor-row { display: flex; }
+            .editor-cell { width: 24px; height: 24px; border-right: 1px solid #222; border-bottom: 1px solid #222; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 14px; user-select: none; }
+            .editor-cell:hover { border: 1px solid #fff; z-index: 10; }  
+            /* Tile Colors */
+            .tile- { background: #000; }
+            .tile-\| { background: #666; color: transparent; }
+            .tile-P { background: #0044aa; color: white; }
+            .tile-E { background: #0088ff; color: white; }
+            .tile-D { background: #5a3a22; color: white; }
+            .tile-\+ { background: #22aa22; color: white; }
+            .tile-- { background: #aa2222; color: white; }
+            .tile-1, .tile-2, .tile-3, .tile-4{ background: #bc667b; color: #000; }
+            .tile-H { background: #ff3333; color: white; }
+            .tile-T { background: #00ffaa; color: black; }
+            .tile-C { background: #ffffff; color: black; }
+            .tile-I { background: #ffcc00; color: black; }
+            .tile-F { background: #00ccff; color: black; }
+            /* NEU: Editor Styles für Secret Door und Treasure */
+            .tile-S { background: #555; color: #ffcc00; border: 1px solid #888; }
+            .tile-Dollar { background: #00ffff; color: #000; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+
+        <!-- MOBILE TOUCH OVERLAY -->
+        <div id="mobile-ui">
+            <div id="joystick-left" class="touch-zone"></div>
+            <div id="joystick-right" class="touch-zone"></div>
+            <div id="btn-shoot" class="mobile-btn" data-i18n="mob_fire">FIRE</div>
+            <div id="btn-jump" class="mobile-btn" data-i18n="mob_jmp">JMP</div>
+            <div id="btn-reload" class="mobile-btn" data-i18n="mob_rel">REL</div>
+            <div id="btn-door" class="mobile-btn" data-i18n="mob_door">DOOR</div>
+            <div id="btn-map" class="mobile-btn" data-i18n="mob_map">MAP</div>
+        </div>
+
+        <div id="game-container">
+        <!-- AUTO-MAP OVERLAY -->
+        <div id="map-overlay">
+            <div class="map-header">
+                <div class="map-title" id="map-title-display">Auto-Map (Floor <span id="map-floor-display">0</span>)</div>
+                <button id="map-close-btn" class="map-close-btn" type="button" aria-label="Close Map">&times;</button>
+            </div>
+            <canvas id="map-canvas" width="300" height="300"></canvas>
+            <button id="map-bottom-close-btn" class="map-bottom-close-btn" type="button" data-i18n="btn_close_map">CLOSE MAP</button>
+        </div>
+        
+            <div id="loading-screen">
+                <!-- LANGUAGE SWITCHER -->
+                <div style="position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 2100;">
+                    <button onclick="changeLanguage('en')" style="padding: 5px 10px; font-size: 16px; background: #333; color: #fff; border: 1px solid #fff; cursor: pointer;">EN</button>
+                    <button onclick="changeLanguage('de')" style="padding: 5px 10px; font-size: 16px; background: #333; color: #fff; border: 1px solid #fff; cursor: pointer;">DE</button>
                 </div>
-                <button class="editor-btn" style="width:100%; margin-bottom:10px;" onclick="editorAddLevel()">+ Add Level</button>
+
+                <h1 data-i18n="game_title">Furious Requirement Manager 3D</h1>
+                <h2 data-i18n="game_subtitle">Attack of the Zombie Pigs</h2>
+                <div style="display: flex; gap: 20px; margin-top: 10px;">
+                    <!-- Episoden-Auswahl -->
+                    <div style="margin-top: 15px; margin-bottom: 15px; text-align: center;">
+                        <label for="episode-select" data-i18n="lbl_episode" style="color: white; font-size: 18px; font-weight: bold; margin-right: 10px; font-family: 'Courier New', monospace;">EPISODE:</label>
+                        <select id="episode-select" style="padding: 10px; font-size: 16px; font-family: 'Courier New', monospace; background: #111; color: #ffcc00; border: 2px solid #ffcc00; cursor: pointer; outline: none;">
+                        </select>
+                    </div>
+                    <button onclick="startSelectedMode(event)" data-i18n="btn_start" style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #3366ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000;">START</button>
+                    <button onclick="openEditor()" data-i18n="btn_editor" style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #8833ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000; margin-left: 10px;">EDITOR</button>
+                </div>
+                <div class="highscore-container">
+                    <h3 id="highscore-title-start" data-i18n="highscore_title_base">Hall of Fame</h3>
+                    <table class="highscore-table">
+                        <thead>
+                            <tr>
+                                <th class="rank-col" data-i18n="tbl_rank">Rank</th>
+                                <th data-i18n="tbl_name">Name</th>
+                                <th class="score-col" data-i18n="tbl_score">Score</th>
+                                <th data-i18n="tbl_date">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="loading-highscore-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="vignette"></div>
+            <div id="damage-vignette"></div>
+            <div id="crosshair"><div class="crosshair-center"></div></div>
+        
+        <div id="active-powerups-display"></div>
+
+        <div id="health-display">
+            <span class="health-cross">+</span>
+            <span id="health-value" class="health-text">HP: 100</span>
+        </div>
+        
+        <div id="ui-panel">
+            <div id="score-display" class="score-box">SCORE: 0</div>
+            <div class="help-hint" data-i18n="help_hint">F1 for Help</div>
+            <div id="timer-display" class="timer-box">TIME LEFT: 60</div>
+        </div>
+        <div id="ammo-display"></div>
+
+        <div id="instructions-overlay">
+            <h1 data-i18n="manual_title">Sprint Manual & Features</h1>
+            <div class="scrollable-feature-container">
+                <div class="lore-text" data-i18n="manual_lore">"The project was close to release..."</div>
                 
-                <div class="editor-input-group">
-                    <label>Layer (Floor)</label>
-                    <select id="edit-layer-select" onchange="editorSelectLayer(this.value)"></select>
+                <div class="feature-list-section">
+                    <h3 data-i18n="manual_controls_title">Controls</h3>
+                    <table class="control-table">
+                        <thead><tr><th data-i18n="manual_controls_title">Action</th><th data-i18n="manual_controls_title_value">Key / Input</th></tr></thead>
+                        <tbody>
+                            <tr><td data-i18n="manual_ctrl_mov">Tactical Movement</td><td><strong>W, A, S, D</strong></td></tr>
+                            <tr><td data-i18n="manual_ctrl_aim">Look Around & Aim</td><td><strong data-i18n="manual_ctrl_aim_value">Mouse Movement</strong></td></tr>
+                            <tr><td data-i18n="manual_ctrl_fire">Fire Weapon</td><td><strong data-i18n="manual_ctrl_fire_value">Left Click</strong></td></tr>
+                            <tr><td data-i18n="manual_ctrl_rel">Reload Magazine</td><td data-i18n="manual_ctrl_rel_value"><strong>Key R</strong> or <strong>Right Click</strong></td></tr>
+                            <tr><td data-i18n="manual_ctrl_use">Open Door / Secret Wall</td><td><strong>E</strong></td></tr>
+                            <tr><td data-i18n="manual_ctrl_map">Map</td><td><strong>M</strong></td></tr>
+                            <tr><td data-i18n="manual_ctrl_jmp">Super Jump</td><td><strong data-i18n="manual_ctrl_jmp_value">Spacebar</strong></td></tr>
+                            <tr><td data-i18n="manual_ctrl_pause">Open Manual / Pause</td><td><strong>F1</strong></td></tr>
+                        </tbody>
+                    </table>
                 </div>
-                <button class="editor-btn" style="width:100%;" onclick="editorAddLayer()">+ Add Layer</button>
-				<div class="editor-section">
-                <h3>Level Meta</h3>
-                <div class="editor-input-group"><label>Level Name</label><input type="text" id="edit-lvl-name" oninput="saveUIToEditData()"></div>
-                <div class="editor-input-group"><label>Description</label><input type="text" id="edit-lvl-desc" oninput="saveUIToEditData()"></div>
-            </div>
+                
+                <div class="feature-list-section">
+                    <h3 data-i18n="manual_features_title">Features & Power-Ups</h3>
+                    <ul>
+                        <li data-i18n="manual_feat_hp"><strong>HP Cross (+):</strong> Heals you for <span id="help-val-hp"></span> HP up to max. <span id="help-val-hpmax"></span> HP overheal.</li>
+                        <li data-i18n="manual_feat_time"><strong>Bonus Time (🕒):</strong> Instantly adds <span id="help-val-time"></span> seconds to the timer.</li>
+                        <li data-i18n="manual_feat_coffee"><strong>Coffee Overclock (☕):</strong> +<span id="help-val-speed"></span>% Movement Speed & FOV rush for <span id="help-val-coffeetime"></span> seconds.</li>
+                        <li data-i18n="manual_feat_ammo"><strong>Infinite Ammo (⚡):</strong> Infinite shotgun ammo without reloading for <span id="help-val-ammotime"></span> seconds.</li>
+                        <li data-i18n="manual_feat_freeze":><strong>Task-Killer (🧯):</strong> Freezes all pigs on the map for <span id="help-val-freezetime"></span> seconds.</li>
+                        <li data-i18n="manual_feat_secret":><strong>Secret Door (S):</strong> Hidden passages marked by portraits. Approach and press E!</li>
+                        <li data-i18n="manual_feat_treasure":><strong>Treasure ($):</strong> Rare diamond worth 20,000 Points!</li>
+                    </ul>
+                </div>
 
-            <div class="editor-section">
-                <h3>Grid Size (Map)</h3>
-                <div class="editor-input-group"><label>Columns (Width)</label><input type="number" id="edit-grid-cols" oninput="resizeGridDimensions()" value="32" min="5" max="100"></div>
-                <div class="editor-input-group"><label>Rows (Height)</label><input type="number" id="edit-grid-rows" oninput="resizeGridDimensions()" value="24" min="5" max="100"></div>
-                <!--<button class="editor-btn" style="width:100%; margin-top:5px;" onclick="resizeGridDimensions()">Apply Size</button>-->
+                <div class="feature-list-section">
+                    <h3 data-i18n="manual_credits_title">Credits & Libraries</h3>
+                    <ul>
+                        <li><strong>Three.js (r128):</strong> 3D rendering library. Used under the MIT License. &copy; 2010-2021 three.js authors.</li>
+                        <li><strong>nipplejs (1.0.4):</strong> Virtual joystick library for mobile touch controls. Used under the MIT License. &copy; 2025 Yoann Moinet.</li>
+                    </ul>
+                </div>
             </div>
+            <button class="close-btn" onclick="toggleHelp()" data-i18n="btn_back">BACK (F1)</button>
+        </div>
+
+            <div id="game-over">
+                <h1 id="game-over-title">PROJECT COMPLETED!</h1>
+                <p class="score-calculation" id="score-calc-text">Points Scored: 0 | Remaining Time: 0s (+0) | Remaining HP: 100%</p>
+                <div class="powerup-stats-container">
+                    <div class="stat-item"><span class="icon-cross-ui">+</span> <span id="stats-hp-count">x0</span></div>
+                    <div class="stat-item"><span class="icon-clock-ui">🕒</span> <span id="stats-time-count">x0</span></div>
+                    <div class="stat-item"><span class="icon-coffee-ui">☕</span> <span id="stats-coffee-count">x0</span></div>
+                    <div class="stat-item"><span class="icon-lightning-ui">⚡</span> <span id="stats-lightning-count">x0</span></div>
+                    <div class="stat-item"><span class="icon-freeze-ui">🧯</span> <span id="stats-freeze-count">x0</span></div>
+                </div>
+                <p data-i18n="go_final_score">Final Score: <span id="final-score">0</span></p>
+                <div id="highscore-form" style="display: none;">
+                    <p data-i18n="highscore_msg">Congratulations! You made the Top 10.</p>
+                    <input type="text" id="player-name" data-i18n-placeholder="ph_your_name" placeholder="Your Name" maxlength="20" onkeydown="if(event.key==='Enter') submitHighscore(event)">
+                    <button type="button" onclick="submitHighscore(event)" data-i18n="btn_save_score">SAVE SCORE</button>
+                </div>
+                
+                <div style="margin-bottom: 20px; text-align: center;">
+                    <label for="gameover-episode-select" data-i18n="lbl_episode" style="color: white; font-size: 18px; font-weight: bold; margin-right: 10px; font-family: 'Courier New', monospace;">EPISODE:</label>
+                    <select id="gameover-episode-select" style="padding: 10px; font-size: 16px; font-family: 'Courier New', monospace; background: #111; color: #ffcc00; border: 2px solid #ffcc00; cursor: pointer; outline: none;"></select>
+                </div>
+
+                <div style="display: flex; gap: 20px; margin-bottom: 30px;">
+                    <button onclick="startSelectedMode(event)" data-i18n="btn_start" style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #3366ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000;">START</button>
+                    <button onclick="openEditor()" data-i18n="btn_editor" style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #8833ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000; margin-left: 10px;">EDITOR</button>
+                </div>
+                <div class="highscore-container">
+                    <h3 id="highscore-title-gameover" data-i18n="highscore_title_base">Hall of Fame</h3>
+                    <table class="highscore-table">
+                        <thead>
+                            <tr>
+                                <th class="rank-col" data-i18n="tbl_rank">Rank</th>
+                                <th data-i18n="tbl_name">Name</th>
+                                <th class="score-col" data-i18n="tbl_score">Score</th>
+                                <th data-i18n="tbl_date">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="gameover-highscore-body"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
+
+        <div id="level-title-banner" style="display: none; position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); color: white; text-align: center; z-index: 200; pointer-events: none; text-shadow: 2px 2px 10px #000;">
+        <h1 id="level-title-text" style="font-size: 60px; margin: 0; color: #ffcc00; font-family: 'Courier New', monospace;">LEVEL 1</h1>
+        <p id="level-title-sub" style="font-size: 24px; margin-top: 5px; font-weight: bold;"></p>
+    </div>
+
+    <!-- EPISODE EDITOR OVERLAY -->
+    <div id="editor-overlay">
+        <div class="editor-header">
+            <h2 data-i18n="editor_title">Episode Editor</h2>
+            <div class="editor-toolbar">
+                <select id="editor-template-select" class="editor-btn" style="background:#000;">
+                    <option value="" data-i18n="editor_load_template">-- Load Template --</option>
+                </select>
+                <button class="editor-btn" onclick="document.getElementById('editor-import-file').click()" data-i18n="btn_load_json">Load JSON</button>
+                <input type="file" id="editor-import-file" style="display:none;" accept=".json" onchange="editorImportJSON(event)">
+                <button class="editor-btn" onclick="editorExportJSON()" data-i18n="btn_export_json">Export JSON</button>
+                <button class="editor-btn play-btn" onclick="editorTestPlay()" data-i18n="btn_test_play">▶ TEST PLAY</button>
+                <button class="editor-btn" style="background:#d9534f;" onclick="closeEditor()" data-i18n="btn_close">X CLOSE</button>
+            </div>
+        </div>
+        <div class="editor-body">
+            <div class="editor-sidebar">
+                <div class="editor-section">
+                    <h3 data-i18n="editor_ep_meta">Episode Meta</h3>
+                    <div class="editor-input-group"><label data-i18n="editor_lbl_name">Name</label><input type="text" id="edit-ep-name" value="Custom Episode"></div>
+                    <div class="editor-input-group"><label data-i18n="editor_lbl_desc">Description</label><input type="text" id="edit-ep-desc" value="Created in Editor"></div>
+                </div>
+                
+                <div class="editor-section" id="editor-config-container">
+                    <h3 data-i18n="editor_config">Configuration</h3>
+                </div>
+
+                <div class="editor-section">
+                    <h3 data-i18n="editor_lvl_layers">Level & Layers</h3>
+                    <div class="editor-input-group">
+                        <label data-i18n="editor_lbl_level">Level</label>
+                        <select id="edit-level-select" onchange="editorSelectLevel(this.value)"></select>
+                    </div>
+                    <button class="editor-btn" style="width:100%; margin-bottom:10px;" onclick="editorAddLevel()" data-i18n="btn_add_level">+ Add Level</button>
+                    
+                    <div class="editor-input-group">
+                        <label data-i18n="editor_lbl_layer">Layer (Floor)</label>
+                        <select id="edit-layer-select" onchange="editorSelectLayer(this.value)"></select>
+                    </div>
+                    <button class="editor-btn" style="width:100%;" onclick="editorAddLayer()" data-i18n="btn_add_layer">+ Add Layer</button>
+                    <div class="editor-section">
+                    <h3 data-i18n="editor_lvl_meta">Level Meta</h3>
+                    <div class="editor-input-group"><label data-i18n="editor_lbl_name">Level Name</label><input type="text" id="edit-lvl-name" oninput="saveUIToEditData()"></div>
+                    <div class="editor-input-group"><label data-i18n="editor_lbl_desc">Description</label><input type="text" id="edit-lvl-desc" oninput="saveUIToEditData()"></div>
+                </div>
+
+                <div class="editor-section">
+                    <h3 data-i18n="editor_grid_size">Grid Size (Map)</h3>
+                    <div class="editor-input-group"><label data-i18n="editor_lbl_cols">Columns (Width)</label><input type="number" id="edit-grid-cols" oninput="resizeGridDimensions()" value="32" min="5" max="100"></div>
+                    <div class="editor-input-group"><label data-i18n="editor_lbl_rows">Rows (Height)</label><input type="number" id="edit-grid-rows" oninput="resizeGridDimensions()" value="24" min="5" max="100"></div>
+                </div>
+                </div>
+            </div>
+            
+            <div class="editor-main">
+                <div class="editor-palette" id="editor-palette"></div>
+                <div id="editor-grid-container" onmousedown="editorStartPaint(event)" onmousemove="editorDragPaint(event)" onmouseup="editorStopPaint()" onmouseleave="editorStopPaint()">
+                </div>
+                <p style="color:#666; margin-top:10px;" data-i18n="editor_tip">Tipp: Halte die Maus gedrückt und ziehe, um durchgehend zu zeichnen.</p>
+            </div>
+        </div>
+    </div>
+    <div id="exit-warning" style="display: none; position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); color: #ff3333; font-size: 24px; font-weight: bold; text-shadow: 1px 1px 4px #000; pointer-events: none; z-index: 190;" data-i18n="exit_warning">Säubere erst alle Schweine!</div>
+    <!-- Level End Screen Overlay -->
+    <div id="level-end-screen" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); color: #fff; font-family: 'Courier New', Courier, monospace; text-align: center; z-index: 100; flex-direction: column; justify-content: center; align-items: center;">
         
-        <div class="editor-main">
-            <div class="editor-palette" id="editor-palette">
-                <!-- Palette generated by JS -->
-            </div>
-            <div id="editor-grid-container" onmousedown="editorStartPaint(event)" onmousemove="editorDragPaint(event)" onmouseup="editorStopPaint()" onmouseleave="editorStopPaint()">
-                <!-- Grid generated by JS -->
-            </div>
-            <p style="color:#666; margin-top:10px;">Tipp: Halte die Maus gedrückt und ziehe, um durchgehend zu zeichnen.</p>
+        <h1 data-i18n="lvl_end_title" style="color: #ff0000; font-size: 3rem; text-shadow: 2px 2px #000; margin-bottom: 40px;">LEVEL ABGESCHLOSSEN</h1>
+        
+        <div style="font-size: 1.5rem; text-align: left; background: rgba(255, 255, 255, 0.1); padding: 30px; border: 2px solid #555;">
+            <p style="margin: 15px 0;"><span data-i18n="lvl_end_pigs">SCHWEINE ELIMINIERT:</span> <span id="stat-pigs" style="color: #ff5555; float: right; margin-left: 40px;">0%</span></p>
+            <p style="margin: 15px 0;"><span data-i18n="lvl_end_secrets">SECRETS GEFUNDEN:</span> <span id="stat-secrets" style="color: #55ff55; float: right; margin-left: 40px;">0%</span></p>
+            <p style="margin: 15px 0;"><span data-i18n="lvl_end_treasures">SCHÄTZE GESAMMELT:</span> <span id="stat-treasures" style="color: #ffff55; float: right; margin-left: 40px;">0%</span></p>
         </div>
-    </div>
-</div>
-<div id="exit-warning"
-	style="display: none; position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); color: #ff3333; font-size: 24px; font-weight: bold; text-shadow: 1px 1px 4px #000; pointer-events: none; z-index: 190;">
-	Säubere erst alle Schweine!</div>
-<!-- Level End Screen Overlay -->
-<div id="level-end-screen" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); color: #fff; font-family: 'Courier New', Courier, monospace; text-align: center; z-index: 100; flex-direction: column; justify-content: center; align-items: center;">
-    
-    <h1 style="color: #ff0000; font-size: 3rem; text-shadow: 2px 2px #000; margin-bottom: 40px;">LEVEL ABGESCHLOSSEN</h1>
-    
-    <div style="font-size: 1.5rem; text-align: left; background: rgba(255, 255, 255, 0.1); padding: 30px; border: 2px solid #555;">
-        <p style="margin: 15px 0;">SCHWEINE ELIMINIERT: <span id="stat-pigs" style="color: #ff5555; float: right; margin-left: 40px;">0%</span></p>
-        <p style="margin: 15px 0;">SECRETS GEFUNDEN: <span id="stat-secrets" style="color: #55ff55; float: right; margin-left: 40px;">0%</span></p>
-        <p style="margin: 15px 0;">SCHÄTZE GESAMMELT: <span id="stat-treasures" style="color: #ffff55; float: right; margin-left: 40px;">0%</span></p>
+
+        <style>
+            @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+            .blink-text { animation: blink 1.5s infinite; margin-top: 50px; font-size: 1.2rem; color: #aaa; }
+        </style>
+        <p class="blink-text" data-i18n="lvl_end_continue">DRÜCKE [LEERTASTE] FÜR DAS NÄCHSTE LEVEL</p>
     </div>
 
-    <style>
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
-        .blink-text { animation: blink 1.5s infinite; margin-top: 50px; font-size: 1.2rem; color: #aaa; }
-    </style>
-    <p class="blink-text">DRÜCKE [LEERTASTE] FÜR DAS NÄCHSTE LEVEL</p>
-</div>
+    <!-- Scripts (Reihenfolge ist wichtig!) -->
+    <script src="js/i18n.js"></script>
+    <script src="js/constants.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/levels.js"></script>
+    <script src="js/entities.js"></script>
+    <script src="js/editor.js"></script> 
+    <script src="js/gameplay.js"></script>
 
-	
-	
-	<!-- Load modules in correct order -->
-<script src="js/constants.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/levels.js"></script>
-<script src="js/entities.js"></script>
-<script src="js/editor.js"></script> 
-<script src="js/gameplay.js"></script>
-
-</body>
+    </body>
 </html>

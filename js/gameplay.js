@@ -24,7 +24,7 @@ let weaponRecoil = 0;
 
 // --- MAP VARIABLES ---
 let isMapOpen = false;
-let discoveredMaps = []; // Speichert [layerIdx][r][c] = true/false
+let discoveredMaps = []; 
 let currentMapLevelHash = "";
 
 function applyGameConfiguration() {
@@ -51,10 +51,7 @@ function applyGameConfiguration() {
     POWERUP_SCORE_BONUS = config.POWERUP_SCORE_BONUS !== undefined ? config.POWERUP_SCORE_BONUS : 1000;
     playerBaseSpeed = config.playerBaseSpeed !== undefined ? config.playerBaseSpeed : 0.18;
     gravity = config.gravity !== undefined ? config.gravity : 0.015;
-    
-	// Einlesen der Konfiguration (Fallback auf false im FREE-Modus)
-	AllPigsShallBeCleared = config.AllPigsShallBeCleared !== undefined ? config.AllPigsShallBeCleared : true;
-		
+    AllPigsShallBeCleared = config.AllPigsShallBeCleared !== undefined ? config.AllPigsShallBeCleared : true;
     if (typeof updateHelpValues === 'function') updateHelpValues();
 }
 
@@ -82,7 +79,7 @@ function transitionToNextLevel() {
         activeLevelIndex++;
         applyGameConfiguration();
         buildLevelFromData(ep.levels[activeLevelIndex]);
-        showLevelBanner(ep.levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
+        showLevelBanner(t(ep.levels[activeLevelIndex].name), t('msg_eliminate_targets'));
         setTimeout(() => isTransitioningLevel = false, 1000);
     } else {
         endGame(false); 
@@ -103,13 +100,11 @@ function dispose3dObject(obj) {
     obj.traverse(child => { 
         if (child.isMesh) {
             if (child.geometry) child.geometry.dispose(); 
-            // Das eigens geklonte Material beim Löschen des Schweins sauber zerstören
             if (child.material && child.userData.hasClonedMat) child.material.dispose();
         }
     });
 }
 
-// --- HIGHSCORE MANAGEMENT ---
 let lastSavedScoreKey = null;
 
 function getHighscoreKey() {
@@ -136,7 +131,7 @@ function saveHighscore(name, score) {
     const highscores = loadHighscores(); 
     const now = new Date(); 
     const dateString = now.toLocaleDateString('en-US') + ' ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); 
-    const cleanName = name || 'Unknown';
+    const cleanName = name || t('txt_unknown');
     highscores.push({ name: cleanName, score: score, date: dateString }); 
     highscores.sort((a, b) => b.score - a.score); 
     const topHighscores = highscores.slice(0, 10);
@@ -150,9 +145,9 @@ function checkHighscoreEligibility(score) { const highscores = loadHighscores();
 function displayHighscores() { 
     const highscores = loadHighscores(); 
     const htmlContent = (!Array.isArray(highscores) || highscores.length === 0) 
-        ? '<tr><td colspan="4" style="text-align:center; color:#888;">No entries yet!</td></tr>' 
+        ? `<tr><td colspan="4" style="text-align:center; color:#888;">${t('txt_no_entries')}</td></tr>` 
         : highscores.map((entry, index) => {
-            const entryName = entry && entry.name ? String(entry.name) : 'Unknown';
+            const entryName = entry && entry.name ? String(entry.name) : t('txt_unknown');
             const entryScore = entry && entry.score ? entry.score : 0;
             const entryDate = entry && entry.date ? entry.date : '';
             const entryKey = `${entryName}_${entryScore}_${entryDate}`;
@@ -169,10 +164,8 @@ function displayHighscores() {
 
 function escapeHtml(text) { if (!text) return text; return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
-// --- MAP LOGIC ---
 function updateMapDiscovery(layerIdx, layerData) {
     if (!discoveredMaps[layerIdx]) discoveredMaps[layerIdx] = Array.from({length: levelMaxRows}, () => new Array(levelMaxCols).fill(false));
-    
     let pCol = Math.round((camera.position.x + (levelMaxCols * TILE_SIZE) / 2) / TILE_SIZE);
     let pRow = Math.round((camera.position.z + (levelMaxRows * TILE_SIZE) / 2) / TILE_SIZE);
 
@@ -195,7 +188,6 @@ function updateMapDiscovery(layerIdx, layerData) {
                 discoveredMaps[layerIdx][r][c] = true;
                 let cell = layerData[r] && layerData[r][c] ? layerData[r][c] : ' ';
                 if(cell === '|') break; 
-                // NEU: Secret Door verbirgt auch die Sicht!
                 if(cell === 'D' || cell === 'S') {
                     let doorObj = levelDoors.find(d => Math.abs(d.y - playerCurrentGroundY) < 1.0 && Math.round((d.x + (levelMaxCols * TILE_SIZE) / 2) / TILE_SIZE) === c && Math.round((d.z + (levelMaxRows * TILE_SIZE) / TILE_SIZE) === r));
                     if (!doorObj || doorObj.state !== 'open') break; 
@@ -232,8 +224,7 @@ function drawMap(layerIdx, layerData) {
                 let x = offsetX + c * cellSize;
                 let y = offsetY + r * cellSize;
                 
-                ctx.fillStyle = '#111'; // Floor
-                // Secret door sieht auf der Karte wie eine Wand aus
+                ctx.fillStyle = '#111';
                 if (cell === '|' || cell === 'S') ctx.fillStyle = '#777'; 
                 else if (cell === 'D') ctx.fillStyle = '#8b5a2b'; 
                 else if (cell === 'E') ctx.fillStyle = '#0088ff'; 
@@ -290,7 +281,7 @@ function toggleMap(e) {
             btnMap.innerText = '✕';
         } else {
             btnMap.classList.remove('active');
-            btnMap.innerText = 'MAP';
+            btnMap.innerText = t('mob_map');
         }
     }
 }
@@ -302,11 +293,10 @@ function closeMap() {
     const btnMap = document.getElementById('btn-map');
     if (btnMap) {
         btnMap.classList.remove('active');
-        btnMap.innerText = 'MAP';
+        btnMap.innerText = t('mob_map');
     }
 }
 
-// --- MAIN RENDER LOOP ---
 function animate3D() {
     requestAnimationFrame(animate3D);
     const dt = clock.getDelta();
@@ -317,42 +307,34 @@ function animate3D() {
         handlePlayerMovement(timeScale);
     }
 	
-    // --- KAMERA-DREHUNG FÜR MOBILE (Rechter Joystick) ---
     if (!isGameOver && gameOverScreen.style.display !== 'flex' && loadingScreen.style.display === 'none' && isTouchDevice && (joyLookX !== 0 || joyLookY !== 0) && document.getElementById('instructions-overlay').style.display !== 'flex') {
         camera.rotation.y -= joyLookX * 0.035 * timeScale;
         camera.rotation.x += joyLookY * 0.035 * timeScale;
         camera.rotation.x = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, camera.rotation.x));
     }
 
-    // --- WAFFEN-ANIMATION ---
     if (playerWeapon) {
-        // Rückstoß abbauen (Waffe gleitet zurück)
         if (weaponRecoil > 0) {
             weaponRecoil -= dt * 6;
             if (weaponRecoil < 0) weaponRecoil = 0;
         }
 
-        // Position und Rotation der Waffe basierend auf dem Rückstoß setzen
-        // Sie kickt nach hinten (+Z), nach oben (+Y) und dreht sich leicht hoch
         playerWeapon.position.z = -0.4 + (weaponRecoil * 0.15);
         playerWeapon.position.y = -0.25 + (weaponRecoil * 0.05);
         playerWeapon.rotation.x = weaponRecoil * 0.25;
 
-        // Wackeln beim Laufen (Bobbing), wenn der Spieler sich bewegt
         if ((keysPressed.w || keysPressed.a || keysPressed.s || keysPressed.d) && !isJumping) {
             const time = performance.now() * 0.008;
             playerWeapon.position.y = -0.25 + Math.sin(time) * 0.01 + (weaponRecoil * 0.05);
             playerWeapon.position.x = 0.25 + Math.cos(time * 0.5) * 0.01;
         } else {
-            playerWeapon.position.x = 0.25; // Zurück zur Mitte, wenn wir stehen
+            playerWeapon.position.x = 0.25; 
         }
 
-        // Mündungsfeuer extrem schnell ausfaden
         if (muzzleFlash && muzzleFlash.intensity > 0) {
             muzzleFlash.intensity -= dt * 15;
             if (muzzleFlash.intensity < 0) muzzleFlash.intensity = 0;
         }
-        // Mündungsfeuer ausfaden (Visueller Blitz)
         if (muzzleFlashMesh && muzzleFlashMesh.children[0].material.opacity > 0) {
             muzzleFlashMesh.children.forEach(c => {
                 c.material.opacity -= dt * 15;
@@ -390,31 +372,31 @@ function animate3D() {
                 playPowerupAudio(pup.type);
                 let finalBonus = (pup.type === 'treasure') ? 20000 : POWERUP_SCORE_BONUS;
                 score += finalBonus;
-                scoreDisplay.innerText = `PIGS BLASTED: ${score}`;
+                scoreDisplay.innerText = t('hud_score', { score: score });
                 const popup = document.createElement('div'); popup.className = 'score-popup'; popup.style.left = '50%'; popup.style.top = '40%';
 
                 if (pup.type === 'hp') {
                     hp += HP_HEAL_AMOUNT; if (hp > MAX_OVERHEAL_HP) hp = MAX_OVERHEAL_HP;
-                    healthValueDisplay.innerText = `HP: ${hp}`; collectedHp++;
-                    popup.innerText = `HEALTH +${HP_HEAL_AMOUNT} (+${finalBonus} PTS)`; popup.style.color = "#ff3333";
+                    healthValueDisplay.innerText = t('hud_hp', { hp: hp }); collectedHp++;
+                    popup.innerText = t('popup_health', { amount: HP_HEAL_AMOUNT, pts: finalBonus }); popup.style.color = "#ff3333";
                     let alphaValue = Math.max(0, (1 - (hp / 100)) * RED_FILTER_MAX_OPACITY); damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${alphaValue})`;
                     if (hp > 90) clearTimeout(heartbeatTimeout);
                 } else if (pup.type === 'time') {
-                    timeLeft += TIME_BONUS_AMOUNT; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`;
-                    collectedTime++; popup.innerText = `BONUS TIME +${TIME_BONUS_AMOUNT}s (+${finalBonus} PTS)`; popup.style.color = "#00ffaa";
+                    timeLeft += TIME_BONUS_AMOUNT; timerDisplay.innerText = t('hud_time', { time: timeLeft });
+                    collectedTime++; popup.innerText = t('popup_time', { amount: TIME_BONUS_AMOUNT, pts: finalBonus }); popup.style.color = "#00ffaa";
                 } else if (pup.type === 'speed') {
                     coffeeEndTime = Math.max(coffeeEndTime, performance.now()) + (COFFEE_TIMER * 1000); 
                     currentSpeedMultiplier = COFFEE_SPEED_MULTI; collectedCoffee++;
-                    camera.fov = 90; camera.updateProjectionMatrix(); popup.innerText = `COFFEE OVERCLOCK! (+${finalBonus} PTS)`; popup.style.color = "#ffffff";
+                    camera.fov = 90; camera.updateProjectionMatrix(); popup.innerText = t('popup_coffee', { pts: finalBonus }); popup.style.color = "#ffffff";
                 } else if (pup.type === 'infinite') {
                     infiniteAmmoEndTime = Math.max(infiniteAmmoEndTime, performance.now()) + (INFINITE_AMMO_TIMER * 1000); 
                     currentAmmo = MAX_AMMO; updateAmmoUI(); collectedLightning++;
-                    popup.innerText = `INFINITE AMMO! (+${finalBonus} PTS)`; popup.style.color = "#ffcc00";
+                    popup.innerText = t('popup_infinite', { pts: finalBonus }); popup.style.color = "#ffcc00";
                 } else if (pup.type === 'freeze') {
                     freezeEndTime = Math.max(freezeEndTime, performance.now()) + (FREEZE_TIME * 1000); 
-                    collectedFreeze++; popup.innerText = `TASK-KILLER (FREEZE)! (+${finalBonus} PTS)`; popup.style.color = "#00ccff";
+                    collectedFreeze++; popup.innerText = t('popup_freeze', { pts: finalBonus }); popup.style.color = "#00ccff";
                 } else if (pup.type === 'treasure') {
-                    collectedTreasure++; popup.innerText = `DIAMOND FOUND! (+${finalBonus} PTS)`; popup.style.color = "#00ffff"; // NEU
+                    collectedTreasure++; popup.innerText = t('popup_treasure', { pts: finalBonus }); popup.style.color = "#00ffff"; 
                     levelStats.collectedTreasures++;
                 }
                 container.appendChild(popup); setTimeout(() => popup.remove(), SCORE_POPUP_TIME);
@@ -469,11 +451,11 @@ function animate3D() {
                         if (!canSee) break;
                     }
                 }
-                if (canSee) { pig.hasSeenPlayer = true; playPigScreamAudio(); } else continue;
+                if (canSee) { pig.hasSeenPlayer = true; playPigScreamAudio(pig.type === 4 ? 0 : undefined); } else continue;
             }
             
 			if (distToPlayer < 1.4 && !pig.isFleeing && freezeEndTime <= now) {
-                pig.isFleeing = true; hp -= 10; if (hp < 0) hp = 0; healthValueDisplay.innerText = `HP: ${hp}`;
+                pig.isFleeing = true; hp -= 10; if (hp < 0) hp = 0; healthValueDisplay.innerText = t('hud_hp', { hp: hp });
                 let alphaValue = (1 - (hp / 100)) * RED_FILTER_MAX_OPACITY; damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${alphaValue})`;
                 playDamageAudio(); if (hp <= 90 && hp > 0) heartbeatLoop();
                 if (hp <= 0) { endGame(true); return; }                
@@ -481,11 +463,9 @@ function animate3D() {
                 pig.fleeTarget.set(pig.mesh.position.x + fleeDir.x * 10, pig.mesh.position.y, pig.mesh.position.z + fleeDir.z * 10);
             }
 
-            // Gefrier-Effekt (isoliert mit geklonten Materialien)
             if (freezeEndTime > now) {
                 pig.mesh.traverse(child => {
                     if (child.isMesh && child.material) {
-                        // Klonen des Materials beim ersten Freeze, um globale Materialien zu schützen!
                         if (!child.userData.hasClonedMat) {
                             if (!Array.isArray(child.material)) {
                                 child.material = child.material.clone();
@@ -493,7 +473,6 @@ function animate3D() {
                                 child.userData.origColor = child.material.color.getHex();
                             }
                         }
-                        // Sicher umfärben
                         if (child.userData.hasClonedMat) {
                             child.material.color.setHex(0x3399ff);
                         }
@@ -502,7 +481,6 @@ function animate3D() {
                 continue;
             } 
 			else {
-                // Auftauen: Originalfarbe des privaten Materials wiederherstellen
                 pig.mesh.traverse(child => {
                     if (child.isMesh && child.material && child.userData.hasClonedMat) {
                         child.material.color.setHex(child.userData.origColor);
@@ -512,7 +490,7 @@ function animate3D() {
 
             let targetPos = pig.isFleeing ? pig.fleeTarget : camera.position;
             let dirToTarget = new THREE.Vector3().subVectors(targetPos, pig.mesh.position); dirToTarget.y = 0; let distToTarget = dirToTarget.length(); dirToTarget.normalize();
-            if (pig.isFleeing && distToTarget < 3.0) { pig.isFleeing = false; playPigScreamAudio(); }
+            if (pig.isFleeing && distToTarget < 3.0) { pig.isFleeing = false; playPigScreamAudio(pig.type === 4 ? 0 : undefined); }
 
             let avoidance = new THREE.Vector3(0, 0, 0);
             if (currentGameMode === 'FREE') {
@@ -585,18 +563,26 @@ function animate3D() {
 
 			const time = Date.now() * 0.01 * (pig.speed * 15); 
             pig.mesh.position.y = pigGroundY + (pig.type === 1 ? 1.1 : 1.0) + Math.sin(time) * 0.06;
+            
             if (pig.legs) {
-                if (pig.type === 1) { pig.legs[0].rotation.x = Math.sin(time) * 0.4; pig.legs[1].rotation.x = -Math.sin(time) * 0.4; pig.legs[2].rotation.x = -Math.sin(time) * 0.4; pig.legs[3].rotation.x = Math.sin(time) * 0.4; } 
-                else { pig.legs[0].rotation.x = Math.sin(time) * 0.5; pig.legs[1].rotation.x = -Math.sin(time) * 0.5; }
+                if (pig.type === 1 || pig.type === 4) { 
+                    pig.legs[0].rotation.x = Math.sin(time) * 0.4; 
+                    pig.legs[1].rotation.x = -Math.sin(time) * 0.4; 
+                    pig.legs[2].rotation.x = -Math.sin(time) * 0.4; 
+                    pig.legs[3].rotation.x = Math.sin(time) * 0.4; 
+                } 
+                else { 
+                    pig.legs[0].rotation.x = Math.sin(time) * 0.5; 
+                    pig.legs[1].rotation.x = -Math.sin(time) * 0.5; 
+                }
             }
         }
 
-        // --- MAP DISCOVERY UPDATE & RENDER ---
         if (currentGameMode === 'LEVEL') {
             let hash = activeEpisodeIndex + "_" + activeLevelIndex;
             if (currentMapLevelHash !== hash) {
                 currentMapLevelHash = hash;
-                discoveredMaps = []; // Reset on level change
+                discoveredMaps = []; 
             }
 
             const activeEpisode = episodes[activeEpisodeIndex];
@@ -607,7 +593,7 @@ function animate3D() {
             if (layerData) {
                 updateMapDiscovery(layerIdx, layerData);
                 if (isMapOpen) {
-                    document.getElementById('map-floor-display').innerText = layerIdx;
+                    document.getElementById('map-title-display').innerHTML = t('map_title', { floor: layerIdx });
                     drawMap(layerIdx, layerData);
                 }
             }
@@ -618,18 +604,15 @@ function animate3D() {
 
 function handlePlayerMovement(timeScale) {
     if (isGameOver || gameOverScreen.style.display === 'flex' || loadingScreen.style.display !== 'none') return;
-    // Auf Touch-Geräten den fehlenden Pointer-Lock ignorieren!
     if ((!isTouchDevice && document.pointerLockElement !== document.body) || isPaused || instructionsOverlay.style.display === 'flex' || hp <= 0 || timeLeft <= 0) return;
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion); const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion); forward.y = 0; forward.normalize(); right.y = 0; right.normalize();
     
     let moveVector = new THREE.Vector3(0, 0, 0);
     let dynamicSpeed = playerBaseSpeed * currentSpeedMultiplier * timeScale;
     
-	// Tastatur und linken Joystick kombinieren
     let moveF = (keysPressed.w ? 1 : 0) - (keysPressed.s ? 1 : 0) + joyMoveY;
     let moveR = (keysPressed.d ? 1 : 0) - (keysPressed.a ? 1 : 0) + joyMoveX;
 
-    // Verhindert, dass man diagonal (oder mit Tastatur + Joystick) zu schnell läuft
     let moveLength = Math.sqrt(moveF * moveF + moveR * moveR);
     if (moveLength > 1) { moveF /= moveLength; moveR /= moveLength; }
 
@@ -704,11 +687,8 @@ function handlePlayerMovement(timeScale) {
 		levelExits.forEach(exit => {
 	        if (Math.abs(exit.y - playerCurrentGroundY) < 1.0) {
 	            let distToExit = new THREE.Vector3(camera.position.x, 0, camera.position.z).distanceTo(new THREE.Vector3(exit.x, 0, exit.z));
-	            
-	            // Bedingtes Beenden basierend auf der Konfiguration
 	            if (distToExit < 1.8) {
 	                if (AllPigsShallBeCleared && pigs3D.length > 0) {
-	                    // Zeigt die bereits vorhandene HTML-Warnmeldung (#exit-warning) an
 	                    const warning = document.getElementById('exit-warning');
 	                    if (warning) {
 	                        warning.style.display = 'block';
@@ -717,26 +697,8 @@ function handlePlayerMovement(timeScale) {
 	                }
                     else {
 	                    levelExits = [];
-	                    // Hier wurde vorher per setTimeout direkt das nächste Level geladen.
-	                    // Jetzt rufen wir stattdessen den Tally-Screen auf:
 	                    showLevelEndScreen(); 
 	                } 
-                    /**
-					else {
-	                    levelExits = [];
-	                    setTimeout(() => {
-	                        const ep = episodes[activeEpisodeIndex];
-	                        if (ep && activeLevelIndex + 1 < ep.levels.length) {
-	                            activeLevelIndex++;
-	                            buildLevelFromData(ep.levels[activeLevelIndex]);
-	                            showLevelBanner(ep.levels[activeLevelIndex].name, "Eliminate targets & find the exit!");
-	                        } 
-							else {
-	                            endGame();
-	                        }
-	                    }, 20); 
-	                }
-                     */
 	            }
 	        }
 	    });
@@ -783,10 +745,8 @@ function toggleHelp() {
         else if (helpSourceScreen === 'gameover') { gameOverScreen.style.display = 'flex'; } 
         else {
             isPaused = false; 
-			
 			if (!isTouchDevice) document.body.requestPointerLock();
 			else document.getElementById('mobile-ui').style.display = 'block';
-			
             gameInterval = setInterval(updateTimer, 1000); 
             if (currentGameMode === 'FREE') spawnInterval = setInterval(spawnSchwein, 1000);
             powerupInterval = setInterval(spawnPowerUpPair, POWERUP_SPAWN_INTERVAL);
@@ -841,18 +801,14 @@ window.addEventListener('mousedown', (e) => {
 
 function perform3DShoot() {
 	playShotgunAudio();
-	
-    // --- Rückstoß und Mündungsfeuer aktivieren ---
     weaponRecoil = 1.0;
     if (muzzleFlash) muzzleFlash.intensity = 2.5;
-    // Den visuellen Blitz anschalten
     if (muzzleFlashMesh) {
-        muzzleFlashMesh.rotation.z = Math.random() * Math.PI; // Zufällige Drehung
-        const scale = 0.4 + Math.random() * 0.25; // Mal größer, mal kleiner
+        muzzleFlashMesh.rotation.z = Math.random() * Math.PI; 
+        const scale = 0.4 + Math.random() * 0.25; 
         muzzleFlashMesh.scale.set(scale, scale, scale);
         muzzleFlashMesh.children.forEach(c => c.material.opacity = 1.0);
     }
-    // ---------------------------------------------------
 	
 	const raycaster = new THREE.Raycaster(); 
 	raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
@@ -885,11 +841,11 @@ function hit3DPig(pig, isHeadshot) {
     playPigSqueakAudio(); 
 
     score += finalPoints; 
-    scoreDisplay.innerText = `PIGS BLASTED: ${score}`;
+    scoreDisplay.innerText = t('hud_score', { score: score });
     
     const popup = document.createElement('div'); 
     popup.className = 'score-popup'; 
-    popup.innerText = isHeadshot ? `HEADSHOT +${finalPoints}` : `BODYSHOT +${finalPoints}`; 
+    popup.innerText = isHeadshot ? t('popup_headshot', { pts: finalPoints }) : t('popup_bodyshot', { pts: finalPoints }); 
     if(isHeadshot) popup.style.color = "#ffcc00"; 
     popup.style.left = '50%'; popup.style.top = '45%'; 
     container.appendChild(popup); 
@@ -948,8 +904,8 @@ function initLoadingScreen() {
     const gameOverSelect = document.getElementById('gameover-episode-select');
     
     function updateHighscoreTitle(val) {
-        let modeName = (val === 'FREE') ? 'FREE SPRINT (ARCADE)' : episodes[parseInt(val)].name;
-        let titleText = `Hall of Fame - ${modeName}`;
+        let modeName = (val === 'FREE') ? t('mode_free') : (t(episodes[parseInt(val)].name));
+        let titleText = t('highscore_title', { mode: modeName });
         
         let startTitle = document.getElementById('highscore-title-start');
         let goTitle = document.getElementById('highscore-title-gameover');
@@ -964,13 +920,13 @@ function initLoadingScreen() {
         
         let freeOption = document.createElement('option');
         freeOption.value = 'FREE';
-        freeOption.innerText = 'FREE SPRINT (ARCADE)';
+        freeOption.innerText = t('mode_free');
         selectElement.appendChild(freeOption);
         
         episodes.forEach((ep, index) => {
             let option = document.createElement('option');
             option.value = index;
-            option.innerText = ep.name;
+            option.innerText = t(ep.name);
             selectElement.appendChild(option);
         });
         
@@ -1019,70 +975,32 @@ function pressStartButton(e) {
 
 function initPlayerWeapon() {
     playerWeapon = new THREE.Group();
-    
-    // Metall-Material für die Läufe
     const barrelMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8, roughness: 0.2 });
-    // Holz-Material für den Schaft
     const stockMat = new THREE.MeshStandardMaterial({ color: 0x5a3a22, roughness: 0.9 });
+    const barrelL = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 16), barrelMat); barrelL.rotation.x = Math.PI / 2; barrelL.position.set(-0.045, 0, -0.2); playerWeapon.add(barrelL);
+    const barrelR = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 16), barrelMat); barrelR.rotation.x = Math.PI / 2; barrelR.position.set(0.045, 0, -0.2); playerWeapon.add(barrelR);
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.5), stockMat); stock.position.set(0, -0.04, 0.15); playerWeapon.add(stock);
 
-    // Linker Lauf
-    const barrelL = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 16), barrelMat);
-    barrelL.rotation.x = Math.PI / 2;
-    barrelL.position.set(-0.045, 0, -0.2);
-    playerWeapon.add(barrelL);
-
-    // Rechter Lauf
-    const barrelR = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 16), barrelMat);
-    barrelR.rotation.x = Math.PI / 2;
-    barrelR.position.set(0.045, 0, -0.2);
-    playerWeapon.add(barrelR);
-
-    // Holzschaft
-    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.5), stockMat);
-    stock.position.set(0, -0.04, 0.15);
-    playerWeapon.add(stock);
-
-    // Mündungsfeuer (unsichtbar, blitzt nur beim Schuss auf)
-    muzzleFlash = new THREE.PointLight(0xffaa00, 0, 5);
-    muzzleFlash.position.set(0, 0, -0.6);
-    playerWeapon.add(muzzleFlash);
-
-    // --- Visueller Blitz (Mündungsfeuer) ---
+    muzzleFlash = new THREE.PointLight(0xffaa00, 0, 5); muzzleFlash.position.set(0, 0, -0.6); playerWeapon.add(muzzleFlash);
     const flashGeo = new THREE.PlaneGeometry(0.4, 0.4);
-    const flashMat = new THREE.MeshBasicMaterial({
-        color: 0xffaa00,
-        transparent: true,
-        opacity: 0,
-        side: THREE.DoubleSide,
-        depthWrite: false, // Verhindert ekliges Flackern durch Wände
-        blending: THREE.AdditiveBlending // Macht den Blitz richtig schön leuchtend!
-    });
+    const flashMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
 
     muzzleFlashMesh = new THREE.Group();
-    // 3 gekreuzte Flächen für einen coolen Retro-3D-Explosions-Look
     for (let i = 0;i < 3;i++) {
         const plane = new THREE.Mesh(flashGeo, flashMat);
         plane.rotation.z = (Math.PI / 3) * i;
         muzzleFlashMesh.add(plane);
     }
-    // Den Blitz exakt vor die zwei Läufe schieben
-    muzzleFlashMesh.position.set(0, 0, -0.6);
-    playerWeapon.add(muzzleFlashMesh);
-    // --------------------------------------------
-	
-    // Waffe unten rechts ins Sichtfeld der Kamera positionieren
-    playerWeapon.position.set(0.25, -0.25, -0.4);
-    
-    // Waffe an die Kamera heften!
-    camera.add(playerWeapon);
+    muzzleFlashMesh.position.set(0, 0, -0.6); playerWeapon.add(muzzleFlashMesh);
+    playerWeapon.position.set(0.25, -0.25, -0.4); camera.add(playerWeapon);
 }
 
 function init3D() {
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x050404); scene.fog = new THREE.FogExp2(0x050404, 0.012);
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, playerBaseY, 0); camera.rotation.order = "YXZ"; camera.lookAt(0, 2, -30);
-    scene.add(camera); // GANZ WICHTIG: Kamera zur Szene hinzufügen!
-    initPlayerWeapon(); // Unsere neue Waffe laden
+    scene.add(camera);
+    initPlayerWeapon(); 
 
     renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight);
     container.insertBefore(renderer.domElement, container.firstChild);
@@ -1106,11 +1024,7 @@ function init3D() {
         if (key === 'r') { initAudio(); reload(); }
         if (key === ' ' || e.key === 'Spacebar') { e.preventDefault(); startPlayerJump(); }
         if (e.key === "F1") { e.preventDefault(); initAudio(); toggleHelp(); }
-
-        // Karte aufrufen ('M')
-        if (key === 'm') {
-            toggleMap();
-        }
+        if (key === 'm') toggleMap();
 
         if (key === 'e' && currentGameMode === 'LEVEL') {
             levelDoors.forEach(door => {
@@ -1119,9 +1033,7 @@ function init3D() {
                     if (Math.sqrt(dx * dx + dz * dz) < 3.5) {
                         door.state = 'opening';
                         playAudio('hit'); 
-                        if (door.isSecret) {
-                            levelStats.foundSecrets++;
-                        }
+                        if (door.isSecret) levelStats.foundSecrets++;
                     }
                 }
             });
@@ -1139,26 +1051,22 @@ function startGame() {
     collectedHp = 0; collectedTime = 0; collectedCoffee = 0; collectedLightning = 0; collectedFreeze = 0; collectedTreasure = 0;
     coffeeEndTime = 0; infiniteAmmoEndTime = 0; freezeEndTime = 0; activePowerupsDisplay.innerHTML = '';
     
-    // Map Reset
     closeMap();
 
-    // --- Mobile-UI beim Spielstart einblenden ---
     if (isTouchDevice) {
         const mobileUi = document.getElementById('mobile-ui');
         if (mobileUi) mobileUi.style.display = 'block';
-        // Enter browser fullscreen on mobile
         if (document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen().catch(() => {});
         } else if (document.documentElement.webkitRequestFullscreen) {
             document.documentElement.webkitRequestFullscreen();
         }
     }
-    // -------------------------------------------------
 
     camera.fov = 75; camera.updateProjectionMatrix();
     isTransitioningLevel = false;
     
-    scoreDisplay.innerText = `SCORE: ${score}`; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`; healthValueDisplay.innerText = `HP: ${hp}`; updateAmmoUI();
+    scoreDisplay.innerText = t('hud_score', { score: score }); timerDisplay.innerText = t('hud_time', { time: timeLeft }); healthValueDisplay.innerText = t('hud_hp', { hp: hp }); updateAmmoUI();
     damageVignette.style.backgroundColor = `rgba(255, 0, 0, 0)`; gameOverScreen.style.display = 'none'; highscoreForm.style.display = 'none'; instructionsOverlay.style.display = 'none';
     
     if (currentGameMode === 'FREE') {
@@ -1171,7 +1079,7 @@ function startGame() {
         clearInterval(spawnInterval);   
         activeLevelIndex = 0; 
         buildLevelFromData(episodes[activeEpisodeIndex].levels[activeLevelIndex]);
-        showLevelBanner(episodes[activeEpisodeIndex].levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
+        showLevelBanner(t(episodes[activeEpisodeIndex].levels[activeLevelIndex].name), t('msg_eliminate_targets'));
     }
     
     if(typeof heartbeatTimeout !== 'undefined') clearTimeout(heartbeatTimeout); 
@@ -1184,7 +1092,7 @@ function startGame() {
 }
 
 function restartAndPlay() { initAudio(); gameOverScreen.style.display = 'none'; loadingScreen.style.display = 'none'; if (!isTouchDevice) document.body.requestPointerLock(); startGame(); }
-function updateTimer() { timeLeft--; if(timeLeft < 0) timeLeft = 0; timerDisplay.innerText = `TIME LEFT: ${timeLeft}`; if (timeLeft <= 0) endGame(false); }
+function updateTimer() { timeLeft--; if(timeLeft < 0) timeLeft = 0; timerDisplay.innerText = t('hud_time', { time: timeLeft }); if (timeLeft <= 0) endGame(false); }
 
 function endGame(diedFromHp) { 
     isGameOver = true;
@@ -1196,27 +1104,22 @@ function endGame(diedFromHp) {
     if(typeof powerupInterval !== 'undefined') clearInterval(powerupInterval);
     
     document.exitPointerLock(); 
-    
-    // Map verstecken
     closeMap();
 
-    // --- Mobile-UI beim Game Over ausblenden ---
     if (isTouchDevice) {
         const mobileUi = document.getElementById('mobile-ui');
         if (mobileUi) mobileUi.style.display = 'none';
-        // Exit browser fullscreen on mobile
         if (document.fullscreenElement) {
             document.exitFullscreen().catch(() => {});
         } else if (document.webkitFullscreenElement) {
             document.webkitExitFullscreen();
         }
     }
-    // ------------------------------------------------
 
     const timeBonus = Math.max(0, timeLeft) * 50;
     const hpMultiplier = hp / 100;
     const finalCalculatedScore = Math.max(0, Math.round((score + timeBonus) * hpMultiplier));
-    scoreCalcText.innerText = `Points Scored: ${score} | Remaining Time: ${timeLeft}s (+${timeBonus}) | Remaining Health: ${hp}% (Multiplier x${hpMultiplier.toFixed(2)})`;
+    scoreCalcText.innerText = t('go_calc', { score: score, time: timeLeft, timeBonus: timeBonus, hp: hp, hpMulti: hpMultiplier.toFixed(2) });
     finalScoreDisplay.innerText = finalCalculatedScore;
     
     statsHpCount.innerText = `x${collectedHp}`;
@@ -1226,15 +1129,14 @@ function endGame(diedFromHp) {
     statsFreezeCount.innerText = `x${collectedFreeze}`;
 
     if(diedFromHp) {
-        gameOverTitle.innerText = "SPRINT FAILED!"; gameOverTitle.style.textShadow = "4px 4px 4px #000, 0 0 25px #ff0000";
+        gameOverTitle.innerText = t('go_title_failed'); gameOverTitle.style.textShadow = "4px 4px 4px #000, 0 0 25px #ff0000";
         damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${RED_FILTER_MAX_OPACITY})`; 
     } else {
-        gameOverTitle.innerText = "PROJECT COMPLETED!"; gameOverTitle.style.textShadow = "4px 4px 4px #000, 0 0 25px #5cb85c";
+        gameOverTitle.innerText = t('go_title_success'); gameOverTitle.style.textShadow = "4px 4px 4px #000, 0 0 25px #5cb85c";
     }
     gameOverScreen.style.display = 'flex'; displayHighscores(); 
     if (finalCalculatedScore > 0 && checkHighscoreEligibility(finalCalculatedScore)) {
         highscoreForm.style.display = 'block'; playerNameInput.focus();
-
         window.submitHighscore = function(event) {
             if (event) event.preventDefault();
             saveHighscore(playerNameInput.value.trim(), finalCalculatedScore);
@@ -1255,9 +1157,7 @@ function updateHelpValues() {
 
 function initMobileControls() {
     if (!isTouchDevice) return;
-     
     
-    // Joystick Links (Bewegung)
     managerLeft = nipplejs.create({ zone: document.getElementById('joystick-left'), mode: 'dynamic', color: 'white', size: 120 });
     managerLeft.on('move', (evt) => {
         const force = Math.min(evt.data.force, 1.0);
@@ -1266,7 +1166,6 @@ function initMobileControls() {
     });
     managerLeft.on('end', () => { joyMoveX = 0; joyMoveY = 0; });
     
-    // Joystick Rechts (Zielen)
     managerRight = nipplejs.create({ zone: document.getElementById('joystick-right'), mode: 'dynamic', color: 'red', size: 120 });
     managerRight.on('move', (evt) => {
         const force = Math.min(evt.data.force, 1.0);
@@ -1275,7 +1174,6 @@ function initMobileControls() {
     });
     managerRight.on('end', () => { joyLookX = 0; joyLookY = 0; });
 
-    // Button Events (touchstart ist auf Handys schneller als click)
     document.getElementById('btn-shoot').addEventListener('touchstart', (e) => {
         e.preventDefault();
         initAudio();
@@ -1317,7 +1215,7 @@ function initMobileControls() {
     }, {passive: false});
 }
 
-let isAtLevelEnd = false; // Neuer Status für die Engine
+let isAtLevelEnd = false; 
 
 function showLevelEndScreen() {
     const calculatePercentage = (current, total) => {
@@ -1325,29 +1223,23 @@ function showLevelEndScreen() {
         return Math.round((current / total) * 100);
     };
 
-    // DOM updaten
     document.getElementById('stat-pigs').innerText = calculatePercentage(levelStats.killedPigs, levelStats.totalPigs) + '%';
     document.getElementById('stat-secrets').innerText = calculatePercentage(levelStats.foundSecrets, levelStats.totalSecrets) + '%';
     document.getElementById('stat-treasures').innerText = calculatePercentage(levelStats.collectedTreasures, levelStats.totalTreasures) + '%';
 
-    // Screen einblenden
     document.getElementById('level-end-screen').style.display = 'flex';
 
-    // Engine-Status einfrieren (Mouselook und Movement blockieren)
     isAtLevelEnd = true;
     isPaused = true; 
     document.exitPointerLock();
     
-    // Alle laufenden Timer anhalten, damit die Zeit nicht weiter abläuft
     if (typeof gameInterval !== 'undefined') clearInterval(gameInterval);
     if (typeof spawnInterval !== 'undefined') clearInterval(spawnInterval);
     if (typeof powerupInterval !== 'undefined') clearInterval(powerupInterval);
     if (typeof heartbeatTimeout !== 'undefined') clearTimeout(heartbeatTimeout);
 
-    // Weiterleitung per Leertaste
     document.addEventListener('keydown', nextLevelListener);
     
-    // Weiterleitung für Mobile per Touch auf den Bildschirm
     if (isTouchDevice) {
         document.getElementById('level-end-screen').addEventListener('touchstart', proceedToNextLevelOrEnd, {once: true});
     }
@@ -1368,25 +1260,23 @@ function proceedToNextLevelOrEnd() {
     
     const ep = episodes[activeEpisodeIndex];
     if (ep && activeLevelIndex + 1 < ep.levels.length) {
-        // Nächstes Level laden
         activeLevelIndex++;
         buildLevelFromData(ep.levels[activeLevelIndex]);
-        showLevelBanner(ep.levels[activeLevelIndex].name, "Eliminate all targets & find the exit!");
+        showLevelBanner(t(ep.levels[activeLevelIndex].name), t('msg_eliminate_targets'));
         
-        // Timer wieder anwerfen
         gameInterval = setInterval(updateTimer, 1000); 
         powerupInterval = setInterval(spawnPowerUpPair, POWERUP_SPAWN_INTERVAL);
         if (!isTouchDevice) document.body.requestPointerLock();
     } else {
-        // Episode komplett abgeschlossen -> Ab zum finalen Game Over Screen
         endGame(false); 
     }
 }
 
-// Initialisiere die Mobile-Controls direkt beim Laden
-initMobileControls();
-
-updateHelpValues(); 
-init3D(); 
-animate3D(); 
-initLoadingScreen();
+// Initialisiere Lokalisierung, UI und dann die 3D Engine
+initLocalization(currentLang).then(() => {
+    initMobileControls();
+    updateHelpValues(); 
+    init3D(); 
+    animate3D(); 
+    initLoadingScreen();
+});
