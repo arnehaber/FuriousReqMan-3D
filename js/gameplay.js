@@ -1119,8 +1119,8 @@ function endGame(diedFromHp) {
     const timeBonus = Math.max(0, timeLeft) * 50;
     const hpMultiplier = hp / 100;
     const finalCalculatedScore = Math.max(0, Math.round((score + timeBonus) * hpMultiplier));
-    scoreCalcText.innerText = t('go_calc', { score: score, time: timeLeft, timeBonus: timeBonus, hp: hp, hpMulti: hpMultiplier.toFixed(2) });
-    finalScoreDisplay.innerText = finalCalculatedScore;
+	scoreCalcText.innerText = t('go_calc', { score: score, time: timeLeft, timeBonus: timeBonus, hp: hp, hpMulti: hpMultiplier.toFixed(2) });
+	finalScoreDisplay.innerText = t('go_final_score', { score: finalCalculatedScore });
     
     statsHpCount.innerText = `x${collectedHp}`;
     statsTimeCount.innerText = `x${collectedTime}`;

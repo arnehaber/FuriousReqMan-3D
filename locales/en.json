@@ -31,7 +31,7 @@
   "go_final_score": "Final Score: {score}",
   "go_title_failed": "SPRINT FAILED!",
   "go_title_success": "PROJECT COMPLETED!",
-  "highscore_msg": "Congratulations! You made the Top 10.",
+  "highscore_msg": "Congratulations! You entered the Hall of Fame.",
   "btn_save_score": "SAVE SCORE",
   "msg_eliminate_targets": "Eliminate all targets & find the exit!",
   "txt_unknown": "Unknown",
