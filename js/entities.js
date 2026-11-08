@@ -374,15 +374,19 @@ function createPigKlasse3() {
     group.rotation.y = Math.PI; return { mesh: group, legs: legs, type: 3 }; 
 }
 
-// --- MATERIALIEN FÜR HELM & WAFFE ---
+// --- MATERIALIEN FÜR HELM & WAFFE (Massiv & Sichtbar) ---
 const helmetMat = new THREE.MeshStandardMaterial({ color: 0x3b4237, roughness: 0.6, metalness: 0.4, side: THREE.DoubleSide });
-const gunMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8, metalness: 0.9 });
+
+// Drei auffällige Materialien für die Waffe, damit sie im Dunkeln nicht verschwindet
+const gunMetalMat = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.6, metalness: 0.6 }); 
+const gunWoodMat = new THREE.MeshStandardMaterial({ color: 0x6e4524, roughness: 0.9 }); 
+const gunShinyMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.3, metalness: 0.9 }); 
 
 function createPigKlasse5() {
     const group = new THREE.Group(); 
     const staticGroup = new THREE.Group();
     
-    // Körper (ähnlich bipedal wie Klasse 3, aber andere Farbe)
+    // Körper (Bauch)
     const bodyGeo = new THREE.SphereGeometry(0.85, 24, 16); applyZombieRot(bodyGeo, 0x8a7a65); 
     const body = new THREE.Mesh(bodyGeo, rottenMat); 
     body.scale.set(1.1, 1.4, 0.9); body.position.y = 0.5; 
@@ -392,42 +396,62 @@ function createPigKlasse5() {
     addUltraHeadParts(staticGroup, 1.6, -0.4, 0x8a7a65); 
     addProceduralCurlyTail(staticGroup, 0.1, 0.7); 
     
-    // Stahlhelm (abgeschnittene Kugel)
+    // Stahlhelm
     const helmetGeo = new THREE.SphereGeometry(0.55, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2.2);
     const helmet = new THREE.Mesh(helmetGeo, helmetMat);
     helmet.position.set(0, 1.7, -0.4);
     staticGroup.add(helmet);
     
-    // Linker Arm (statisch beim Laufen)
+    // Linker Arm (Bleibt statisch)
     const armGeo = new THREE.CylinderGeometry(0.12, 0.08, 0.8, 12); 
     const armL = new THREE.Mesh(armGeo.clone(), rottenMat); 
     applyZombieRot(armL.geometry, 0x566344); 
-    armL.position.set(-0.75, 0.9, -0.3); armL.rotation.z = Math.PI/8; armL.rotation.x = -Math.PI/6; 
+    armL.position.set(-0.85, 0.9, -0.3); armL.rotation.z = Math.PI/8; armL.rotation.x = -Math.PI/6; 
     staticGroup.add(armL); 
     
-    // Alles Unbewegliche zusammenfassen (Draw Call Reduktion)
     group.add(mergeGroupIntoSingleMesh(staticGroup, rottenMat));
 
     // Rechter Arm (DYNAMISCH! Wird fürs Zielen gedreht)
     const armRGroup = new THREE.Group();
-    armRGroup.position.set(0.75, 1.1, -0.3); // Drehpunkt liegt exakt an der Schulter
+    armRGroup.position.set(0.85, 1.1, -0.3); // Gelenk an der Schulter
+    
+    const armWithGunGroup = new THREE.Group();
+    armWithGunGroup.rotation.z = -Math.PI/12; // Arm hängt leicht schräg nach außen
     
     const armRMesh = new THREE.Mesh(armGeo.clone(), rottenMat); 
     applyZombieRot(armRMesh.geometry, 0x566344); 
-    armRMesh.position.set(0, -0.3, 0); // Geometrie nach unten verschieben
-    armRMesh.rotation.z = -Math.PI/12;
-    armRGroup.add(armRMesh);
+    armRMesh.position.set(0, -0.3, 0); 
+    armWithGunGroup.add(armRMesh);
     
-    // Pistole in der Hand (am rechten Arm befestigt)
-    const gunBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.45), gunMat);
-    gunBarrel.position.set(0, -0.65, -0.2);
-    const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.12), gunMat);
-    gunGrip.position.set(0, -0.6, 0);
-    gunGrip.rotation.x = -Math.PI/6;
-    armRGroup.add(gunBarrel);
-    armRGroup.add(gunGrip);
+// --- DIE KORRIGIERTE WAFFE (An der Hand, Griff nach oben) ---
+    const gunGroup = new THREE.Group();
+    // Exakt am unteren Ende des Arms (Handgelenk bei y = -0.7)
+    gunGroup.position.set(0.1, -0.7, 0.1); 
     
-    group.add(armRGroup); // Den dynamischen Waffenarm anfügen
+    // Um 180 Grad auf dem Kopf gedreht, damit der Griff nach oben zur Hand zeigt
+    gunGroup.rotation.z = Math.PI; 
+    
+    // 1. Der dicke Lauf (zeigt nun nach unten / beim Zielen nach vorne)
+    const gunBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.3), gunMetalMat);
+    gunBarrel.position.set(0, 0.25, 0); 
+    
+    // 2. Helles Mündungsrohr
+    const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.2, 12), gunShinyMat);
+    muzzle.position.set(0, 0.65, 0); 
+    
+    // 3. Holzgriff (zeigt jetzt nach oben in den Arm / die Faust hinein)
+    const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 0.2), gunWoodMat);
+    gunGrip.position.set(0, -0.15, -0.15); 
+    gunGrip.rotation.x = Math.PI / 6;
+
+    gunGroup.add(gunBarrel);
+    gunGroup.add(muzzle);
+    gunGroup.add(gunGrip);
+    
+    // Waffe an den Arm hängen
+    armWithGunGroup.add(gunGroup); 
+    armRGroup.add(armWithGunGroup); 
+    group.add(armRGroup);
 
     // Beine
     const legGeo = new THREE.CylinderGeometry(0.14, 0.1, 0.9, 12); 
@@ -436,7 +460,6 @@ function createPigKlasse5() {
     legs[0].position.set(-0.35, -0.6, 0); legs[1].position.set(0.35, -0.6, 0); 
     
     group.rotation.y = Math.PI; 
-    // WICHTIG: "gunArm" wird exportiert, damit gameplay_3.js den Arm animieren kann!
     return { mesh: group, legs: legs, gunArm: armRGroup, type: 5 }; 
 }
 
