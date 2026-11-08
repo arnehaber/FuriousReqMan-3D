@@ -227,17 +227,17 @@ function buildFreeModeEnvironment() {
 }
 
 // --- POWER-UPS & SCHWEINE (WURDEN WIEDERHERGESTELLT) ---
-function buildHpCrossMesh() { const hpGroup = new THREE.Group(); const mat = new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.4, metalness: 0.2 }); const hBox = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.45, 0.45), mat); const vBox = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.4, 0.45), mat); hpGroup.add(hBox); hpGroup.add(vBox); return hpGroup; }
-function buildTimeClockMesh() { const clockGroup = new THREE.Group(); const goldMat = new THREE.MeshStandardMaterial({ color: 0xe5a93b, roughness: 0.3, metalness: 0.8 }); const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }); const blackMat = new THREE.MeshBasicMaterial({ color: 0x000000 }); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.25, 32), goldMat); body.rotation.x = Math.PI / 2; clockGroup.add(body); const face = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.02, 32), whiteMat); face.rotation.x = Math.PI / 2; face.position.z = 0.13; clockGroup.add(face); const hand = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.35, 0.02), blackMat); hand.position.set(0, 0.15, 0.15); clockGroup.add(hand); return clockGroup; }
-function buildCoffeeCupMesh() { const cupGroup = new THREE.Group(); const cupMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 }); const brewMat = new THREE.MeshStandardMaterial({ color: 0x4a2f13, roughness: 0.9 }); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.4, 0.9, 24), cupMat); body.position.y = 0.15; cupGroup.add(body); const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.05, 24), brewMat); liquid.position.y = 0.58; cupGroup.add(liquid); const handleGeo = new THREE.TorusGeometry(0.25, 0.08, 8, 24, Math.PI); const handle = new THREE.Mesh(handleGeo, cupMat); handle.position.set(0.42, 0.15, 0); handle.rotation.z = -Math.PI/2; cupGroup.add(handle); return cupGroup; }
-function buildLightningAmmoMesh() { const ammoGroup = new THREE.Group(); const bulletMat = new THREE.MeshStandardMaterial({ color: 0xcc9900, roughness: 0.2, metalness: 0.9 }); for(let i = -1; i <= 1; i++) { const bGroup = new THREE.Group(); const caseMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 16), bulletMat); const tipMesh = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.25, 16), bulletMat); tipMesh.position.y = 0.425; bGroup.add(caseMesh); bGroup.add(tipMesh); bGroup.position.x = i * 0.35; ammoGroup.add(bGroup); } return ammoGroup; }
-function buildExtinguisherMesh() { const extGroup = new THREE.Group(); const redMat = new THREE.MeshStandardMaterial({ color: 0xdd2222, roughness: 0.3 }); const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 }); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.1, 16), redMat); extGroup.add(body); const topCap = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), blackMat); topCap.position.y = 0.55; extGroup.add(topCap); const hose = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 8), blackMat); hose.position.set(0.2, 0.1, 0.1); hose.rotation.z = -0.2; extGroup.add(hose); return extGroup; }
+function buildHpCrossMesh() { const hpGroup = new THREE.Group(); const mat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.8, roughness: 0.4, metalness: 0.2 }); const hBox = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.45, 0.45), mat); const vBox = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.4, 0.45), mat); hpGroup.add(hBox); hpGroup.add(vBox); return hpGroup; }
+function buildTimeClockMesh() { const clockGroup = new THREE.Group(); const goldMat = new THREE.MeshStandardMaterial({ color: 0xe5a93b, emissive: 0xe5a93b, emissiveIntensity: 0.8, roughness: 0.3, metalness: 0.8 }); const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }); const blackMat = new THREE.MeshBasicMaterial({ color: 0x000000 }); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.25, 32), goldMat); body.rotation.x = Math.PI / 2; clockGroup.add(body); const face = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.02, 32), whiteMat); face.rotation.x = Math.PI / 2; face.position.z = 0.13; clockGroup.add(face); const hand = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.35, 0.02), blackMat); hand.position.set(0, 0.15, 0.15); clockGroup.add(hand); return clockGroup; }
+function buildCoffeeCupMesh() { const cupGroup = new THREE.Group(); const cupMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.8, roughness: 0.2 }); const brewMat = new THREE.MeshStandardMaterial({ color: 0x4a2f13, roughness: 0.9 }); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.4, 0.9, 24), cupMat); body.position.y = 0.15; cupGroup.add(body); const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.05, 24), brewMat); liquid.position.y = 0.58; cupGroup.add(liquid); const handleGeo = new THREE.TorusGeometry(0.25, 0.08, 8, 24, Math.PI); const handle = new THREE.Mesh(handleGeo, cupMat); handle.position.set(0.42, 0.15, 0); handle.rotation.z = -Math.PI/2; cupGroup.add(handle); return cupGroup; }
+function buildLightningAmmoMesh() { const ammoGroup = new THREE.Group(); const bulletMat = new THREE.MeshStandardMaterial({ color: 0xcc9900, emissive: 0xcc9900, emissiveIntensity: 0.8, roughness: 0.2, metalness: 0.9 }); for(let i = -1; i <= 1; i++) { const bGroup = new THREE.Group(); const caseMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 16), bulletMat); const tipMesh = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.25, 16), bulletMat); tipMesh.position.y = 0.425; bGroup.add(caseMesh); bGroup.add(tipMesh); bGroup.position.x = i * 0.35; ammoGroup.add(bGroup); } return ammoGroup; }
+function buildExtinguisherMesh() { const extGroup = new THREE.Group(); const redMat = new THREE.MeshStandardMaterial({ color: 0xdd2222, emissive: 0xdd2222, emissiveIntensity: 0.8, roughness: 0.3 }); const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 }); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.1, 16), redMat); extGroup.add(body); const topCap = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), blackMat); topCap.position.y = 0.55; extGroup.add(topCap); const hose = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 8), blackMat); hose.position.set(0.2, 0.1, 0.1); hose.rotation.z = -0.2; extGroup.add(hose); return extGroup; }
 
 // NEU: Diamond Treasure Mesh für 20k Punkte
 function buildTreasureMesh() {
     const treasureGroup = new THREE.Group();
     // Ein glänzender Diamant (Oktaeder)
-    const diamondMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, roughness: 0.1, metalness: 0.8, transparent: true, opacity: 0.8 });
+    const diamondMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, roughness: 0.1, metalness: 0.8, transparent: true, opacity: 0.8, emissive: 0x00ffff, emissiveIntensity: 0.8 });
     const diamond = new THREE.Mesh(new THREE.OctahedronGeometry(0.5, 0), diamondMat);
     diamond.position.y = 0.5;
     
@@ -253,14 +253,15 @@ function buildTreasureMesh() {
 
 function spawnSpecificPowerUp(x, y, z, type) {
     const pGroup = new THREE.Group(); pGroup.position.set(x, y, z);
-    let model; let lightColor = 0xffffff;
-    if (type === 'hp') { model = buildHpCrossMesh(); lightColor = 0xff0000; }
-    else if (type === 'time') { model = buildTimeClockMesh(); lightColor = 0x00ffaa; }
-    else if (type === 'speed') { model = buildCoffeeCupMesh(); lightColor = 0xffffff; }
-    else if (type === 'infinite') { model = buildLightningAmmoMesh(); lightColor = 0xffcc00; }
-    else if (type === 'freeze') { model = buildExtinguisherMesh(); lightColor = 0x00ccff; }
-    else if (type === 'treasure') { model = buildTreasureMesh(); lightColor = 0x00ffff; levelStats.totalTreasures++ }
-    pGroup.add(model); const pLight = new THREE.PointLight(lightColor, 1.5, 5); pLight.position.set(0, 0.5, 0); pGroup.add(pLight);
+    let model;
+    if (type === 'hp') { model = buildHpCrossMesh(); }
+    else if (type === 'time') { model = buildTimeClockMesh(); }
+    else if (type === 'speed') { model = buildCoffeeCupMesh(); }
+    else if (type === 'infinite') { model = buildLightningAmmoMesh(); }
+    else if (type === 'freeze') { model = buildExtinguisherMesh(); }
+    else if (type === 'treasure') { model = buildTreasureMesh(); levelStats.totalTreasures++ }
+    pGroup.add(model); 
+	
     scene.add(pGroup); powerups3D.push({ mesh: pGroup, type: type, radius: 1.5 });
 }
 

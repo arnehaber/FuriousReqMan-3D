@@ -18,7 +18,7 @@ const MAP_MAX_Z = 10;
 const playerBaseY = 2; 
 const playerHeightOffset = 2; 
 
-const AMBIENT_LIGHT = 0.4;
+const AMBIENT_LIGHT = 0.5;
 const GLOBAL_DIR_LIGHT = 0.8;
 
 // --- DECORATION ---
