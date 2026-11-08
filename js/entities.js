@@ -226,14 +226,14 @@ function buildFreeModeEnvironment() {
     }
 }
 
-// --- POWER-UPS & SCHWEINE (WURDEN WIEDERHERGESTELLT) ---
+// --- POWER-UPS & SCHWEINE ---
 function buildHpCrossMesh() { const hpGroup = new THREE.Group(); const mat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.8, roughness: 0.4, metalness: 0.2 }); const hBox = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.45, 0.45), mat); const vBox = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.4, 0.45), mat); hpGroup.add(hBox); hpGroup.add(vBox); return hpGroup; }
 function buildTimeClockMesh() { const clockGroup = new THREE.Group(); const goldMat = new THREE.MeshStandardMaterial({ color: 0xe5a93b, emissive: 0xe5a93b, emissiveIntensity: 0.8, roughness: 0.3, metalness: 0.8 }); const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }); const blackMat = new THREE.MeshBasicMaterial({ color: 0x000000 }); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.25, 32), goldMat); body.rotation.x = Math.PI / 2; clockGroup.add(body); const face = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.02, 32), whiteMat); face.rotation.x = Math.PI / 2; face.position.z = 0.13; clockGroup.add(face); const hand = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.35, 0.02), blackMat); hand.position.set(0, 0.15, 0.15); clockGroup.add(hand); return clockGroup; }
 function buildCoffeeCupMesh() { const cupGroup = new THREE.Group(); const cupMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.8, roughness: 0.2 }); const brewMat = new THREE.MeshStandardMaterial({ color: 0x4a2f13, roughness: 0.9 }); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.4, 0.9, 24), cupMat); body.position.y = 0.15; cupGroup.add(body); const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.05, 24), brewMat); liquid.position.y = 0.58; cupGroup.add(liquid); const handleGeo = new THREE.TorusGeometry(0.25, 0.08, 8, 24, Math.PI); const handle = new THREE.Mesh(handleGeo, cupMat); handle.position.set(0.42, 0.15, 0); handle.rotation.z = -Math.PI/2; cupGroup.add(handle); return cupGroup; }
 function buildLightningAmmoMesh() { const ammoGroup = new THREE.Group(); const bulletMat = new THREE.MeshStandardMaterial({ color: 0xcc9900, emissive: 0xcc9900, emissiveIntensity: 0.8, roughness: 0.2, metalness: 0.9 }); for(let i = -1; i <= 1; i++) { const bGroup = new THREE.Group(); const caseMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 16), bulletMat); const tipMesh = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.25, 16), bulletMat); tipMesh.position.y = 0.425; bGroup.add(caseMesh); bGroup.add(tipMesh); bGroup.position.x = i * 0.35; ammoGroup.add(bGroup); } return ammoGroup; }
 function buildExtinguisherMesh() { const extGroup = new THREE.Group(); const redMat = new THREE.MeshStandardMaterial({ color: 0xdd2222, emissive: 0xdd2222, emissiveIntensity: 0.8, roughness: 0.3 }); const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 }); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.1, 16), redMat); extGroup.add(body); const topCap = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), blackMat); topCap.position.y = 0.55; extGroup.add(topCap); const hose = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 8), blackMat); hose.position.set(0.2, 0.1, 0.1); hose.rotation.z = -0.2; extGroup.add(hose); return extGroup; }
 
-// NEU: Diamond Treasure Mesh für 20k Punkte
+// Diamond Treasure Mesh für 20k Punkte
 function buildTreasureMesh() {
     const treasureGroup = new THREE.Group();
     // Ein glänzender Diamant (Oktaeder)
@@ -374,20 +374,18 @@ function createPigKlasse3() {
     group.rotation.y = Math.PI; return { mesh: group, legs: legs, type: 3 }; 
 }
 
-// Füge diesen Block in die Erstellungsmethode für Schweine in js/entities.js ein:
+// Erstellt das visuelle Kürbis-Schwein (früher fest verknüpft mit Typ 4)
 function createPigMesh(type) {
     const pigGroup = new THREE.Group();
     
-    // Gemeinsame Materialien & Schweine-Körper (ähnlich den anderen Typen)
-    const skinMat = new THREE.MeshLambertMaterial({ color: type === 4 ? 0x5a8f3e : 0xffa0a0 }); // Zombie-Grün/Pink für Typ 4
+    // Gemeinsame Materialien & Schweine-Körper
+    const skinMat = new THREE.MeshLambertMaterial({ color: type === 4 ? 0x5a8f3e : 0xffa0a0 }); 
     
-    // Schweine-Körper (Standard)
     const bodyGeom = new THREE.BoxGeometry(1.2, 0.8, 1.8);
     const bodyMesh = new THREE.Mesh(bodyGeom, skinMat);
     bodyMesh.position.y = 0.6;
     pigGroup.add(bodyMesh);
 
-    // Beine (4 Stück)
     const legGeom = new THREE.BoxGeometry(0.3, 0.6, 0.3);
     const legs = [];
     for (let i = 0; i < 4; i++) {
@@ -401,79 +399,92 @@ function createPigMesh(type) {
         legs.push(leg);
     }
 
-    // Schweine-Kopf
     const headGeom = new THREE.BoxGeometry(0.7, 0.7, 0.7);
     const headMesh = new THREE.Mesh(headGeom, skinMat);
     headMesh.position.set(0, 0.9, -1.0);
     pigGroup.add(headMesh);
     
-    // Rüssel
     const snoutGeom = new THREE.BoxGeometry(0.4, 0.25, 0.2);
     const snoutMesh = new THREE.Mesh(snoutGeom, new THREE.MeshLambertMaterial({ color: 0x3d6628 }));
     snoutMesh.position.set(0, 0.8, -1.45);
     pigGroup.add(snoutMesh);
 
-    // --- NEU: Kürbis auf dem Kopf für Typ 4 (image_1.png) ---
+    // Kürbis auf dem Kopf
     if (type === 4) {
-        // Der Kürbis (orangefarbener, leicht gestauchter Cube)
         const pumpkinGeom = new THREE.BoxGeometry(1.0, 0.9, 1.0);
-        const pumpkinMat = new THREE.MeshLambertMaterial({ color: 0xd95d00 }); // Sattes Orange
+        const pumpkinMat = new THREE.MeshLambertMaterial({ color: 0xd95d00 }); 
         const pumpkin = new THREE.Mesh(pumpkinGeom, pumpkinMat);
-        // Positioniert genau auf und leicht über dem Schweinekopf, so wie in image_1.png
         pumpkin.position.set(0, 1.6, -0.9);
         pigGroup.add(pumpkin);
 
-        // Der grüne Stängel oben
         const stemGeom = new THREE.BoxGeometry(0.15, 0.3, 0.15);
         const stemMat = new THREE.MeshLambertMaterial({ color: 0x4a5d23 });
         const stem = new THREE.Mesh(stemGeom, stemMat);
         stem.position.set(0, 2.15, -0.9);
-        stem.rotation.z = 0.1; // Leichter Knick
+        stem.rotation.z = 0.1; 
         pigGroup.add(stem);
 
-        // Gruselig glühende Augen & Mund (Cutouts / Overlays auf der Vorderseite, image_0.png nachempfunden)
-        const glowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 }); // Hellgelb/Orange glühend (unbeeinflusst von Schatten)
+        const glowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 }); 
 
-        // Linkes Auge
         const eyeLGeom = new THREE.BoxGeometry(0.25, 0.15, 0.05);
         const eyeL = new THREE.Mesh(eyeLGeom, glowMat);
         eyeL.position.set(-0.22, 1.7, -1.41);
-        eyeL.rotation.z = 0.2; // Bedrohlicher Winkel
+        eyeL.rotation.z = 0.2; 
         pigGroup.add(eyeL);
 
-        // Rechtes Auge
         const eyeR = eyeL.clone();
         eyeR.position.x = 0.22;
         eyeR.rotation.z = -0.2;
         pigGroup.add(eyeR);
 
-        // Die Nase (Dreieck / kleiner Cube)
         const noseGeom = new THREE.BoxGeometry(0.15, 0.15, 0.05);
         const nose = new THREE.Mesh(noseGeom, glowMat);
         nose.position.set(0, 1.55, -1.41);
         pigGroup.add(nose);
 
-        // Gezackter Gruselmund
         const mouthGeom = new THREE.BoxGeometry(0.6, 0.18, 0.05);
         const mouth = new THREE.Mesh(mouthGeom, glowMat);
         mouth.position.set(0, 1.35, -1.41);
         pigGroup.add(mouth);
-
     }
 
     pigGroup.userData = { legs: legs, type: type };
     return { mesh: pigGroup, legs: legs, type: type || 4 };
 }
 
+// NEU: Diese Funktion prüft das aktuelle System-Datum des Spielers
+// und entscheidet, ob das Kürbis-Schwein spawnt oder ein zufälliges anderes.
+function createPigKlasse4() {
+    const now = new Date();
+    const month = now.getMonth();
+    const date = now.getDate();
+    
+    // Halloween ist am 31. Oktober. 
+    // 2 Wochen davor = 17. Oktober. 2 Wochen danach = 14. November.
+    // getMonth() ist 0-basiert: 9 = Oktober, 10 = November
+    const isHalloweenSeason = (month === 9 && date >= 17) || (month === 10 && date <= 14);
+
+    if (isHalloweenSeason) {
+        return createPigMesh(4);
+    } else {
+        // Außerhalb der Saison: Liefere stattdessen zufällig Typ 1, 2 oder 3 aus
+        const fallbackIdx = Math.floor(Math.random() * 3) + 1;
+        if (fallbackIdx === 1) return createPigKlasse1();
+        if (fallbackIdx === 2) return createPigKlasse2();
+        return createPigKlasse3();
+    }
+}
+
 function spawnSchwein() {
     if (timeLeft <= 0 || hp <= 0 || isPaused || document.getElementById('loading-screen').style.display !== 'none' || pigPens.length === 0 || document.getElementById('instructions-overlay').style.display === 'flex') return;
     const classIdx = Math.floor(Math.random() * 4) + 1;
-	let pigData = classIdx === 1 ? createPigKlasse1() : (classIdx === 2 ? createPigKlasse2() : (classIdx === 3 ? createPigKlasse3() : createPigMesh(4))); // <-- (4) hinzugefügt!
+    
+    // Ruft nun createPigKlasse4() statt direkt createPigMesh(4) auf
+    let pigData = classIdx === 1 ? createPigKlasse1() : (classIdx === 2 ? createPigKlasse2() : (classIdx === 3 ? createPigKlasse3() : createPigKlasse4()));
     const selectedPen = pigPens[Math.floor(Math.random() * pigPens.length)];
     pigData.mesh.position.set(selectedPen.spawnX, pigData.type === 1 ? 1.1 : 1.0, selectedPen.spawnZ); 
     scene.add(pigData.mesh); pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
     
-    // NEU: Im Free Mode sind die Schweine immer sofort wach
     pigData.hasSeenPlayer = true;
     if (currentGameMode !== 'FREE') {
         playPigScreamAudio(); 
@@ -488,20 +499,16 @@ function buildLevelFromData(levelData) {
     levelMaxCols = 0;
     levelMaxRows = 0;
 
-    // Exakte Architektonische Maße
-    const THICKNESS = 0.4; // Bodendicke und Deckendicke
-    const WALL_HEIGHT = LAYER_HEIGHT - THICKNESS; // 5.0 - 0.4 = 4.6
+    const THICKNESS = 0.4; 
+    const WALL_HEIGHT = LAYER_HEIGHT - THICKNESS; 
 
-    // Geometrien verwenden nun die exakte Wandhöhe
-    // Geometrien verwenden nun die exakte Wandhöhe
     const wallGeo = new THREE.BoxGeometry(TILE_SIZE, WALL_HEIGHT, TILE_SIZE);
     
-    // NEU: Schlachthaus-Material mit Blut-Textur und leichtem Glanz (feucht)
     const wallMat = new THREE.MeshStandardMaterial({ 
         map: generateSlaughterhouseWallTexture(),
-        roughness: 0.45, // Etwas glänzender, als wäre das Blut/Kondenswasser noch feucht
+        roughness: 0.45, 
         metalness: 0.1,
-        color: 0xdddddd  // Leicht abdunkeln, damit die Kacheln schmuddeliger wirken
+        color: 0xdddddd  
     });
     const floorGeo = new THREE.BoxGeometry(TILE_SIZE, THICKNESS, TILE_SIZE);
     const floorMat = getGrassMaterial();
@@ -515,13 +522,11 @@ function buildLevelFromData(levelData) {
     levelData.layers.forEach((layer, layerIndex) => {
         const yOffset = layerIndex * LAYER_HEIGHT;
         
-        // Hilfsfunktion: Prüft ob ein Feld eine feste Wand/Tür ist (für Rotations-Erkennung)
         const isWallLike = (r, c) => {
             if (r < 0 || r >= layer.length || c < 0 || c >= layer[r].length) return false;
             return layer[r][c] === '|' || layer[r][c] === 'S' || layer[r][c] === 'D';
         };
         
-        // Hilfsfunktion: Prüft ob das Nachbarfeld frei für ein Gemälde ist (alles außer Wände/Türen/Treppen)
         const isFreeForPainting = (r, c) => {
             if (r < 0 || r >= layer.length || c < 0 || c >= layer[r].length) return false;
             const char = layer[r][c];
@@ -538,7 +543,6 @@ function buildLevelFromData(levelData) {
 
                 if (cell !== '-') {
                     const floorTile = new THREE.Mesh(floorGeo, floorMat);
-                    // Boden liegt exakt unter den Füßen (0 bis -0.4)
                     floorTile.position.set(xPos, yOffset - THICKNESS / 2, zPos);
                     scene.add(floorTile); levelEnvironmentMeshes.push(floorTile);
                 }
@@ -551,16 +555,14 @@ function buildLevelFromData(levelData) {
                     }
                     if (!hasFloorAbove) {
                         const ceilingTile = new THREE.Mesh(floorGeo, ceilingMat);
-                        // Decke liegt exakt auf den Wänden (4.6 bis 5.0)
                         ceilingTile.position.set(xPos, yOffset + LAYER_HEIGHT - THICKNESS / 2, zPos);
                         scene.add(ceilingTile); levelEnvironmentMeshes.push(ceilingTile);
                     }
                 }
 
-                if (cell === '|' || cell === 'S') { // NEU: 'S' wird wie eine Wand gezeichnet
+                if (cell === '|' || cell === 'S') { 
                     const isSecretDoor = (cell === 'S');
                     
-                    // NEU: Container für das korrekte, lokale Sliden der Tür
                     const outerGroup = new THREE.Group(); 
                     outerGroup.position.set(xPos, yOffset + WALL_HEIGHT / 2, zPos);
                     
@@ -568,9 +570,8 @@ function buildLevelFromData(levelData) {
                     const wall = new THREE.Mesh(wallGeo, wallMat);
                     
                     wallGroup.add(wall);
-                    outerGroup.add(wallGroup); // Wand in den Container packen
+                    outerGroup.add(wallGroup); 
                     
-                    // Ausrichtung der Secret Door prüfen
                     let isRotated = false;
                     if (isSecretDoor) {
                         levelStats.totalSecrets++;
@@ -585,7 +586,6 @@ function buildLevelFromData(levelData) {
                     if (!isSecretDoor) {
                         levelWallHitboxes.push({ x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2 });
                     } else {
-                        // Secret Door wird wie eine normale Tür in levelDoors registriert
                         levelDoors.push({
                             x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2,
                             mesh: wallGroup, state: 'closed', slideAmount: 0, maxSlide: TILE_SIZE * 0.95,
@@ -593,25 +593,22 @@ function buildLevelFromData(levelData) {
                         });
                     }
 
-                    // --- Zufälliges Gemälde an der Wand (Bei 'S' immer!) ---
                     if (isSecretDoor || Math.random() < 0.05) {
                         let freeFaces = [];
                         
                         if (isSecretDoor) {
                              if (!isRotated) {
-                                 // Horizontal Wand -> vorne oder hinten frei?
                                  if (isFreeForPainting(row+1, col)) freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); 
                                  if (isFreeForPainting(row-1, col)) freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); 
                              } else {
-                                 // Vertikale Wand -> rechts oder links frei?
                                  if (isFreeForPainting(row, col+1)) freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); 
                                  if (isFreeForPainting(row, col-1)) freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); 
                              }
                         } else {
-                            if (isFreeForPainting(row, col+1)) freeFaces.push({ rot: -Math.PI / 2, dx: TILE_SIZE / 2 + 0.02, dz: 0 }); // Rechts (+X)
-                            if (isFreeForPainting(row, col-1)) freeFaces.push({ rot: Math.PI / 2, dx: -TILE_SIZE / 2 - 0.02, dz: 0 }); // Links (-X)
-                            if (isFreeForPainting(row+1, col)) freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); // Vorne (+Z)
-                            if (isFreeForPainting(row-1, col)) freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); // Hinten (-Z)
+                            if (isFreeForPainting(row, col+1)) freeFaces.push({ rot: -Math.PI / 2, dx: TILE_SIZE / 2 + 0.02, dz: 0 }); 
+                            if (isFreeForPainting(row, col-1)) freeFaces.push({ rot: Math.PI / 2, dx: -TILE_SIZE / 2 - 0.02, dz: 0 }); 
+                            if (isFreeForPainting(row+1, col)) freeFaces.push({ rot: 0, dx: 0, dz: TILE_SIZE / 2 + 0.02 }); 
+                            if (isFreeForPainting(row-1, col)) freeFaces.push({ rot: Math.PI, dx: 0, dz: -TILE_SIZE / 2 - 0.02 }); 
                         }
 
                         if (freeFaces.length > 0) {
@@ -630,7 +627,7 @@ function buildLevelFromData(levelData) {
                                         if (isSecretDoor) {
                                             painting.position.set(face.dx, 0.2, face.dz);
                                             painting.rotation.y = face.rot;
-                                            wallGroup.add(painting); // Bild an die Secret Door hängen!
+                                            wallGroup.add(painting); 
                                         } else {
                                             painting.position.set(xPos + face.dx, yOffset + WALL_HEIGHT / 2 + 0.2, zPos + face.dz);
                                             painting.rotation.y = face.rot;
@@ -653,7 +650,8 @@ function buildLevelFromData(levelData) {
                 }
                 else if (cell === '1' || cell === '2' || cell === '3' || cell === '4') {
                     levelStats.totalPigs++;
-                    let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : (cell === '3' ? createPigKlasse3() : createPigMesh(4)));
+                    // Ruft nun createPigKlasse4() statt direkt createPigMesh(4) auf
+                    let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : (cell === '3' ? createPigKlasse3() : createPigKlasse4()));
                     pigData.mesh.position.set(xPos, yOffset + (pigData.type === 1 ? 1.1 : 1.0), zPos);
                     scene.add(pigData.mesh);
                     pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
@@ -662,7 +660,6 @@ function buildLevelFromData(levelData) {
                     pigs3D.push(pigData);
                 }
                 else if (['H', 'T', 'C', 'I', 'F', '$'].includes(cell)) {
-                    // NEU: '$' ist der Treasure
                     let type = cell === 'H' ? 'hp' : (cell === 'T' ? 'time' : (cell === 'C' ? 'speed' : (cell === 'I' ? 'infinite' : (cell === 'F' ? 'freeze' : 'treasure'))));
                     spawnSpecificPowerUp(xPos, yOffset + 1.3, zPos, type);
                 }
@@ -702,11 +699,10 @@ function buildLevelFromData(levelData) {
                     const hatchGroup = new THREE.Group();
                     const frameMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9, metalness: 0.8 });
 
-                    // Schachtrahmen exakt an die Bodendicke anpassen
                     const frameThickness = 0.2;
                     const size = TILE_SIZE * 0.8;
-                    const frameHeight = THICKNESS; // Nutzt jetzt exakt die 0.4 aus der Konstante
-                    const frameY = -THICKNESS / 2; // Positioniert den Rahmen auf Höhe des Fußbodens
+                    const frameHeight = THICKNESS; 
+                    const frameY = -THICKNESS / 2; 
 
                     const frameTop = new THREE.Mesh(new THREE.BoxGeometry(size, frameHeight, frameThickness), frameMat);
                     frameTop.position.set(0, frameY, -size / 2 + frameThickness / 2);
@@ -769,15 +765,14 @@ function buildLevelFromData(levelData) {
                 }
                 else if (cell === 'D') {
                     const doorGroup = new THREE.Group();
-                    const doorMat = new THREE.MeshStandardMaterial({ color: 0x5a3a22, roughness: 0.9 }); // Dunkles Holz/Metall
+                    const doorMat = new THREE.MeshStandardMaterial({ color: 0x5a3a22, roughness: 0.9 }); 
 
                     const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE, WALL_HEIGHT, 0.6), doorMat);
 
-                    // Automatische Ausrichtung prüfen und merken
                     let isRotated = false;
                     if (layer[row - 1] && layer[row - 1][col] === '|' && layer[row + 1] && layer[row + 1][col] === '|') {
-                        doorMesh.rotation.y = Math.PI / 2; // Tür um 90 Grad drehen
-                        isRotated = true; // NEU: Drehung für die Animation speichern!
+                        doorMesh.rotation.y = Math.PI / 2; 
+                        isRotated = true; 
                     }
 
                     doorGroup.add(doorMesh);
@@ -788,7 +783,7 @@ function buildLevelFromData(levelData) {
                     levelDoors.push({
                         x: xPos, z: zPos, y: yOffset, radius: TILE_SIZE / 2,
                         mesh: doorMesh, state: 'closed', slideAmount: 0, maxSlide: TILE_SIZE * 0.95,
-                        isRotated: isRotated, isSecret: false // NEU: Wird an gameplay.js übergeben
+                        isRotated: isRotated, isSecret: false 
                     });
                 }
             }
