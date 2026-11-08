@@ -42,9 +42,11 @@ const WALL_PAINTINGS = [
 ];
 
 // --- KONSTANTEN FÜR FERNKÄMPFER (Klasse 5) ---
-const PIG_RANGED_ATTACK_DIST = 10.0; // Mittlere Entfernung zum Stehenbleiben
+const PIG_RANGED_ATTACK_DIST = 50.0; // Mittlere Entfernung zum Stehenbleiben
 const PIG_RANGED_AIM_TIME = 2000;    // 2 Sekunden (in Millisekunden)
 const PIG_RANGED_DAMAGE = 25;        // Schaden pro Schuss
+const PIG_RANGED_HIT_PROB_MIN = 0.4; // Trefferwahrscheinlichkeit bei max. Distanz (0.5 = 50%)
+const PIG_RANGED_RELOAD_TIME = 4000; // Cooldown zum Nachladen in Millisekunden
 
 
 // Episode configuration

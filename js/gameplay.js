@@ -523,65 +523,74 @@ function animate3D() {
                 });
             }
 
-			// --- NEU: ZIELEN & SCHIESSEN FÜR KLASSE 5 ---
-			pig.isAiming = false;
-			if (pig.type === 5 && !pig.isFleeing && freezeEndTime <= now) {
-			    if (!pig.attackState) { pig.attackState = 'idle'; pig.aimTimer = 0; }
-			    
-			    // Wenn es nah genug ist, beginnt es zu zielen
-			    if (pig.attackState === 'idle' && distToTarget <= PIG_RANGED_ATTACK_DIST) {
-			        pig.attackState = 'aiming';
-			        pig.aimTimer = now + PIG_RANGED_AIM_TIME; // 2 Sekunden Timer startet
-			    } 
-			    
-			    if (pig.attackState === 'aiming' || pig.attackState === 'recoil') {
-			        pig.isAiming = true;
-			        // Bewegung auf Null setzen, das Schwein bleibt stehen!
-			        dirToTarget.set(0, 0, 0); 
-			        avoidance.set(0, 0, 0);   
-			        
-			        if (pig.attackState === 'aiming') {
-			            // Rechten Arm langsam anheben (Zielen)
-			            pig.gunArm.rotation.x = THREE.MathUtils.lerp(pig.gunArm.rotation.x, -Math.PI / 2.1, 0.08);
-			            
-			            // Peng! Timer ist abgelaufen.
-			            if (now > pig.aimTimer) {
-			                pig.attackState = 'recoil';
-			                pig.aimTimer = now + 600; // 600ms Rückstoß-/Abklingzeit
-			                pig.gunArm.rotation.x -= 0.6; // Heftiger optischer Rückstoß des Arms
-			                
-			                // Trefferwahrscheinlichkeit (0.5 bei max Distanz, 1.0 bei Distanz 0)
-			                let hitProb = 1.0 - (distToTarget / PIG_RANGED_ATTACK_DIST) * 0.5;
-			                hitProb = Math.max(0.5, Math.min(1.0, hitProb)); // Auf 50% bis 100% begrenzen
-			                
-			                playAudio('hit'); // Schuss-Sound (Alternativ: playShotgunAudio() falls gewünscht)
-			                
-			                // Wurde der Spieler getroffen?
-			                if (Math.random() <= hitProb) {
-			                    hp -= PIG_RANGED_DAMAGE; 
-			                    if (hp < 0) hp = 0; 
-			                    healthValueDisplay.innerText = t('hud_hp', { hp: hp });
-			                    
-			                    let alphaValue = (1 - (hp / 100)) * RED_FILTER_MAX_OPACITY; 
-			                    damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${alphaValue})`;
-			                    playDamageAudio(); 
-			                    
-			                    if (hp <= 90 && hp > 0) heartbeatLoop();
-			                    if (hp <= 0) { endGame(true); return; } // Game Over
-			                }
-			            }
-			        } else if (pig.attackState === 'recoil') {
-			            // Arm nach dem Schuss langsam wieder senken
-			            pig.gunArm.rotation.x = THREE.MathUtils.lerp(pig.gunArm.rotation.x, -Math.PI / 12, 0.1);
-			            if (now > pig.aimTimer) {
-			                pig.attackState = 'idle'; // Bereit für die nächste Verfolgung oder den nächsten Schuss
-			            }
-			        }
-			    } else {
-			        // Armhaltung beim normalen Laufen (leicht nach hinten)
-			        pig.gunArm.rotation.x = THREE.MathUtils.lerp(pig.gunArm.rotation.x, -Math.PI / 12, 0.1);
-			    }
-			}
+            // ZIELEN & SCHIESSEN FÜR KLASSE 5 ---
+            pig.isAiming = false;
+            if (pig.type === 5 && !pig.isFleeing && freezeEndTime <= now) {
+                if (!pig.attackState) { 
+                    pig.attackState = 'idle'; 
+                    pig.aimTimer = 0; 
+                    pig.reloadTimer = 0; // Cooldown-Tracker
+                }
+                
+                // Wenn nah genug UND der Nachlade-Cooldown abgelaufen ist, beginnt es zu zielen
+                if (pig.attackState === 'idle' && distToTarget <= PIG_RANGED_ATTACK_DIST && now > pig.reloadTimer) {
+                    pig.attackState = 'aiming';
+                    pig.aimTimer = now + PIG_RANGED_AIM_TIME; // 2 Sekunden Timer startet
+                } 
+                
+                if (pig.attackState === 'aiming' || pig.attackState === 'recoil') {
+                    pig.isAiming = true;
+                    // Bewegung auf Null setzen, das Schwein bleibt zum Schießen stehen!
+                    dirToTarget.set(0, 0, 0); 
+                    avoidance.set(0, 0, 0);   
+                    
+                    if (pig.attackState === 'aiming') {
+                        // Rechten Arm langsam anheben (Zielen)
+                        pig.gunArm.rotation.x = THREE.MathUtils.lerp(pig.gunArm.rotation.x, -Math.PI / 2.1, 0.08);
+                        
+                        // Peng! Timer ist abgelaufen.
+                        if (now > pig.aimTimer) {
+                            pig.attackState = 'recoil';
+                            pig.aimTimer = now + 600; // 600ms Rückstoß-/Abklingzeit
+                            
+                            // NEU: Nachlade-Cooldown starten!
+                            pig.reloadTimer = now + PIG_RANGED_RELOAD_TIME; 
+                            
+                            pig.gunArm.rotation.x -= 0.6; // Heftiger optischer Rückstoß des Arms
+                            
+                            // Trefferwahrscheinlichkeit linear berechnen
+                            let hitProb = 1.0 - (distToTarget / PIG_RANGED_ATTACK_DIST) * (1.0 - PIG_RANGED_HIT_PROB_MIN);
+                            hitProb = Math.max(PIG_RANGED_HIT_PROB_MIN, Math.min(1.0, hitProb)); 
+                            
+                            playShotgunAudio(); 
+                            
+                            // Wurde der Spieler getroffen?
+                            if (Math.random() <= hitProb) {
+                                hp -= PIG_RANGED_DAMAGE; 
+                                if (hp < 0) hp = 0; 
+                                healthValueDisplay.innerText = t('hud_hp', { hp: hp });
+                                
+                                let alphaValue = (1 - (hp / 100)) * RED_FILTER_MAX_OPACITY; 
+                                damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${alphaValue})`;
+                                playDamageAudio(); 
+                                
+                                if (hp <= 90 && hp > 0) heartbeatLoop();
+                                if (hp <= 0) { endGame(true); return; } // Game Over
+                            }
+                        }
+                    } else if (pig.attackState === 'recoil') {
+                        // Arm nach dem Schuss langsam wieder senken
+                        pig.gunArm.rotation.x = THREE.MathUtils.lerp(pig.gunArm.rotation.x, -Math.PI / 12, 0.1);
+                        if (now > pig.aimTimer) {
+                            pig.attackState = 'idle'; // Geht in den Idle-Zustand (Nachladen läuft im Hintergrund)
+                        }
+                    }
+                } else {
+                    // Im 'idle'-Zustand (auch während des Nachladens beim Laufen)
+                    pig.gunArm.rotation.x = THREE.MathUtils.lerp(pig.gunArm.rotation.x, -Math.PI / 12, 0.1);
+                }
+            }
+
 
             let finalMove = dirToTarget.clone().multiplyScalar(pig.speed * timeScale).add(avoidance);
             let nextX = pig.mesh.position.x + finalMove.x;
@@ -889,6 +898,7 @@ function perform3DShoot() {
             if (pigData.type === 2 && localHit.y > 1.2) isHeadshot = true;
             if (pigData.type === 3 && localHit.y > 1.1) isHeadshot = true;
 			if (pigData.type === 4 && localHit.y > 1.15) isHeadshot = true;
+            if (pigData.type === 5 && localHit.y > 1.2) isHeadshot = true;
             
             hit3DPig(pigData, isHeadshot); return; 
         }
