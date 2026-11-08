@@ -374,6 +374,72 @@ function createPigKlasse3() {
     group.rotation.y = Math.PI; return { mesh: group, legs: legs, type: 3 }; 
 }
 
+// --- MATERIALIEN FÜR HELM & WAFFE ---
+const helmetMat = new THREE.MeshStandardMaterial({ color: 0x3b4237, roughness: 0.6, metalness: 0.4, side: THREE.DoubleSide });
+const gunMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8, metalness: 0.9 });
+
+function createPigKlasse5() {
+    const group = new THREE.Group(); 
+    const staticGroup = new THREE.Group();
+    
+    // Körper (ähnlich bipedal wie Klasse 3, aber andere Farbe)
+    const bodyGeo = new THREE.SphereGeometry(0.85, 24, 16); applyZombieRot(bodyGeo, 0x8a7a65); 
+    const body = new THREE.Mesh(bodyGeo, rottenMat); 
+    body.scale.set(1.1, 1.4, 0.9); body.position.y = 0.5; 
+    staticGroup.add(body); 
+    
+    // Kopf & Schnauze
+    addUltraHeadParts(staticGroup, 1.6, -0.4, 0x8a7a65); 
+    addProceduralCurlyTail(staticGroup, 0.1, 0.7); 
+    
+    // Stahlhelm (abgeschnittene Kugel)
+    const helmetGeo = new THREE.SphereGeometry(0.55, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2.2);
+    const helmet = new THREE.Mesh(helmetGeo, helmetMat);
+    helmet.position.set(0, 1.7, -0.4);
+    staticGroup.add(helmet);
+    
+    // Linker Arm (statisch beim Laufen)
+    const armGeo = new THREE.CylinderGeometry(0.12, 0.08, 0.8, 12); 
+    const armL = new THREE.Mesh(armGeo.clone(), rottenMat); 
+    applyZombieRot(armL.geometry, 0x566344); 
+    armL.position.set(-0.75, 0.9, -0.3); armL.rotation.z = Math.PI/8; armL.rotation.x = -Math.PI/6; 
+    staticGroup.add(armL); 
+    
+    // Alles Unbewegliche zusammenfassen (Draw Call Reduktion)
+    group.add(mergeGroupIntoSingleMesh(staticGroup, rottenMat));
+
+    // Rechter Arm (DYNAMISCH! Wird fürs Zielen gedreht)
+    const armRGroup = new THREE.Group();
+    armRGroup.position.set(0.75, 1.1, -0.3); // Drehpunkt liegt exakt an der Schulter
+    
+    const armRMesh = new THREE.Mesh(armGeo.clone(), rottenMat); 
+    applyZombieRot(armRMesh.geometry, 0x566344); 
+    armRMesh.position.set(0, -0.3, 0); // Geometrie nach unten verschieben
+    armRMesh.rotation.z = -Math.PI/12;
+    armRGroup.add(armRMesh);
+    
+    // Pistole in der Hand (am rechten Arm befestigt)
+    const gunBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.45), gunMat);
+    gunBarrel.position.set(0, -0.65, -0.2);
+    const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.12), gunMat);
+    gunGrip.position.set(0, -0.6, 0);
+    gunGrip.rotation.x = -Math.PI/6;
+    armRGroup.add(gunBarrel);
+    armRGroup.add(gunGrip);
+    
+    group.add(armRGroup); // Den dynamischen Waffenarm anfügen
+
+    // Beine
+    const legGeo = new THREE.CylinderGeometry(0.14, 0.1, 0.9, 12); 
+    const legs = [new THREE.Mesh(legGeo.clone(), rottenMat), new THREE.Mesh(legGeo.clone(), rottenMat)];
+    legs.forEach(l => { applyZombieRot(l.geometry, 0x8a7a65); group.add(l); });
+    legs[0].position.set(-0.35, -0.6, 0); legs[1].position.set(0.35, -0.6, 0); 
+    
+    group.rotation.y = Math.PI; 
+    // WICHTIG: "gunArm" wird exportiert, damit gameplay_3.js den Arm animieren kann!
+    return { mesh: group, legs: legs, gunArm: armRGroup, type: 5 }; 
+}
+
 // Erstellt das visuelle Kürbis-Schwein (früher fest verknüpft mit Typ 4)
 function createPigMesh(type) {
     const pigGroup = new THREE.Group();
@@ -477,10 +543,9 @@ function createPigKlasse4() {
 
 function spawnSchwein() {
     if (timeLeft <= 0 || hp <= 0 || isPaused || document.getElementById('loading-screen').style.display !== 'none' || pigPens.length === 0 || document.getElementById('instructions-overlay').style.display === 'flex') return;
-    const classIdx = Math.floor(Math.random() * 4) + 1;
-    
-    // Ruft nun createPigKlasse4() statt direkt createPigMesh(4) auf
-    let pigData = classIdx === 1 ? createPigKlasse1() : (classIdx === 2 ? createPigKlasse2() : (classIdx === 3 ? createPigKlasse3() : createPigKlasse4()));
+	const classIdx = Math.floor(Math.random() * 5) + 1; // Jetzt 1 bis 5
+	let pigData = classIdx === 1 ? createPigKlasse1() : (classIdx === 2 ? createPigKlasse2() : (classIdx === 3 ? createPigKlasse3() : (classIdx === 4 ? createPigKlasse4() : createPigKlasse5())));
+	
     const selectedPen = pigPens[Math.floor(Math.random() * pigPens.length)];
     pigData.mesh.position.set(selectedPen.spawnX, pigData.type === 1 ? 1.1 : 1.0, selectedPen.spawnZ); 
     scene.add(pigData.mesh); pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
@@ -648,10 +713,10 @@ function buildLevelFromData(levelData) {
                     camera.position.set(xPos, yOffset + playerBaseY, zPos);
                     playerCurrentGroundY = yOffset;
                 }
-                else if (cell === '1' || cell === '2' || cell === '3' || cell === '4') {
-                    levelStats.totalPigs++;
-                    // Ruft nun createPigKlasse4() statt direkt createPigMesh(4) auf
-                    let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : (cell === '3' ? createPigKlasse3() : createPigKlasse4()));
+				// Aus 1-4 mach 1-5:
+				else if (cell === '1' || cell === '2' || cell === '3' || cell === '4' || cell === '5') {
+				    levelStats.totalPigs++;
+				    let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : (cell === '3' ? createPigKlasse3() : (cell === '4' ? createPigKlasse4() : createPigKlasse5())));
                     pigData.mesh.position.set(xPos, yOffset + (pigData.type === 1 ? 1.1 : 1.0), zPos);
                     scene.add(pigData.mesh);
                     pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
