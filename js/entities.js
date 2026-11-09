@@ -386,78 +386,54 @@ function createPigKlasse5() {
     const group = new THREE.Group(); 
     const staticGroup = new THREE.Group();
     
-    // Körper (Bauch)
     const bodyGeo = new THREE.SphereGeometry(0.85, 24, 16); applyZombieRot(bodyGeo, 0x8a7a65); 
     const body = new THREE.Mesh(bodyGeo, rottenMat); 
-    body.scale.set(1.1, 1.4, 0.9); body.position.y = 0.5; 
+    body.scale.set(1.100, 1.400, 0.900); body.position.set(0.000, 0.500, 0.000); body.rotation.set(0.000, 0.000, 0.000);
     staticGroup.add(body); 
     
-    // Kopf & Schnauze
-    addUltraHeadParts(staticGroup, 1.6, -0.4, 0x8a7a65); 
+    addUltraHeadParts(staticGroup,  1.600,  -0.400, 0x8a7a65); 
     addProceduralCurlyTail(staticGroup, 0.1, 0.7); 
     
-    // Stahlhelm
-    const helmetGeo = new THREE.SphereGeometry(0.55, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2.2);
-    const helmet = new THREE.Mesh(helmetGeo, helmetMat);
-    helmet.position.set(0, 1.7, -0.4);
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2.2), helmetMat);
+    helmet.position.set(0.000, 1.700, -0.400); helmet.rotation.set(0.000, 0.000, 0.000); helmet.scale.set(1.000, 1.000, 1.000);
     staticGroup.add(helmet);
     
-    // Linker Arm (Bleibt statisch)
     const armGeo = new THREE.CylinderGeometry(0.12, 0.08, 0.8, 12); 
-    const armL = new THREE.Mesh(armGeo.clone(), rottenMat); 
-    applyZombieRot(armL.geometry, 0x566344); 
-    armL.position.set(-0.85, 0.9, -0.3); armL.rotation.z = Math.PI/8; armL.rotation.x = -Math.PI/6; 
+    const armL = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(armL.geometry, 0x566344); 
+    armL.position.set(-0.850, 0.900, -0.300); armL.rotation.set(-0.524, 0.000, 0.393); armL.scale.set(1.000, 1.000, 1.000);
     staticGroup.add(armL); 
     
     group.add(mergeGroupIntoSingleMesh(staticGroup, rottenMat));
 
-    // Rechter Arm (DYNAMISCH! Wird fürs Zielen gedreht)
-    const armRGroup = new THREE.Group();
-    armRGroup.position.set(0.85, 1.1, -0.3); // Gelenk an der Schulter
+    const armRGroup = new THREE.Group(); 
+    armRGroup.position.set(0.850, 1.100, -0.300); armRGroup.rotation.set(0.000, 0.000, 0.000);
     
-    const armWithGunGroup = new THREE.Group();
-    armWithGunGroup.rotation.z = -Math.PI/12; // Arm hängt leicht schräg nach außen
+    const armWithGunGroup = new THREE.Group(); 
+    armWithGunGroup.position.set(0.001, 0.088, 0.028); armWithGunGroup.rotation.set(0.000, 0.000, -0.262);
     
-    const armRMesh = new THREE.Mesh(armGeo.clone(), rottenMat); 
-    applyZombieRot(armRMesh.geometry, 0x566344); 
-    armRMesh.position.set(0, -0.3, 0); 
+    const armRMesh = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(armRMesh.geometry, 0x566344); 
+    armRMesh.position.set(0.000, -0.300, 0.000); armRMesh.rotation.set(0.000, 0.000, 0.000); armRMesh.scale.set(1.000, 1.000, 1.000);
     armWithGunGroup.add(armRMesh);
     
-// --- DIE KORRIGIERTE WAFFE (An der Hand, Griff nach oben) ---
-    const gunGroup = new THREE.Group();
-    // Exakt am unteren Ende des Arms (Handgelenk bei y = -0.7)
-    gunGroup.position.set(0.1, -0.7, 0.1); 
+    const gunGroup = new THREE.Group(); 
+    gunGroup.position.set(0.066, 0.364, 0.185); gunGroup.rotation.set(-0.110, 0.346, 0.068);
     
-    // Um 180 Grad auf dem Kopf gedreht, damit der Griff nach oben zur Hand zeigt
-    gunGroup.rotation.z = Math.PI; 
+    const gunBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.3), gunMetalMat); 
+    gunBarrel.position.set(0.000, 0.250, 0.000); gunBarrel.rotation.set(0.000, 0.000, 0.000); gunBarrel.scale.set(1.000, 1.000, 1.000);
     
-    // 1. Der dicke Lauf (zeigt nun nach unten / beim Zielen nach vorne)
-    const gunBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.3), gunMetalMat);
-    gunBarrel.position.set(0, 0.25, 0); 
+    const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.2, 12), gunShinyMat); 
+    muzzle.position.set(0.000, 0.650, 0.000); muzzle.rotation.set(0.000, 0.000, 0.000); muzzle.scale.set(1.000, 1.000, 1.000);
     
-    // 2. Helles Mündungsrohr
-    const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.2, 12), gunShinyMat);
-    muzzle.position.set(0, 0.65, 0); 
-    
-    // 3. Holzgriff (zeigt jetzt nach oben in den Arm / die Faust hinein)
-    const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 0.2), gunWoodMat);
-    gunGrip.position.set(0, -0.15, -0.15); 
-    gunGrip.rotation.x = Math.PI / 6;
+    const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 0.2), gunWoodMat); 
+    gunGrip.position.set(0.000, -0.150, -0.150); gunGrip.rotation.set(0.524, 0.000, 0.000); gunGrip.scale.set(1.000, 1.000, 1.000);
 
-    gunGroup.add(gunBarrel);
-    gunGroup.add(muzzle);
-    gunGroup.add(gunGrip);
-    
-    // Waffe an den Arm hängen
-    armWithGunGroup.add(gunGroup); 
-    armRGroup.add(armWithGunGroup); 
-    group.add(armRGroup);
+    gunGroup.add(gunBarrel); gunGroup.add(muzzle); gunGroup.add(gunGrip);
+    armWithGunGroup.add(gunGroup); armRGroup.add(armWithGunGroup); group.add(armRGroup); 
 
-    // Beine
     const legGeo = new THREE.CylinderGeometry(0.14, 0.1, 0.9, 12); 
-    const legs = [new THREE.Mesh(legGeo.clone(), rottenMat), new THREE.Mesh(legGeo.clone(), rottenMat)];
-    legs.forEach(l => { applyZombieRot(l.geometry, 0x8a7a65); group.add(l); });
-    legs[0].position.set(-0.35, -0.6, 0); legs[1].position.set(0.35, -0.6, 0); 
+    const legs = [];
+    const l0 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(l0.geometry, 0x8a7a65); l0.position.set(-0.350, -0.600, 0.000); l0.rotation.set(0.000, 0.000, 0.000); group.add(l0); legs.push(l0);
+    const l1 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(l1.geometry, 0x8a7a65); l1.position.set(0.350, -0.600, 0.000); l1.rotation.set(0.000, 0.000, 0.000); group.add(l1); legs.push(l1);
     
     group.rotation.y = Math.PI; 
     return { mesh: group, legs: legs, gunArm: armRGroup, type: 5 }; 

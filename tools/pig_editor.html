@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Zombieschweine - Universal 3D Model Editor</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #222; font-family: sans-serif; }
+        #info { position: absolute; top: 10px; left: 10px; color: #fff; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 5px; pointer-events: none; line-height: 1.5; }
+        #info kbd { background: #444; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+        
+        #exportModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+        #exportContent { background: #333; width: 85%; max-width: 900px; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        #exportContent h2 { color: #fff; margin-top: 0; }
+        textarea { width: 100%; height: 450px; background: #1e1e1e; color: #55ff55; font-family: monospace; border: 1px solid #555; padding: 10px; box-sizing: border-box; resize: vertical; white-space: pre; }
+        .btn-close { background: #ff4444; color: white; border: none; padding: 10px 20px; margin-top: 15px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .btn-close:hover { background: #cc0000; }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <strong>Universal 3D Model Editor</strong><br>
+        1. Wähle rechts die Schweine-Klasse.<br>
+        2. Klicke ein Körperteil an, um es zu markieren.<br>
+        3. Werkzeuge: <kbd>W</kbd> Bewegen | <kbd>E</kbd> Drehen | <kbd>R</kbd> Skalieren<br>
+        4. Navigieren: Linksklick (Kamera drehen), Rechtsklick (Kamera schieben)<br>
+        5. Code Exportieren klicken und ins Spiel kopieren.
+    </div>
+
+    <div id="exportModal">
+        <div id="exportContent">
+            <h2 id="exportTitle">Dein fertiger Code</h2>
+            <p style="color: #ccc;">Kopiere diesen Code und ersetze damit die entsprechende Funktion in deiner <em>entities.js</em>.</p>
+            <textarea id="codeOutput" readonly></textarea>
+            <button class="btn-close" onclick="document.getElementById('exportModal').style.display='none'">Schließen</button>
+        </div>
+    </div>
+
+    <!-- Three.js & Controls -->    
+    <script src="../lib/three.min-r128.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+    <script src="../lib/data.gui.min-0.7.9.js"></script>    
+
+    <script>
+        // --- 1. SZENE SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x333344);
+        
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(4, 3, -5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const orbit = new THREE.OrbitControls(camera, renderer.domElement);
+        orbit.target.set(0, 1, 0);
+        orbit.update();
+
+        // Transform Controls (Für das direkte Bewegen der Teile)
+        const transformControl = new THREE.TransformControls(camera, renderer.domElement);
+        transformControl.addEventListener('dragging-changed', function (event) {
+            orbit.enabled = !event.value; // Orbit deaktivieren, wenn ein Teil gezogen wird
+        });
+        transformControl.addEventListener('change', function() {
+            if (transformControl.object) updateGuiFromObject(transformControl.object);
+        });
+        scene.add(transformControl);
+
+        // Licht & Raster
+        scene.add(new THREE.AmbientLight(0x888888));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); dirLight.position.set(5, 10, -5); scene.add(dirLight);
+        const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.4); dirLight2.position.set(-5, 5, 5); scene.add(dirLight2);
+        scene.add(new THREE.GridHelper(10, 10, 0x555555, 0x444444));
+        scene.add(new THREE.AxesHelper(2));
+
+        // --- 2. MATERIALIEN & HILFSFUNKTIONEN ---
+        const rottenMat = new THREE.MeshStandardMaterial({ roughness: 1.0, metalness: 0.0, vertexColors: true });
+        const snoutMat = new THREE.MeshStandardMaterial({ color: 0xc4788c, roughness: 1.0 }); 
+        const eyeMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 1.0, metalness: 0.0 }); 
+        const browMat = new THREE.MeshBasicMaterial({ color: 0x701818 }); 
+        const darkMat = new THREE.MeshBasicMaterial({ color: 0x110202 });
+        const helmetMat = new THREE.MeshStandardMaterial({ color: 0x3b4237, roughness: 0.6, metalness: 0.4, side: THREE.DoubleSide });
+        const gunMetalMat = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.6, metalness: 0.6 }); 
+        const gunWoodMat = new THREE.MeshStandardMaterial({ color: 0x6e4524, roughness: 0.9 }); 
+        const gunShinyMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.3, metalness: 0.9 }); 
+
+        // Materialien für Halloween (Typ 4)
+        const skinMatKlasse4 = new THREE.MeshLambertMaterial({ color: 0x5a8f3e });
+        const skinMatStandard = new THREE.MeshLambertMaterial({ color: 0xffa0a0 });
+        const snoutMatDark = new THREE.MeshLambertMaterial({ color: 0x3d6628 });
+        const pumpkinMat = new THREE.MeshLambertMaterial({ color: 0xd95d00 });
+        const stemMat = new THREE.MeshLambertMaterial({ color: 0x4a5d23 });
+        const glowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+
+        function applyZombieRot(geometry, baseColorHex) {
+            const position = geometry.attributes.position; const colors = []; const colorsPool = [new THREE.Color(baseColorHex), new THREE.Color(0x768a57), new THREE.Color(0x566344), new THREE.Color(0x8a6375), new THREE.Color(0x423d3d)];
+            for (let i = 0; i < position.count; i += 3) { const randomColor = colorsPool[Math.floor(Math.random() * colorsPool.length)]; const noise = 0.82 + Math.random() * 0.28; const finalColor = randomColor.clone().multiplyScalar(noise); colors.push(finalColor.r, finalColor.g, finalColor.b, finalColor.r, finalColor.g, finalColor.b, finalColor.r, finalColor.g, finalColor.b); }
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        }
+
+        // --- 3. EDITOR MODELL-GENERATOREN ---
+        // WICHTIG: Im Editor mergen wir die Teile NICHT zusammen, damit jedes Teil einzeln angeklickt und verschoben werden kann.
+        // Jedes Mesh erhält einen Namen (.name), der beim Exportieren ausgelesen wird.
+
+        function createPigKlasse1() {
+            const group = new THREE.Group(); group.name = 'pigGroup';
+            const bodyGeo = new THREE.SphereGeometry(0.85, 24, 16); applyZombieRot(bodyGeo, 0xd4748c); 
+            const body = new THREE.Mesh(bodyGeo, rottenMat); body.scale.set(1, 0.85, 1.4); body.name = 'body'; group.add(body); 
+            
+            addUltraHeadParts(group, 0.4, -1.1, 0xd4748c); 
+            addProceduralCurlyTail(group, -0.1, 1.1); 
+            
+            const legGeo = new THREE.CylinderGeometry(0.13, 0.1, 0.8, 12); 
+            const poss = [[-0.45, -0.7, -0.5], [0.45, -0.7, -0.5], [-0.45, -0.7, 0.5], [0.45, -0.7, 0.5]];
+            for(let i=0; i<4; i++) {
+                const leg = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(leg.geometry, 0xd4748c);
+                leg.position.set(...poss[i]); leg.name = `leg${i}`; group.add(leg);
+            }
+            group.rotation.y = Math.PI; return group; 
+        }
+
+        function createPigKlasse2() {
+            const group = new THREE.Group(); group.name = 'pigGroup';
+            const bodyGeo = new THREE.SphereGeometry(0.75, 24, 16); applyZombieRot(bodyGeo, 0xbc667b); 
+            const body = new THREE.Mesh(bodyGeo, rottenMat); body.scale.set(1, 1.6, 0.8); body.position.y = 0.5; body.name = 'body'; group.add(body); 
+            
+            addUltraHeadParts(group, 1.7, -0.4, 0xbc667b); 
+            addProceduralCurlyTail(group, 0.1, 0.6); 
+            
+            const armGeo = new THREE.CylinderGeometry(0.1, 0.07, 0.8, 12); 
+            const armL = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(armL.geometry, 0x566344); armL.position.set(-0.8, 0.8, -0.3); armL.rotation.set(-Math.PI/4, 0, Math.PI/6); armL.name = 'armL';
+            const armR = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(armR.geometry, 0x566344); armR.position.set(0.8, 0.8, -0.3); armR.rotation.set(-Math.PI/4, 0, -Math.PI/6); armR.name = 'armR';
+            group.add(armL); group.add(armR);
+            
+            const legGeo = new THREE.CylinderGeometry(0.14, 0.1, 0.9, 12); 
+            const leg0 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(leg0.geometry, 0xbc667b); leg0.position.set(-0.35, -0.6, 0); leg0.name = 'leg0';
+            const leg1 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(leg1.geometry, 0xbc667b); leg1.position.set(0.35, -0.6, 0); leg1.name = 'leg1';
+            group.add(leg0); group.add(leg1);
+            
+            group.rotation.y = Math.PI; return group; 
+        }
+
+        function createPigKlasse3() {
+            const group = new THREE.Group(); group.name = 'pigGroup';
+            const bodyGeo = new THREE.SphereGeometry(1.0, 24, 16); applyZombieRot(bodyGeo, 0x9b5565); 
+            const body = new THREE.Mesh(bodyGeo, rottenMat); body.scale.set(1.3, 1.3, 1.0); body.position.y = 0.5; body.name = 'body'; group.add(body); 
+            
+            addUltraHeadParts(group, 1.6, -0.6, 0x9b5565); addProceduralCurlyTail(group, 0.0, 0.8); 
+            
+            const armGeo = new THREE.CylinderGeometry(0.15, 0.12, 1.0, 12); 
+            const attackArm = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(attackArm.geometry, 0x768a57); attackArm.position.set(0.7, 0.8, -0.8); attackArm.rotation.set(-Math.PI / 2.2, 0, -Math.PI / 8); attackArm.name = 'attackArm';
+            group.add(attackArm); 
+            
+            const legGeo = new THREE.CylinderGeometry(0.18, 0.14, 0.8, 12); 
+            const leg0 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(leg0.geometry, 0x9b5565); leg0.position.set(-0.45, -0.5, 0); leg0.name = 'leg0';
+            const leg1 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(leg1.geometry, 0x9b5565); leg1.position.set(0.45, -0.5, 0); leg1.name = 'leg1';
+            group.add(leg0); group.add(leg1);
+            
+            group.rotation.y = Math.PI; return group;
+        }
+
+        function createPigKlasse4() {
+            const group = new THREE.Group(); group.name = 'pigGroup';
+            const skinMat = skinMatKlasse4;
+            
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.8), skinMat); body.position.y = 0.6; body.name = 'body'; group.add(body);
+            
+            for (let i = 0; i < 4; i++) {
+                const leg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 0.3), skinMat);
+                leg.position.set((i % 2 === 0 ? 0.45 : -0.45), 0.15, (i < 2 ? 0.6 : -0.6));
+                leg.name = `leg${i}`; group.add(leg);
+            }
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), skinMat); head.position.set(0, 0.9, -1.0); head.name = 'head'; group.add(head);
+            const snout = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.25, 0.2), snoutMatDark); snout.position.set(0, 0.8, -1.45); snout.name = 'snout'; group.add(snout);
+            
+            const pumpkin = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.9, 1.0), pumpkinMat); pumpkin.position.set(0, 1.6, -0.9); pumpkin.name = 'pumpkin'; group.add(pumpkin);
+            const stem = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.3, 0.15), stemMat); stem.position.set(0, 2.15, -0.9); stem.rotation.z = 0.1; stem.name = 'stem'; group.add(stem);
+            
+            const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.15, 0.05), glowMat); eyeL.position.set(-0.22, 1.7, -1.41); eyeL.rotation.z = 0.2; eyeL.name = 'eyeL'; group.add(eyeL);
+            const eyeR = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.15, 0.05), glowMat); eyeR.position.set(0.22, 1.7, -1.41); eyeR.rotation.z = -0.2; eyeR.name = 'eyeR'; group.add(eyeR);
+            const nose = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.05), glowMat); nose.position.set(0, 1.55, -1.41); nose.name = 'nose'; group.add(nose);
+            const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.18, 0.05), glowMat); mouth.position.set(0, 1.35, -1.41); mouth.name = 'mouth'; group.add(mouth);
+            
+            return group;
+        }
+
+        function createPigKlasse5() {
+            const group = new THREE.Group(); group.name = 'pigGroup';
+            const bodyGeo = new THREE.SphereGeometry(0.85, 24, 16); applyZombieRot(bodyGeo, 0x8a7a65); 
+            const body = new THREE.Mesh(bodyGeo, rottenMat); body.scale.set(1.1, 1.4, 0.9); body.position.y = 0.5; body.name = 'body'; group.add(body); 
+            
+            addUltraHeadParts(group, 1.6, -0.4, 0x8a7a65); addProceduralCurlyTail(group, 0.1, 0.7); 
+            
+            const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2.2), helmetMat);
+            helmet.position.set(0, 1.7, -0.4); helmet.name = 'helmet'; group.add(helmet);
+            
+            const armGeo = new THREE.CylinderGeometry(0.12, 0.08, 0.8, 12); 
+            const armL = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(armL.geometry, 0x566344); 
+            armL.position.set(-0.85, 0.9, -0.3); armL.rotation.set(-Math.PI/6, 0, Math.PI/8); armL.name = 'armL'; group.add(armL); 
+
+            // Waffenarm Hierarchie
+            const armRGroup = new THREE.Group(); armRGroup.position.set(0.85, 1.1, -0.3); armRGroup.name = 'armRGroup';
+            const armWithGunGroup = new THREE.Group(); armWithGunGroup.rotation.z = -Math.PI/12; armWithGunGroup.name = 'armWithGunGroup';
+            const armRMesh = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(armRMesh.geometry, 0x566344); armRMesh.position.set(0, -0.3, 0); armRMesh.name = 'armRMesh';
+            armWithGunGroup.add(armRMesh);
+            
+            const gunGroup = new THREE.Group(); gunGroup.position.set(0.1, -0.7, 0.1); gunGroup.rotation.set(0, 0, Math.PI); gunGroup.name = 'gunGroup';
+            const gunBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.3), gunMetalMat); gunBarrel.position.set(0, 0.25, 0); gunBarrel.name = 'gunBarrel';
+            const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.2, 12), gunShinyMat); muzzle.position.set(0, 0.65, 0); muzzle.name = 'muzzle';
+            const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 0.2), gunWoodMat); gunGrip.position.set(0, -0.15, -0.15); gunGrip.rotation.x = Math.PI / 6; gunGrip.name = 'gunGrip';
+
+            gunGroup.add(gunBarrel); gunGroup.add(muzzle); gunGroup.add(gunGrip);
+            armWithGunGroup.add(gunGroup); armRGroup.add(armWithGunGroup); group.add(armRGroup); 
+
+            const legGeo = new THREE.CylinderGeometry(0.14, 0.1, 0.9, 12); 
+            const leg0 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(leg0.geometry, 0x8a7a65); leg0.position.set(-0.35, -0.6, 0); leg0.name = 'leg0';
+            const leg1 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(leg1.geometry, 0x8a7a65); leg1.position.set(0.35, -0.6, 0); leg1.name = 'leg1';
+            group.add(leg0); group.add(leg1);
+            
+            group.rotation.y = Math.PI; return group; 
+        }
+
+        // Hilfsfunktionen für Kleinteile, damit sie im Editor Namen bekommen
+        function addProceduralCurlyTail(group, startY, startZ) { 
+            const tailGroup = new THREE.Group(); tailGroup.name = 'tailGroup';
+            let currentPos = new THREE.Vector3(0, startY, startZ); 
+            for (let i = 0; i < 6; i++) { 
+                const joint = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.15, 12), rottenMat); 
+                const angle = i * 1.2; joint.position.copy(currentPos); joint.rotation.set(Math.cos(angle) * 0.5, 0, Math.sin(angle) * 0.5); 
+                joint.name = `tailJoint${i}`; tailGroup.add(joint);
+                currentPos.y += 0.06; currentPos.z += 0.08; currentPos.x += Math.sin(angle) * 0.05; 
+            } 
+            group.add(tailGroup);
+        }
+
+        function addUltraHeadParts(group, headY, headZ, baseColor) { 
+            const headGroup = new THREE.Group(); headGroup.name = 'headGroup';
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), rottenMat); head.position.set(0, headY, headZ); head.name = 'head'; headGroup.add(head); 
+            const snout = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.35, 16), snoutMat); snout.rotation.x = Math.PI / 2; snout.position.set(0, headY - 0.15, headZ - 0.52); snout.name = 'snout'; headGroup.add(snout); 
+            const nL = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.05, 12), darkMat); nL.rotation.x = Math.PI / 2; nL.position.set(-0.1, headY - 0.15, headZ - 0.71); nL.name = 'nostrilL'; headGroup.add(nL); 
+            const nR = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.05, 12), darkMat); nR.rotation.x = Math.PI / 2; nR.position.set(0.1, headY - 0.15, headZ - 0.71); nR.name = 'nostrilR'; headGroup.add(nR); 
+            const eL = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 12), eyeMat); eL.position.set(-0.28, headY + 0.1, headZ - 0.42); eL.name = 'eyeL'; headGroup.add(eL); 
+            const eR = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 12), eyeMat); eR.position.set(0.28, headY + 0.1, headZ - 0.42); eR.name = 'eyeR'; headGroup.add(eR); 
+            const brow = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.75, 12), browMat); brow.rotation.z = Math.PI / 2; brow.position.set(0, headY + 0.22, headZ - 0.4); brow.name = 'brow'; headGroup.add(brow); 
+            group.add(headGroup);
+        }
+
+// --- 4. INTERAKTION (Raycaster & Selection) ---
+        let currentPig = null;
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let selectedObject = null;
+
+        window.addEventListener('pointerdown', (e) => {
+            // GUI-Klicks ignorieren
+            if (e.target.closest('.dg.ac') || e.target.closest('#info') || e.target.closest('#exportModal')) return; 
+            
+            // NEU: Wenn die Auswahl gesperrt ist, ignorieren wir Klicks ins 3D-Feld für die Selektion!
+            // (Die TransformControls-Pfeile funktionieren trotzdem weiterhin, da sie eigene Events nutzen)
+            if (guiParams.selectionLocked) return;
+
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            if (currentPig) {
+                const intersects = raycaster.intersectObject(currentPig, true);
+                if (intersects.length > 0) {
+                    let object = intersects[0].object;
+                    // Wenn es ein benanntes Teil ist, auswählen
+                    if (object.name) {
+                        transformControl.attach(object);
+                        updateGuiFromObject(object);
+                    } else if (object.parent && object.parent.name) {
+                        // Falls ein unbenanntes Child einer benannten Gruppe angeklickt wird
+                        transformControl.attach(object.parent);
+                        updateGuiFromObject(object.parent);
+                    }
+                } else {
+                    transformControl.detach();
+                    guiParams.selectedName = 'Nichts gewählt';
+                    guiParams.selectedPartDropdown = 'Nichts gewählt';
+                    gui.updateDisplay();
+                }
+            }
+        });
+
+        window.addEventListener('keydown', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'w': transformControl.setMode('translate'); break;
+                case 'e': transformControl.setMode('rotate'); break;
+                case 'r': transformControl.setMode('scale'); break;
+            }
+        });
+
+   // --- 5. GUI STEUERUNG ---
+        const gui = new dat.GUI({ width: 360 });
+        
+        let elementCounter = 1;
+        let groupCounter = 1;
+
+        const guiParams = {
+            pigClass: '5',
+            selectionLocked: false,
+            selectedPartDropdown: 'Nichts gewählt',
+            selectedName: 'Nichts gewählt',
+            newShapeType: 'Box',
+            targetGroupDropdown: 'pigGroup',
+            pX: 0, pY: 0, pZ: 0,
+            rX: 0, rY: 0, rZ: 0,
+            sX: 1, sY: 1, sZ: 1,
+            export: generateExportCode,
+            
+            createNewPig: function() {
+                if (currentPig) { scene.remove(currentPig); transformControl.detach(); }
+                currentPig = new THREE.Group();
+                currentPig.name = 'pigGroup';
+
+                const bodyGeo = new THREE.SphereGeometry(0.85, 24, 16);
+                applyZombieRot(bodyGeo, 0xd4748c);
+                const body = new THREE.Mesh(bodyGeo, rottenMat);
+                body.name = 'body';
+                currentPig.add(body);
+
+                currentPig.rotation.y = Math.PI;
+                scene.add(currentPig);
+                
+                guiParams.pigClass = 'Custom';
+                refreshUIFolders();
+            },
+
+            addShape: function() {
+                if (!currentPig) return;
+                let geo;
+                const type = guiParams.newShapeType;
+                if (type === 'Box') geo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+                else if (type === 'Sphere') geo = new THREE.SphereGeometry(0.4, 16, 16);
+                else if (type === 'Cylinder') geo = new THREE.CylinderGeometry(0.2, 0.2, 0.6, 16);
+                else if (type === 'Cone') geo = new THREE.ConeGeometry(0.3, 0.6, 16);
+
+                const mesh = new THREE.Mesh(geo, rottenMat);
+                mesh.name = `${type.toLowerCase()}_${elementCounter++}`;
+                mesh.position.set(0, 1, 0);
+
+                if (selectedObject && selectedObject.isGroup) {
+                    selectedObject.add(mesh);
+                } else {
+                    currentPig.add(mesh);
+                }
+
+                refreshUIFolders();
+                transformControl.attach(mesh);
+                updateGuiFromObject(mesh);
+            },
+
+            groupSelection: function() {
+                if (!currentPig) return;
+                const groupName = `group_${groupCounter++}`;
+                const newGroup = new THREE.Group();
+                newGroup.name = groupName;
+
+                if (selectedObject && selectedObject !== currentPig) {
+                    const parent = selectedObject.parent || currentPig;
+                    parent.remove(selectedObject);
+                    newGroup.add(selectedObject);
+                    parent.add(newGroup);
+                } else {
+                    currentPig.add(newGroup);
+                }
+
+                refreshUIFolders();
+                transformControl.attach(newGroup);
+                updateGuiFromObject(newGroup);
+            },
+
+            // NEU: Zuordnung zu einer bestehenden Gruppe
+            moveToGroup: function() {
+                if (!selectedObject || selectedObject === currentPig) {
+                    alert('Bitte wähle zuerst ein Element oder eine Gruppe aus, die verschoben werden soll!');
+                    return;
+                }
+
+                let targetGroup = null;
+                const targetName = guiParams.targetGroupDropdown;
+
+                if (targetName === currentPig.name) {
+                    targetGroup = currentPig;
+                } else {
+                    currentPig.traverse(c => {
+                        if (c.isGroup && c.name === targetName) targetGroup = c;
+                    });
+                }
+
+                if (!targetGroup) return;
+
+                // Schutzprüfungen (Nicht in sich selbst oder eigene Unterelemente verschieben)
+                if (targetGroup === selectedObject) {
+                    alert('Ein Element kann nicht in sich selbst verschoben werden!');
+                    return;
+                }
+                let isChild = false;
+                selectedObject.traverse(c => { if (c === targetGroup) isChild = true; });
+                if (isChild) {
+                    alert('Ein Element kann nicht in eines seiner eigenen Unterelemente verschoben werden!');
+                    return;
+                }
+
+                // In Three.js die Gruppe wechseln & Transformation im 3D-Raum beibehalten
+                targetGroup.attach(selectedObject);
+
+                refreshUIFolders();
+                transformControl.attach(selectedObject);
+                updateGuiFromObject(selectedObject);
+            }
+        };
+
+        // --- MENÜS AUFBAUEN ---
+        const fMain = gui.addFolder('Allgemein');
+        fMain.add(guiParams, 'pigClass', ['1', '2', '3', '4', '5', 'Custom']).name('Schweine-Klasse').onChange(loadPig);
+        fMain.add(guiParams, 'createNewPig').name('➕ Neues Schwein (Blanko)');
+        fMain.add(guiParams, 'export').name('💾 CODE EXPORTIEREN');
+        fMain.open();
+
+        let fAdd = null;
+        let fTrans = null;
+
+        function buildAddFolder() {
+            if (fAdd) gui.removeFolder(fAdd);
+            fAdd = gui.addFolder('Elemente & Gruppen');
+
+            fAdd.add(guiParams, 'newShapeType', ['Box', 'Sphere', 'Cylinder', 'Cone']).name('Form wählen');
+            fAdd.add(guiParams, 'addShape').name('➕ Form einfügen');
+            fAdd.add(guiParams, 'groupSelection').name('📁 In neue Gruppe packen');
+
+            // Alle verfügbaren Gruppen im Modell sammeln
+            const groupNames = [];
+            if (currentPig) {
+                groupNames.push(currentPig.name || 'pigGroup');
+                currentPig.traverse(child => {
+                    if (child.isGroup && child !== currentPig && child.name) {
+                        groupNames.push(child.name);
+                    }
+                });
+            }
+            if (groupNames.length === 0) groupNames.push('pigGroup');
+            guiParams.targetGroupDropdown = groupNames[0];
+
+            fAdd.add(guiParams, 'targetGroupDropdown', groupNames).name('Ziel-Gruppe').listen();
+            fAdd.add(guiParams, 'moveToGroup').name('➡️ In Ziel-Gruppe verschieben');
+            fAdd.open();
+        }
+
+        function buildTransFolder() {
+            if (fTrans) gui.removeFolder(fTrans);
+            fTrans = gui.addFolder('Gewähltes Objekt');
+            
+            const partNames = ['Nichts gewählt'];
+            if (currentPig) {
+                currentPig.traverse(child => {
+                    if (child.name) {
+                        partNames.push(child.name);
+                    }
+                });
+            }
+
+            guiParams.selectedPartDropdown = selectedObject ? selectedObject.name : 'Nichts gewählt';
+            
+            fTrans.add(guiParams, 'selectedPartDropdown', partNames).name('Teil wählen').listen().onChange(name => {
+                if (name === 'Nichts gewählt') {
+                    transformControl.detach();
+                    guiParams.selectedName = 'Nichts gewählt';
+                } else {
+                    let found = null;
+                    currentPig.traverse(c => { if(c.name === name) found = c; });
+                    if (found) {
+                        transformControl.attach(found);
+                        updateGuiFromObject(found);
+                    }
+                }
+            });
+
+            fTrans.add(guiParams, 'selectionLocked').name('🔒 Klick-Schutz (Lock)').listen();
+            fTrans.add(guiParams, 'selectedName').name('Name (ID)').listen();
+
+            fTrans.add(guiParams, 'pX').name('Pos X').step(0.01).listen().onChange(v => setProp('position', 'x', v));
+            fTrans.add(guiParams, 'pY').name('Pos Y').step(0.01).listen().onChange(v => setProp('position', 'y', v));
+            fTrans.add(guiParams, 'pZ').name('Pos Z').step(0.01).listen().onChange(v => setProp('position', 'z', v));
+            fTrans.add(guiParams, 'rX').name('Rot X').step(0.01).listen().onChange(v => setProp('rotation', 'x', v));
+            fTrans.add(guiParams, 'rY').name('Rot Y').step(0.01).listen().onChange(v => setProp('rotation', 'y', v));
+            fTrans.add(guiParams, 'rZ').name('Rot Z').step(0.01).listen().onChange(v => setProp('rotation', 'z', v));
+            fTrans.add(guiParams, 'sX').name('Scale X').step(0.01).listen().onChange(v => setProp('scale', 'x', v));
+            fTrans.add(guiParams, 'sY').name('Scale Y').step(0.01).listen().onChange(v => setProp('scale', 'y', v));
+            fTrans.add(guiParams, 'sZ').name('Scale Z').step(0.01).listen().onChange(v => setProp('scale', 'z', v));
+            fTrans.open();
+        }
+
+        function refreshUIFolders() {
+            buildAddFolder();
+            buildTransFolder();
+        }
+
+        function loadPig() {
+            if (guiParams.pigClass === 'Custom') return;
+            if (currentPig) { scene.remove(currentPig); transformControl.detach(); }
+            guiParams.selectionLocked = false; 
+            
+            const cls = guiParams.pigClass;
+            if(cls === '1') currentPig = createPigKlasse1();
+            if(cls === '2') currentPig = createPigKlasse2();
+            if(cls === '3') currentPig = createPigKlasse3();
+            if(cls === '4') currentPig = createPigKlasse4();
+            if(cls === '5') currentPig = createPigKlasse5();
+            scene.add(currentPig);
+            refreshUIFolders(); 
+        }
+        
+        function updateGuiFromObject(obj) {
+            selectedObject = obj;
+            guiParams.selectedName = obj.name || 'Unbenannt';
+            guiParams.selectedPartDropdown = obj.name || 'Nichts gewählt';
+            guiParams.pX = obj.position.x; guiParams.pY = obj.position.y; guiParams.pZ = obj.position.z;
+            guiParams.rX = obj.rotation.x; guiParams.rY = obj.rotation.y; guiParams.rZ = obj.rotation.z;
+            guiParams.sX = obj.scale.x; guiParams.sY = obj.scale.y; guiParams.sZ = obj.scale.z;
+        }
+
+        function setProp(type, axis, value) {
+            if (selectedObject) selectedObject[type][axis] = value;
+        }
+
+        loadPig(); // Init beim Start
+
+        // --- 6. INTELLIGENTER CODE EXPORTER ---
+        function generateExportCode() {
+            // Hilfsfunktion: Sucht ein Teil und formatiert dessen Position/Rotation/Skalierung für den Code
+            const getT = (name) => {
+                let obj = null;
+                currentPig.traverse(c => { if(c.name === name) obj = c; });
+                if(!obj) return { p: '0, 0, 0', r: '0, 0, 0', s: '1, 1, 1' };
+                return {
+                    p: `${obj.position.x.toFixed(3)}, ${obj.position.y.toFixed(3)}, ${obj.position.z.toFixed(3)}`,
+                    r: `${obj.rotation.x.toFixed(3)}, ${obj.rotation.y.toFixed(3)}, ${obj.rotation.z.toFixed(3)}`,
+                    s: `${obj.scale.x.toFixed(3)}, ${obj.scale.y.toFixed(3)}, ${obj.scale.z.toFixed(3)}`
+                };
+            };
+
+            let code = "";
+            const cls = guiParams.pigClass;
+            
+            // Da der Exporter generisch sein muss, generieren wir den Code exakt passend zur gewählten Klasse.
+            // Der Code enthält am Ende wieder das 'mergeGroupIntoSingleMesh' für die Performance!
+            
+            if (cls === '5') {
+                code = `function createPigKlasse5() {
+    const group = new THREE.Group(); 
+    const staticGroup = new THREE.Group();
+    
+    const bodyGeo = new THREE.SphereGeometry(0.85, 24, 16); applyZombieRot(bodyGeo, 0x8a7a65); 
+    const body = new THREE.Mesh(bodyGeo, rottenMat); 
+    body.scale.set(${getT('body').s}); body.position.set(${getT('body').p}); body.rotation.set(${getT('body').r});
+    staticGroup.add(body); 
+    
+    addUltraHeadParts(staticGroup, ${getT('head').p.split(',')[1]}, ${getT('head').p.split(',')[2]}, 0x8a7a65); 
+    addProceduralCurlyTail(staticGroup, 0.1, 0.7); 
+    
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2.2), helmetMat);
+    helmet.position.set(${getT('helmet').p}); helmet.rotation.set(${getT('helmet').r}); helmet.scale.set(${getT('helmet').s});
+    staticGroup.add(helmet);
+    
+    const armGeo = new THREE.CylinderGeometry(0.12, 0.08, 0.8, 12); 
+    const armL = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(armL.geometry, 0x566344); 
+    armL.position.set(${getT('armL').p}); armL.rotation.set(${getT('armL').r}); armL.scale.set(${getT('armL').s});
+    staticGroup.add(armL); 
+    
+    group.add(mergeGroupIntoSingleMesh(staticGroup, rottenMat));
+
+    const armRGroup = new THREE.Group(); 
+    armRGroup.position.set(${getT('armRGroup').p}); armRGroup.rotation.set(${getT('armRGroup').r});
+    
+    const armWithGunGroup = new THREE.Group(); 
+    armWithGunGroup.position.set(${getT('armWithGunGroup').p}); armWithGunGroup.rotation.set(${getT('armWithGunGroup').r});
+    
+    const armRMesh = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(armRMesh.geometry, 0x566344); 
+    armRMesh.position.set(${getT('armRMesh').p}); armRMesh.rotation.set(${getT('armRMesh').r}); armRMesh.scale.set(${getT('armRMesh').s});
+    armWithGunGroup.add(armRMesh);
+    
+    const gunGroup = new THREE.Group(); 
+    gunGroup.position.set(${getT('gunGroup').p}); gunGroup.rotation.set(${getT('gunGroup').r});
+    
+    const gunBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.3), gunMetalMat); 
+    gunBarrel.position.set(${getT('gunBarrel').p}); gunBarrel.rotation.set(${getT('gunBarrel').r}); gunBarrel.scale.set(${getT('gunBarrel').s});
+    
+    const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.2, 12), gunShinyMat); 
+    muzzle.position.set(${getT('muzzle').p}); muzzle.rotation.set(${getT('muzzle').r}); muzzle.scale.set(${getT('muzzle').s});
+    
+    const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 0.2), gunWoodMat); 
+    gunGrip.position.set(${getT('gunGrip').p}); gunGrip.rotation.set(${getT('gunGrip').r}); gunGrip.scale.set(${getT('gunGrip').s});
+
+    gunGroup.add(gunBarrel); gunGroup.add(muzzle); gunGroup.add(gunGrip);
+    armWithGunGroup.add(gunGroup); armRGroup.add(armWithGunGroup); group.add(armRGroup); 
+
+    const legGeo = new THREE.CylinderGeometry(0.14, 0.1, 0.9, 12); 
+    const legs = [];
+    const l0 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(l0.geometry, 0x8a7a65); l0.position.set(${getT('leg0').p}); l0.rotation.set(${getT('leg0').r}); group.add(l0); legs.push(l0);
+    const l1 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(l1.geometry, 0x8a7a65); l1.position.set(${getT('leg1').p}); l1.rotation.set(${getT('leg1').r}); group.add(l1); legs.push(l1);
+    
+    group.rotation.y = Math.PI; 
+    return { mesh: group, legs: legs, gunArm: armRGroup, type: 5 }; 
+}`;
+            } else if (cls === '4') {
+                code = `function createPigMesh(type) {
+    const pigGroup = new THREE.Group();
+    const skinMat = new THREE.MeshLambertMaterial({ color: type === 4 ? 0x5a8f3e : 0xffa0a0 }); 
+    
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.8), skinMat);
+    body.position.set(${getT('body').p}); body.rotation.set(${getT('body').r}); body.scale.set(${getT('body').s});
+    pigGroup.add(body);
+
+    const legGeom = new THREE.BoxGeometry(0.3, 0.6, 0.3);
+    const legs = [];
+    const l0 = new THREE.Mesh(legGeom, skinMat); l0.position.set(${getT('leg0').p}); l0.rotation.set(${getT('leg0').r}); l0.scale.set(${getT('leg0').s}); pigGroup.add(l0); legs.push(l0);
+    const l1 = new THREE.Mesh(legGeom, skinMat); l1.position.set(${getT('leg1').p}); l1.rotation.set(${getT('leg1').r}); l1.scale.set(${getT('leg1').s}); pigGroup.add(l1); legs.push(l1);
+    const l2 = new THREE.Mesh(legGeom, skinMat); l2.position.set(${getT('leg2').p}); l2.rotation.set(${getT('leg2').r}); l2.scale.set(${getT('leg2').s}); pigGroup.add(l2); legs.push(l2);
+    const l3 = new THREE.Mesh(legGeom, skinMat); l3.position.set(${getT('leg3').p}); l3.rotation.set(${getT('leg3').r}); l3.scale.set(${getT('leg3').s}); pigGroup.add(l3); legs.push(l3);
+
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), skinMat);
+    head.position.set(${getT('head').p}); head.rotation.set(${getT('head').r}); head.scale.set(${getT('head').s});
+    pigGroup.add(head);
+    
+    const snout = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.25, 0.2), new THREE.MeshLambertMaterial({ color: 0x3d6628 }));
+    snout.position.set(${getT('snout').p}); snout.rotation.set(${getT('snout').r}); snout.scale.set(${getT('snout').s});
+    pigGroup.add(snout);
+
+    if (type === 4) {
+        const pumpkin = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.9, 1.0), new THREE.MeshLambertMaterial({ color: 0xd95d00 }));
+        pumpkin.position.set(${getT('pumpkin').p}); pumpkin.rotation.set(${getT('pumpkin').r}); pumpkin.scale.set(${getT('pumpkin').s});
+        pigGroup.add(pumpkin);
+
+        const stem = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.3, 0.15), new THREE.MeshLambertMaterial({ color: 0x4a5d23 }));
+        stem.position.set(${getT('stem').p}); stem.rotation.set(${getT('stem').r}); stem.scale.set(${getT('stem').s});
+        pigGroup.add(stem);
+
+        const glowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 }); 
+        const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.15, 0.05), glowMat); eyeL.position.set(${getT('eyeL').p}); eyeL.rotation.set(${getT('eyeL').r}); eyeL.scale.set(${getT('eyeL').s}); pigGroup.add(eyeL);
+        const eyeR = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.15, 0.05), glowMat); eyeR.position.set(${getT('eyeR').p}); eyeR.rotation.set(${getT('eyeR').r}); eyeR.scale.set(${getT('eyeR').s}); pigGroup.add(eyeR);
+        const nose = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.05), glowMat); nose.position.set(${getT('nose').p}); nose.rotation.set(${getT('nose').r}); nose.scale.set(${getT('nose').s}); pigGroup.add(nose);
+        const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.18, 0.05), glowMat); mouth.position.set(${getT('mouth').p}); mouth.rotation.set(${getT('mouth').r}); mouth.scale.set(${getT('mouth').s}); pigGroup.add(mouth);
+    }
+    pigGroup.userData = { legs: legs, type: type };
+    return { mesh: pigGroup, legs: legs, type: type || 4 };
+}`;
+            } else {
+                // Für Klasse 1, 2 und 3 gibt es ein verkürztes allgemeines Template, da sie sehr ähnlich sind.
+                code = `// Die exportierte Funktion für Klasse ${cls}
+// Kopiere dies in entities_4.js und überschreibe createPigKlasse${cls}()
+function createPigKlasse${cls}() { 
+    const group = new THREE.Group(); const staticGroup = new THREE.Group();
+    const bodyGeo = new THREE.SphereGeometry(${cls==='3'?'1.0':(cls==='2'?'0.75':'0.85')}, 24, 16); applyZombieRot(bodyGeo, ${cls==='3'?'0x9b5565':(cls==='2'?'0xbc667b':'0xd4748c')}); 
+    const body = new THREE.Mesh(bodyGeo, rottenMat); 
+    body.position.set(${getT('body').p}); body.rotation.set(${getT('body').r}); body.scale.set(${getT('body').s});
+    staticGroup.add(body); 
+    
+    addUltraHeadParts(staticGroup, ${getT('head').p.split(',')[1]}, ${getT('head').p.split(',')[2]}, ${cls==='3'?'0x9b5565':(cls==='2'?'0xbc667b':'0xd4748c')}); 
+    addProceduralCurlyTail(staticGroup, ${cls==='3'?'0.0, 0.8':(cls==='2'?'0.1, 0.6':'-0.1, 1.1')}); 
+    
+    ${cls !== '1' ? `
+    const armGeo = new THREE.CylinderGeometry(${cls==='3'?'0.15, 0.12, 1.0':'0.1, 0.07, 0.8'}, 12); 
+    ${cls === '3' ? 
+    `const attackArm = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(attackArm.geometry, 0x768a57); 
+    attackArm.position.set(${getT('attackArm').p}); attackArm.rotation.set(${getT('attackArm').r}); attackArm.scale.set(${getT('attackArm').s});
+    staticGroup.add(attackArm);` : 
+    `const armL = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(armL.geometry, 0x566344); armL.position.set(${getT('armL').p}); armL.rotation.set(${getT('armL').r}); armL.scale.set(${getT('armL').s});
+    const armR = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(armR.geometry, 0x566344); armR.position.set(${getT('armR').p}); armR.rotation.set(${getT('armR').r}); armR.scale.set(${getT('armR').s});
+    staticGroup.add(armL); staticGroup.add(armR);`}` : ''}
+    
+    group.add(mergeGroupIntoSingleMesh(staticGroup, rottenMat));
+
+    const legGeo = new THREE.CylinderGeometry(${cls==='3'?'0.18, 0.14, 0.8':(cls==='2'?'0.14, 0.1, 0.9':'0.13, 0.1, 0.8')}, 12); 
+    const legs = [];
+    ${[...Array(cls==='1'?4:2).keys()].map(i => `
+    const l${i} = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(l${i}.geometry, ${cls==='3'?'0x9b5565':(cls==='2'?'0xbc667b':'0xd4748c')});
+    l${i}.position.set(${getT(`leg${i}`).p}); l${i}.rotation.set(${getT(`leg${i}`).r}); l${i}.scale.set(${getT(`leg${i}`).s});
+    group.add(l${i}); legs.push(l${i});`).join('\n')}
+    
+    group.rotation.y = Math.PI; return { mesh: group, legs: legs, type: ${cls} }; 
+}`;
+            }
+
+            document.getElementById('exportTitle').innerText = `Dein fertiger Code (Klasse ${cls})`;
+            document.getElementById('codeOutput').value = code;
+            document.getElementById('exportModal').style.display = 'flex';
+        }
+
+        // --- 7. RENDER LOOP ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>

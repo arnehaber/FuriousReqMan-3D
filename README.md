@@ -78,4 +78,5 @@ No server, no Node.js, and no installation required:
 *   **Libraries:**
     *   [Three.js (r128)](https://threejs.org/): Used under the MIT License. Copyright © 2010-2021 three.js authors. (See `lib/three.min-r128-LICENSE.txt`).
     *   [nipplejs (1.0.4)](https://github.com/yoannmoinet/nipplejs): Virtual joystick library for mobile touch controls. Used under the MIT License. Copyright © 2025 Yoann Moinet. (See `lib/nipplejs-1.0.4-min-LICENSE.txt`).
+    * [data.gui.js (0.7.9)](https://github.com/dataarts/dat.gui): Lightweight controller library for JavaScript. Used under Apache-2.0 license. Copyright © 2022 data.gui authors. (See `lib/data.gui.min-0.7.9-LICENCE.txt`).
 *   **Audio:** Completely procedurally generated via Web Audio API (oscillators, gain nodes, filters). No external audio files used.
