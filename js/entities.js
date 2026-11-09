@@ -11,6 +11,9 @@ let levelEnvironmentMeshes = [];
 let levelExits = [];
 let levelDoors = [];
 
+// Globale Variable für Mesh-Merging (Standard: true)
+var mergeMeshGroups = true;
+
 const levelStats = {
     totalPigs: 0,
     killedPigs: 0,
@@ -66,10 +69,20 @@ function mergeMeshesIntoSingleGeometry(meshes) {
 }
 
 function mergeGroupIntoSingleMesh(group, material) {
-    group.updateMatrixWorld(true); const parts = [];
-    group.traverse(child => { if (child.isMesh) { child.matrix.copy(child.matrixWorld); parts.push(child); } });
+    // Wenn Merging deaktiviert ist (z. B. im 3D-Editor), Gruppe ungemergt zurückgeben
+    if (typeof mergeMeshGroups !== 'undefined' && !mergeMeshGroups) {
+        return group;
+    }
+
+    group.updateMatrixWorld(true);
+    const parts = [];
+    group.traverse(child => { 
+        if (child.isMesh) { 
+            child.matrix.copy(child.matrixWorld); 
+            parts.push(child); 
+        } 
+    });
     const mergedGeo = mergeMeshesIntoSingleGeometry(parts);
-    parts.forEach(p => p.geometry.dispose()); 
     return new THREE.Mesh(mergedGeo, material);
 }
 
@@ -383,11 +396,12 @@ const gunWoodMat = new THREE.MeshStandardMaterial({ color: 0x6e4524, roughness: 
 const gunShinyMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.3, metalness: 0.9 }); 
 
 function createPigKlasse5() {
-    const group = new THREE.Group(); 
-    const staticGroup = new THREE.Group();
+    const group = new THREE.Group(); group.name = 'pigGroup';
+    const staticGroup = new THREE.Group(); staticGroup.name = 'staticGroup';
     
     const bodyGeo = new THREE.SphereGeometry(0.85, 24, 16); applyZombieRot(bodyGeo, 0x8a7a65); 
     const body = new THREE.Mesh(bodyGeo, rottenMat); 
+    body.name = 'body';
     body.scale.set(1.100, 1.400, 0.900); body.position.set(0.000, 0.500, 0.000); body.rotation.set(0.000, 0.000, 0.000);
     staticGroup.add(body); 
     
@@ -395,36 +409,45 @@ function createPigKlasse5() {
     addProceduralCurlyTail(staticGroup, 0.1, 0.7); 
     
     const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2.2), helmetMat);
+    helmet.name = 'helmet';
     helmet.position.set(0.000, 1.700, -0.400); helmet.rotation.set(0.000, 0.000, 0.000); helmet.scale.set(1.000, 1.000, 1.000);
     staticGroup.add(helmet);
     
     const armGeo = new THREE.CylinderGeometry(0.12, 0.08, 0.8, 12); 
     const armL = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(armL.geometry, 0x566344); 
+    armL.name = 'armL';
     armL.position.set(-0.850, 0.900, -0.300); armL.rotation.set(-0.524, 0.000, 0.393); armL.scale.set(1.000, 1.000, 1.000);
     staticGroup.add(armL); 
     
     group.add(mergeGroupIntoSingleMesh(staticGroup, rottenMat));
 
     const armRGroup = new THREE.Group(); 
+    armRGroup.name = 'armRGroup';
     armRGroup.position.set(0.850, 1.100, -0.300); armRGroup.rotation.set(0.000, 0.000, 0.000);
     
     const armWithGunGroup = new THREE.Group(); 
+    armWithGunGroup.name = 'armWithGunGroup';
     armWithGunGroup.position.set(0.001, 0.088, 0.028); armWithGunGroup.rotation.set(0.000, 0.000, -0.262);
     
     const armRMesh = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(armRMesh.geometry, 0x566344); 
+    armRMesh.name = 'armRMesh';
     armRMesh.position.set(0.000, -0.300, 0.000); armRMesh.rotation.set(0.000, 0.000, 0.000); armRMesh.scale.set(1.000, 1.000, 1.000);
     armWithGunGroup.add(armRMesh);
     
     const gunGroup = new THREE.Group(); 
+    gunGroup.name = 'gunGroup';
     gunGroup.position.set(0.066, 0.364, 0.185); gunGroup.rotation.set(-0.110, 0.346, 0.068);
     
     const gunBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.3), gunMetalMat); 
+    gunBarrel.name = 'gunBarrel';
     gunBarrel.position.set(0.000, 0.250, 0.000); gunBarrel.rotation.set(0.000, 0.000, 0.000); gunBarrel.scale.set(1.000, 1.000, 1.000);
     
     const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.2, 12), gunShinyMat); 
+    muzzle.name = 'muzzle';
     muzzle.position.set(0.000, 0.650, 0.000); muzzle.rotation.set(0.000, 0.000, 0.000); muzzle.scale.set(1.000, 1.000, 1.000);
     
     const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 0.2), gunWoodMat); 
+    gunGrip.name = 'gunGrip';
     gunGrip.position.set(0.000, -0.150, -0.150); gunGrip.rotation.set(0.524, 0.000, 0.000); gunGrip.scale.set(1.000, 1.000, 1.000);
 
     gunGroup.add(gunBarrel); gunGroup.add(muzzle); gunGroup.add(gunGrip);
@@ -432,8 +455,13 @@ function createPigKlasse5() {
 
     const legGeo = new THREE.CylinderGeometry(0.14, 0.1, 0.9, 12); 
     const legs = [];
-    const l0 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(l0.geometry, 0x8a7a65); l0.position.set(-0.350, -0.600, 0.000); l0.rotation.set(0.000, 0.000, 0.000); group.add(l0); legs.push(l0);
-    const l1 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(l1.geometry, 0x8a7a65); l1.position.set(0.350, -0.600, 0.000); l1.rotation.set(0.000, 0.000, 0.000); group.add(l1); legs.push(l1);
+    const l0 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(l0.geometry, 0x8a7a65); 
+    l0.name = 'leg0';
+    l0.position.set(-0.350, -0.600, 0.000); l0.rotation.set(0.000, 0.000, 0.000); group.add(l0); legs.push(l0);
+    
+    const l1 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(l1.geometry, 0x8a7a65); 
+    l1.name = 'leg1';
+    l1.position.set(0.350, -0.600, 0.000); l1.rotation.set(0.000, 0.000, 0.000); group.add(l1); legs.push(l1);
     
     group.rotation.y = Math.PI; 
     return { mesh: group, legs: legs, gunArm: armRGroup, type: 5 }; 
