@@ -634,20 +634,20 @@ function animate3D() {
             pig.mesh.position.y = pigGroundY + (pig.type === 1 ? 1.1 : 1.0) + Math.sin(time) * 0.06;
             
 			// Beine animieren (Wackeln)
-			if (pig.legs) {
-			    if (pig.isAiming) {
-			        // Beim Zielen und Schießen ruhig stehen bleiben
-			        pig.legs.forEach(l => l.rotation.x = 0);
-			    } else if (pig.type === 1 || pig.type === 4) { 
-			        pig.legs[0].rotation.x = Math.sin(time) * 0.4; 
-			        pig.legs[1].rotation.x = -Math.sin(time) * 0.4; 
-			        pig.legs[2].rotation.x = -Math.sin(time) * 0.4; 
-			        pig.legs[3].rotation.x = Math.sin(time) * 0.4; 
-			    } else { 
-			        pig.legs[0].rotation.x = Math.sin(time) * 0.5; 
-			        pig.legs[1].rotation.x = -Math.sin(time) * 0.5; 
-			    }
-			}
+            if (pig.legs) {
+                if (pig.isAiming) {
+                    // Beim Zielen und Schießen ruhig stehen bleiben
+                    pig.legs.forEach(l => l.rotation.x = 0);
+                } else if (pig.legs.length === 4) { 
+                    pig.legs[0].rotation.x = Math.sin(time) * 0.4; 
+                    pig.legs[1].rotation.x = -Math.sin(time) * 0.4; 
+                    pig.legs[2].rotation.x = -Math.sin(time) * 0.4; 
+                    pig.legs[3].rotation.x = Math.sin(time) * 0.4; 
+                } else if (pig.legs.length >= 2) { 
+                    pig.legs[0].rotation.x = Math.sin(time) * 0.5; 
+                    pig.legs[1].rotation.x = -Math.sin(time) * 0.5; 
+                }
+            }
         }
 
         if (currentGameMode === 'LEVEL') {
@@ -897,8 +897,9 @@ function perform3DShoot() {
             if (pigData.type === 1 && localHit.y > 0.1 && localHit.z < -0.5) isHeadshot = true;
             if (pigData.type === 2 && localHit.y > 1.2) isHeadshot = true;
             if (pigData.type === 3 && localHit.y > 1.1) isHeadshot = true;
-			if (pigData.type === 4 && localHit.y > 1.15) isHeadshot = true;
+            if (pigData.type === 4 && localHit.y > 1.15) isHeadshot = true;
             if (pigData.type === 5 && localHit.y > 1.2) isHeadshot = true;
+            if (pigData.type === 6 && localHit.y > 1.6) isHeadshot = true;
             
             hit3DPig(pigData, isHeadshot); return; 
         }

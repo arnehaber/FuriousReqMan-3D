@@ -33,6 +33,38 @@ const levelStats = {
     }
 };
 
+// --- ZENTRALE SCHWEINE-ARRAYS ---
+// Hinweis: Mit 'var' deklariert, damit sie auch im Editor über window direkt verfügbar sind
+var HORDE_PIGS = [
+    createPigKlasse1,
+    createPigKlasse2,
+    createPigKlasse3,
+    createPigKlasse4,
+    createPigKlasse6
+];
+
+var SHOOTER_PIGS = [
+    createPigKlasse5
+];
+
+// Hilfsfunktion: Erzeugt ein zufälliges Horde-Schwein
+function createRandomHordePig() {
+    if (!HORDE_PIGS || HORDE_PIGS.length === 0) return null;
+    const randomFactory = HORDE_PIGS[Math.floor(Math.random() * HORDE_PIGS.length)];
+    const pig = randomFactory();
+    pig.isShooter = false;
+    return pig;
+}
+
+// Hilfsfunktion: Erzeugt ein zufälliges Schussschwein
+function createRandomShooterPig() {
+    if (!SHOOTER_PIGS || SHOOTER_PIGS.length === 0) return null;
+    const randomFactory = SHOOTER_PIGS[Math.floor(Math.random() * SHOOTER_PIGS.length)];
+    const pig = randomFactory();
+    pig.isShooter = true;
+    return pig;
+}
+
 // --- MESH MERGER (DRAW CALL REDUKTION) ---
 function mergeMeshesIntoSingleGeometry(meshes) {
     let totalVertices = 0, totalIndices = 0;
@@ -949,19 +981,23 @@ function createPigKlasse4() {
 
 function spawnSchwein() {
     if (timeLeft <= 0 || hp <= 0 || isPaused || document.getElementById('loading-screen').style.display !== 'none' || pigPens.length === 0 || document.getElementById('instructions-overlay').style.display === 'flex') return;
-	const classIdx = Math.floor(Math.random() * 5) + 1; // Jetzt 1 bis 5, no shooter in free mode
-	let pigData = classIdx === 1 ? createPigKlasse1() : (classIdx === 2 ? createPigKlasse2() : (classIdx === 3 ? createPigKlasse3() : (classIdx === 4 ? createPigKlasse4() : createPigKlasse6())));
-	
+    
+    const pigData = createRandomHordePig();
+    if (!pigData) return;
+
     const selectedPen = pigPens[Math.floor(Math.random() * pigPens.length)];
     pigData.mesh.position.set(selectedPen.spawnX, pigData.type === 1 ? 1.1 : 1.0, selectedPen.spawnZ); 
-    scene.add(pigData.mesh); pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
+    scene.add(pigData.mesh); 
+    pigData.isFleeing = false; 
+    pigData.fleeTarget = new THREE.Vector3();
     
     pigData.hasSeenPlayer = true;
     if (currentGameMode !== 'FREE') {
         playPigScreamAudio(); 
     } 
     
-    pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0); pigs3D.push(pigData);
+    pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0); 
+    pigs3D.push(pigData);
 }
 
 // --- LEVEL MAP PARSER ---
@@ -1119,16 +1155,18 @@ function buildLevelFromData(levelData) {
                     camera.position.set(xPos, yOffset + playerBaseY, zPos);
                     playerCurrentGroundY = yOffset;
                 }
-				// Aus 1-4 mach 1-5:
-				else if (cell === '1' || cell === '2' || cell === '3' || cell === '4' || cell === '5' || cell === '6') {
-				    levelStats.totalPigs++;
-				    let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : (cell === '3' ? createPigKlasse3() : (cell === '4' ? createPigKlasse4() : (cell === '5' ? createPigKlasse5() : createPigKlasse6()))));
-                    pigData.mesh.position.set(xPos, yOffset + (pigData.type === 1 ? 1.1 : 1.0), zPos);
-                    scene.add(pigData.mesh);
-                    pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
-                    pigData.hasSeenPlayer = false;
-                    pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0);
-                    pigs3D.push(pigData);
+                else if (cell === 'Z' || cell === 'G' || ['1', '2', '3', '4', '5', '6'].includes(cell)) {
+                    const isShooter = (cell === 'G' || cell === '5');
+                    const pigData = isShooter ? createRandomShooterPig() : createRandomHordePig();
+                    if (pigData) {
+                        levelStats.totalPigs++;
+                        pigData.mesh.position.set(xPos, yOffset + (pigData.type === 1 ? 1.1 : 1.0), zPos);
+                        scene.add(pigData.mesh);
+                        pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();
+                        pigData.hasSeenPlayer = false;
+                        pigData.speed = 0.037 + Math.random() * 0.05 + (pigData.type === 2 ? 0.02 : 0);
+                        pigs3D.push(pigData);
+                    }
                 }
                 else if (['H', 'T', 'C', 'I', 'F', '$'].includes(cell)) {
                     let type = cell === 'H' ? 'hp' : (cell === 'T' ? 'time' : (cell === 'C' ? 'speed' : (cell === 'I' ? 'infinite' : (cell === 'F' ? 'freeze' : 'treasure'))));

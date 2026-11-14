@@ -16,12 +16,8 @@ const PALETTE_TILES = [
     { char: 'D', name: 'Door', class: 'tile-D' },
     { char: '+', name: 'Stairs Up', class: 'tile-+' },
     { char: '-', name: 'Stairs Down', class: 'tile--' },
-    { char: '1', name: 'Pig (Standard)', class: 'tile-1' },
-    { char: '2', name: 'Pig (Strong)', class: 'tile-2' },
-    { char: '3', name: 'Pig (Boss)', class: 'tile-3' },
-	{ char: '4', name: 'Pig (Pumpkin)', class: 'tile-4' },
-	{ char: '5', name: 'Pig (Sniper)', class: 'tile-5' },
-    { char: '6', name: 'Pig (Lady)', class: 'tile-6' },
+    { char: 'Z', name: 'Horde Pig (Random)', class: 'tile-Z' },
+    { char: 'G', name: 'Shooter Pig (Random)', class: 'tile-G' },
     { char: 'H', name: 'Health', class: 'tile-H' },
     { char: 'T', name: 'Time', class: 'tile-T' },
     { char: 'C', name: 'Coffee', class: 'tile-C' },
@@ -67,6 +63,17 @@ function initNewEpisode() {
 
 function loadEpisodeIntoEditor(epObj) {
     editData = JSON.parse(JSON.stringify(epObj)); 
+
+    // Ältere Schweine-Symbole (1-4, 6 -> Z [Horde]; 5 -> G [Schussschwein]) konvertieren
+    if (editData.levels) {
+        editData.levels.forEach(lvl => {
+            if (lvl.layers) {
+                lvl.layers = lvl.layers.map(layer =>
+                    layer.map(row => row.replace(/[12346]/g, 'Z').replace(/5/g, 'G'))
+                );
+            }
+        });
+    }
     
     if (editData.levels && editData.levels.length > 0 && editData.levels[0].layers && editData.levels[0].layers.length > 0) {
         EDITOR_ROWS = editData.levels[0].layers[0].length;

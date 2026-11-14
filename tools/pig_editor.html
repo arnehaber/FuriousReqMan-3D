@@ -274,9 +274,9 @@
         const gui = new dat.GUI({ width: 360 });
         let elementCounter = 1;
         let groupCounter = 1;
-
-        const guiParams = {
-            pigClass: '5',
+const guiParams = {
+            pigCategory: 'Horde',
+            pigVariant: '0',
             selectionLocked: false,
             selectedPartDropdown: 'Nichts gewählt',
             selectedName: 'Nichts gewählt',
@@ -313,7 +313,7 @@
                 const body = new THREE.Mesh(bodyGeo, rottenMat || new THREE.MeshStandardMaterial()); 
                 body.name = 'body'; currentPig.add(body);
                 currentPig.rotation.y = Math.PI; scene.add(currentPig);
-                guiParams.pigClass = 'Custom'; refreshUIFolders();
+                refreshUIFolders();
             },
 
             addShape: function() {
@@ -383,14 +383,34 @@
             }
         };
 
-        const fMain = gui.addFolder('Allgemein');
-        fMain.add(guiParams, 'pigClass', ['1', '2', '3', '4', '5', '6', 'Custom']).name('Schweine-Klasse').onChange(loadPig);
-        fMain.add(guiParams, 'undo').name('↩️ Rückgängig (Ctrl+Z)');
-        fMain.add(guiParams, 'createNewPig').name('➕ Neues Schwein (Blanko)');
-        fMain.add(guiParams, 'export').name('💾 CODE EXPORTIEREN');
-        fMain.open();
+        let fMain = null, fAdd = null, fTrans = null, fThreeProps = null;
 
-        let fAdd = null, fTrans = null, fThreeProps = null;
+        function buildMainFolder() {
+            if (fMain) gui.removeFolder(fMain);
+            fMain = gui.addFolder('Allgemein');
+
+            fMain.add(guiParams, 'pigCategory', ['Horde', 'Schussschweine']).name('Kategorie').onChange(() => {
+                guiParams.pigVariant = '0';
+                buildMainFolder();
+                loadPig();
+            });
+
+            const activeArray = (guiParams.pigCategory === 'Schussschweine') ? (window.SHOOTER_PIGS || []) : (window.HORDE_PIGS || []);
+            const variantOptions = {};
+            activeArray.forEach((fn, idx) => {
+                const label = fn.name ? `${idx + 1}: ${fn.name}` : `Schwein #${idx + 1}`;
+                variantOptions[label] = String(idx);
+            });
+
+            if (Object.keys(variantOptions).length > 0) {
+                fMain.add(guiParams, 'pigVariant', variantOptions).name('Modell aus Array').onChange(loadPig);
+            }
+
+            fMain.add(guiParams, 'undo').name('↩️ Rückgängig (Ctrl+Z)');
+            fMain.add(guiParams, 'createNewPig').name('➕ Neues Schwein (Blanko)');
+            fMain.add(guiParams, 'export').name('💾 CODE EXPORTIEREN');
+            fMain.open();
+        }
 
         function buildAddFolder() {
             if (fAdd) gui.removeFolder(fAdd);
@@ -487,24 +507,20 @@
 
         // SCHWEIN AUS JS/ENTITIES.JS LADEN
         function loadPig() {
-            if (guiParams.pigClass === 'Custom') return;
             if (currentPig) { scene.remove(currentPig); transformControl.detach(); }
             
-            // Sicherstellen, dass Merging beim Laden deaktiviert bleibt
             window.mergeMeshGroups = false;
             guiParams.selectionLocked = false; 
             undoStack.length = 0;
 
-            const cls = parseInt(guiParams.pigClass);
-            let pigData = null;
+            const activeArray = (guiParams.pigCategory === 'Schussschweine') ? (window.SHOOTER_PIGS || []) : (window.HORDE_PIGS || []);
+            const index = parseInt(guiParams.pigVariant, 10) || 0;
+            const factoryFn = activeArray[index];
 
-            if (cls === 1 && typeof createPigKlasse1 === 'function') pigData = createPigKlasse1();
-            else if (cls === 2 && typeof createPigKlasse2 === 'function') pigData = createPigKlasse2();
-            else if (cls === 3 && typeof createPigKlasse3 === 'function') pigData = createPigKlasse3();
-            else if (cls === 4 && typeof createPigKlasse4 === 'function') pigData = createPigKlasse4();
-            else if (cls === 4 && typeof createPigMesh === 'function') pigData = createPigMesh(4);
-            else if (cls === 5 && typeof createPigKlasse5 === 'function') pigData = createPigKlasse5();
-            else if (cls === 6 && typeof createPigKlasse6 === 'function') pigData = createPigKlasse6();
+            let pigData = null;
+            if (typeof factoryFn === 'function') {
+                pigData = factoryFn();
+            }
 
             if (pigData) {
                 currentPig = pigData.mesh || pigData;
@@ -525,6 +541,10 @@
             scene.add(currentPig);
             refreshUIFolders(); 
         }
+
+        // Initiales Laden (statt nur loadPig())
+        buildMainFolder();
+        loadPig();
 
         function updateGuiFromObject(obj) {
             selectedObject = obj;
@@ -662,7 +682,7 @@
             };
 
             let code = "";
-            const cls = guiParams.pigClass;
+            const cls = guiParams.pigCategory === 'Schussschweine' ? '5' : guiParams.pigCategory;
 
             if (cls === '5') {
                 code = `function createPigKlasse5() {
