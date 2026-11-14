@@ -419,6 +419,289 @@ function createPigKlasse5() {
     return { mesh: group, legs: legs, gunArm: armRGroup, type: 5 }; 
 }
 
+function createPigKlasse6() {
+    const group = new THREE.Group(); group.name = 'pigGroup';
+    const staticGroup = new THREE.Group(); staticGroup.name = 'staticGroup';
+
+    const skinColor = 0xd68496;    // Warmes Schweinchen-Pink
+    const dressColor = 0x111111;   // Tiefschwarzes Abendkleid
+    const hairDark = 0x4e3824;     // Dunkelbrauner Ansatz
+    const hairHighlight = 0x8c6d46;// Goldbraune Strähnen / Knoten
+    const goldColor = 0xd4af37;    // Metallhenkel & Ohrringe
+
+    // --- 1. BODENLANGER ROCK MIT HOHEM BEINSCHLITZ (LINKS / +X) ---
+    // Obere Hüftpartie
+    const hipsGeo = new THREE.CylinderGeometry(0.35, 0.45, 0.52, 24); applyZombieRot(hipsGeo, dressColor);
+    const hips = new THREE.Mesh(hipsGeo, rottenMat);
+    hips.name = 'hips';
+    hips.position.set(0, 0.52, 0.02);
+    hips.scale.set(1.05, 1.0, 0.80);
+    staticGroup.add(hips);
+
+    // Langer Hauptrock (leicht nach rechts/-X verschoben, damit links/+X der Beinschlitz entsteht)
+    const skirtLowerGeo = new THREE.CylinderGeometry(0.41, 0.56, 1.24, 24); applyZombieRot(skirtLowerGeo, dressColor);
+    const skirtLower = new THREE.Mesh(skirtLowerGeo, rottenMat);
+    skirtLower.name = 'skirtLower';
+    skirtLower.position.set(-0.07, -0.34, 0.05);
+    skirtLower.scale.set(0.88, 1.0, 0.78);
+    staticGroup.add(skirtLower);
+
+    // Diagonale Stoffkante am linken Oberschenkel (formt den V-Schlitz)
+    const slitFlapGeo = new THREE.BoxGeometry(0.28, 0.65, 0.24); applyZombieRot(slitFlapGeo, dressColor);
+    const slitFlap = new THREE.Mesh(slitFlapGeo, rottenMat);
+    slitFlap.name = 'skirtSlitFlap';
+    slitFlap.position.set(0.24, 0.06, -0.14);
+    slitFlap.rotation.set(0.05, -0.25, -0.26);
+    staticGroup.add(slitFlap);
+
+    // --- 2. SCHMALE TAILLE & TIEFES V-DEKOLLETÉ ---
+    const waistGeo = new THREE.CylinderGeometry(0.33, 0.35, 0.32, 24); applyZombieRot(waistGeo, dressColor);
+    const waist = new THREE.Mesh(waistGeo, rottenMat);
+    waist.name = 'waist';
+    waist.position.set(0, 0.90, 0.01);
+    waist.scale.set(1.0, 1.0, 0.76);
+    staticGroup.add(waist);
+
+    // Haut-Basis für das tiefe V-Dekolleté
+    const chestSkinGeo = new THREE.CylinderGeometry(0.37, 0.32, 0.46, 20); applyZombieRot(chestSkinGeo, skinColor);
+    const chestSkin = new THREE.Mesh(chestSkinGeo, rottenMat);
+    chestSkin.name = 'chestSkin';
+    chestSkin.position.set(0, 1.26, 0.02);
+    chestSkin.scale.set(0.96, 1.0, 0.72);
+    staticGroup.add(chestSkin);
+
+    // Rückenpartie des Oberteils
+    const backBodiceGeo = new THREE.BoxGeometry(0.54, 0.45, 0.16); applyZombieRot(backBodiceGeo, dressColor);
+    const backBodice = new THREE.Mesh(backBodiceGeo, rottenMat);
+    backBodice.name = 'backBodice';
+    backBodice.position.set(0, 1.25, 0.16);
+    staticGroup.add(backBodice);
+
+    // Linke & Rechte Stoffbahn des tiefen V-Ausschnitts
+    const panelGeo = new THREE.BoxGeometry(0.24, 0.50, 0.30); applyZombieRot(panelGeo, dressColor);
+    const bustierL = new THREE.Mesh(panelGeo, rottenMat);
+    bustierL.name = 'bustierL';
+    bustierL.position.set(0.20, 1.26, -0.04);
+    bustierL.rotation.set(0.04, 0.18, -0.23);
+    staticGroup.add(bustierL);
+
+    const bustierR = new THREE.Mesh(panelGeo.clone(), rottenMat);
+    bustierR.name = 'bustierR';
+    bustierR.position.set(-0.20, 1.26, -0.04);
+    bustierR.rotation.set(0.04, -0.18, 0.23);
+    staticGroup.add(bustierR);
+
+    // Konturierte Brust-Partien unter dem Stoff
+    const bustGeo = new THREE.SphereGeometry(0.17, 16, 14); applyZombieRot(bustGeo, dressColor);
+    const bustL = new THREE.Mesh(bustGeo, rottenMat);
+    bustL.name = 'bustL';
+    bustL.position.set(0.19, 1.25, -0.15);
+    bustL.scale.set(0.95, 1.15, 0.88);
+    staticGroup.add(bustL);
+
+    const bustR = new THREE.Mesh(bustGeo.clone(), rottenMat);
+    bustR.name = 'bustR';
+    bustR.position.set(-0.19, 1.25, -0.15);
+    bustR.scale.set(0.95, 1.15, 0.88);
+    staticGroup.add(bustR);
+
+    // Dünne Spaghettiträger
+    const strapGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.34, 8); applyZombieRot(strapGeo, dressColor);
+    const strapL = new THREE.Mesh(strapGeo, rottenMat);
+    strapL.name = 'strapL';
+    strapL.position.set(0.29, 1.54, -0.02);
+    strapL.rotation.set(0.18, 0, -0.06);
+    staticGroup.add(strapL);
+
+    const strapR = new THREE.Mesh(strapGeo.clone(), rottenMat);
+    strapR.name = 'strapR';
+    strapR.position.set(-0.29, 1.54, -0.02);
+    strapR.rotation.set(0.18, 0, 0.06);
+    staticGroup.add(strapR);
+
+    // --- 3. SCHULTERN, HALS & SCHLANKE ARME ---
+    const shouldersGeo = new THREE.CylinderGeometry(0.21, 0.38, 0.20, 20); applyZombieRot(shouldersGeo, skinColor);
+    const shoulders = new THREE.Mesh(shouldersGeo, rottenMat);
+    shoulders.name = 'shoulders';
+    shoulders.position.set(0, 1.52, 0.01);
+    shoulders.scale.set(1.06, 1.0, 0.70);
+    staticGroup.add(shoulders);
+
+    const neckGeo = new THREE.CylinderGeometry(0.15, 0.21, 0.30, 16); applyZombieRot(neckGeo, skinColor);
+    const neck = new THREE.Mesh(neckGeo, rottenMat);
+    neck.name = 'neck';
+    neck.position.set(0, 1.72, -0.02);
+    staticGroup.add(neck);
+
+    // Schulterkugeln & schlanke nackte Arme
+    const shoulderJointGeo = new THREE.SphereGeometry(0.072, 12, 12); applyZombieRot(shoulderJointGeo, skinColor);
+    const armGeo = new THREE.CylinderGeometry(0.066, 0.046, 0.88, 12); applyZombieRot(armGeo, skinColor);
+
+    // Linker Arm (+X, locker an der Hüfte)
+    const shoulderL = new THREE.Mesh(shoulderJointGeo, rottenMat);
+    shoulderL.name = 'shoulderL'; shoulderL.position.set(0.42, 1.50, -0.01);
+    staticGroup.add(shoulderL);
+
+    const armL = new THREE.Mesh(armGeo, rottenMat);
+    armL.name = 'armL';
+    armL.position.set(0.47, 1.07, -0.03);
+    armL.rotation.set(-0.04, 0, 0.09);
+    staticGroup.add(armL);
+
+    // Rechter Arm (-X, hält die Handtasche)
+    const shoulderR = new THREE.Mesh(shoulderJointGeo.clone(), rottenMat);
+    shoulderR.name = 'shoulderR'; shoulderR.position.set(-0.42, 1.50, -0.01);
+    staticGroup.add(shoulderR);
+
+    const armR = new THREE.Mesh(armGeo.clone(), rottenMat);
+    armR.name = 'armR';
+    armR.position.set(-0.47, 1.07, -0.04);
+    armR.rotation.set(-0.06, 0, -0.10);
+    staticGroup.add(armR);
+
+    // --- 4. KLEINE SCHWARZE HANDTASCHE MIT METALLHENKEL ---
+    const bagBodyGeo = new THREE.BoxGeometry(0.13, 0.23, 0.22); applyZombieRot(bagBodyGeo, dressColor);
+    const handbagBody = new THREE.Mesh(bagBodyGeo, rottenMat);
+    handbagBody.name = 'handbagBody';
+    handbagBody.position.set(-0.54, 0.48, -0.08);
+    staticGroup.add(handbagBody);
+
+    const bagFlapGeo = new THREE.BoxGeometry(0.14, 0.055, 0.225); applyZombieRot(bagFlapGeo, 0x222222);
+    const handbagFlap = new THREE.Mesh(bagFlapGeo, rottenMat);
+    handbagFlap.name = 'handbagFlap';
+    handbagFlap.position.set(-0.54, 0.57, -0.08);
+    staticGroup.add(handbagFlap);
+
+    const bagHandleGeo = new THREE.TorusGeometry(0.062, 0.01, 8, 16, Math.PI); applyZombieRot(bagHandleGeo, goldColor);
+    const handbagHandle = new THREE.Mesh(bagHandleGeo, rottenMat);
+    handbagHandle.name = 'handbagHandle';
+    handbagHandle.position.set(-0.54, 0.60, -0.08);
+    handbagHandle.rotation.y = Math.PI / 2;
+    staticGroup.add(handbagHandle);
+
+    // --- 5. KOPF, MITTELSCHEITEL-FRISUR, OHRRINGE & MAKE-UP ---
+    addUltraHeadParts(staticGroup, 2.02, -0.08, skinColor);
+    addProceduralCurlyTail(staticGroup, 0.50, 0.42);
+
+    // Streng gescheitelte Haare (links & rechts leicht versetzt für den Mittelscheitel)
+    const hairCapGeo = new THREE.SphereGeometry(0.515, 18, 14, 0, Math.PI, 0, Math.PI * 0.60); applyZombieRot(hairCapGeo, hairDark);
+    const hairCapL = new THREE.Mesh(hairCapGeo, rottenMat);
+    hairCapL.name = 'hairCapL';
+    hairCapL.position.set(0.025, 2.04, -0.05);
+    hairCapL.rotation.set(-0.15, Math.PI / 2, 0);
+    staticGroup.add(hairCapL);
+
+    const hairCapR = new THREE.Mesh(hairCapGeo.clone(), rottenMat);
+    hairCapR.name = 'hairCapR';
+    hairCapR.position.set(-0.025, 2.04, -0.05);
+    hairCapR.rotation.set(-0.15, -Math.PI / 2, 0);
+    staticGroup.add(hairCapR);
+
+    // Tiefer Nackenknoten (Low Bun)
+    const bunGeo = new THREE.SphereGeometry(0.24, 16, 14); applyZombieRot(bunGeo, hairHighlight);
+    const hairBun = new THREE.Mesh(bunGeo, rottenMat);
+    hairBun.name = 'hairBun';
+    hairBun.position.set(0, 1.94, 0.44);
+    hairBun.scale.set(1.05, 1.15, 0.85);
+    staticGroup.add(hairBun);
+
+    // Zwei feine Strähnen vorne am Gesicht
+    const strandGeo = new THREE.CylinderGeometry(0.024, 0.011, 0.44, 8); applyZombieRot(strandGeo, hairHighlight);
+    const hairStrandL = new THREE.Mesh(strandGeo, rottenMat);
+    hairStrandL.name = 'hairStrandL';
+    hairStrandL.position.set(0.43, 1.88, -0.34);
+    hairStrandL.rotation.set(-0.12, 0, -0.14);
+    staticGroup.add(hairStrandL);
+
+    const hairStrandR = new THREE.Mesh(strandGeo.clone(), rottenMat);
+    hairStrandR.name = 'hairStrandR';
+    hairStrandR.position.set(-0.43, 1.88, -0.34);
+    hairStrandR.rotation.set(-0.12, 0, 0.14);
+    staticGroup.add(hairStrandR);
+
+    // Goldene Creolen / Ohrringe
+    const earringGeo = new THREE.TorusGeometry(0.055, 0.012, 8, 16); applyZombieRot(earringGeo, goldColor);
+    const earringL = new THREE.Mesh(earringGeo, rottenMat);
+    earringL.name = 'earringL';
+    earringL.position.set(0.51, 1.88, -0.10);
+    earringL.rotation.y = Math.PI / 2;
+    staticGroup.add(earringL);
+
+    const earringR = new THREE.Mesh(earringGeo.clone(), rottenMat);
+    earringR.name = 'earringR';
+    earringR.position.set(-0.51, 1.88, -0.10);
+    earringR.rotation.y = Math.PI / 2;
+    staticGroup.add(earringR);
+
+    // Dezenter Lippenstift & Wimpern
+    const lipsGeo = new THREE.CylinderGeometry(0.14, 0.14, 0.06, 16); applyZombieRot(lipsGeo, 0x9e3b48);
+    const lips = new THREE.Mesh(lipsGeo, rottenMat);
+    lips.name = 'lips';
+    lips.rotation.x = Math.PI / 2;
+    lips.position.set(0, 1.84, -0.62);
+    staticGroup.add(lips);
+
+    const lashGeo = new THREE.BoxGeometry(0.18, 0.035, 0.08); applyZombieRot(lashGeo, 0x111111);
+    const lashL = new THREE.Mesh(lashGeo, rottenMat);
+    lashL.name = 'lashL'; lashL.position.set(0.28, 2.18, -0.49); lashL.rotation.z = -0.18;
+    staticGroup.add(lashL);
+
+    const lashR = new THREE.Mesh(lashGeo.clone(), rottenMat);
+    lashR.name = 'lashR'; lashR.position.set(-0.28, 2.18, -0.49); lashR.rotation.z = 0.18;
+    staticGroup.add(lashR);
+
+    // Statische Elemente mergen
+    group.add(mergeGroupIntoSingleMesh(staticGroup, rottenMat));
+
+    // --- 6. SCHLANKE BEINE & RIEMCHEN-SANDALETTEN ---
+    const legGeo = new THREE.CylinderGeometry(0.115, 0.065, 1.08, 14);
+    const legs = [];
+
+    function createStrappyHeel(prefix) {
+        const heelGroup = new THREE.Group(); heelGroup.name = `${prefix}_sandalGroup`;
+
+        const soleGeo = new THREE.BoxGeometry(0.13, 0.035, 0.27); applyZombieRot(soleGeo, dressColor);
+        const sole = new THREE.Mesh(soleGeo, rottenMat);
+        sole.name = `${prefix}_sole`; sole.position.set(0, -0.52, -0.04); sole.rotation.x = 0.22;
+        heelGroup.add(sole);
+
+        const spikeGeo = new THREE.CylinderGeometry(0.015, 0.009, 0.15, 8); applyZombieRot(spikeGeo, dressColor);
+        const spike = new THREE.Mesh(spikeGeo, rottenMat);
+        spike.name = `${prefix}_spike`; spike.position.set(0, -0.51, 0.07);
+        heelGroup.add(spike);
+
+        const toeStrapGeo = new THREE.BoxGeometry(0.135, 0.025, 0.045); applyZombieRot(toeStrapGeo, dressColor);
+        const toeStrap = new THREE.Mesh(toeStrapGeo, rottenMat);
+        toeStrap.name = `${prefix}_toeStrap`; toeStrap.position.set(0, -0.51, -0.11);
+        heelGroup.add(toeStrap);
+
+        const ankleStrapGeo = new THREE.TorusGeometry(0.072, 0.012, 8, 16); applyZombieRot(ankleStrapGeo, dressColor);
+        const ankleStrap = new THREE.Mesh(ankleStrapGeo, rottenMat);
+        ankleStrap.name = `${prefix}_ankleStrap`; ankleStrap.position.set(0, -0.42, 0); ankleStrap.rotation.x = Math.PI / 2;
+        heelGroup.add(ankleStrap);
+
+        return heelGroup;
+    }
+
+    // Rechtes Bein (-X, unter dem langen Rock)
+    const l0 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(l0.geometry, skinColor);
+    l0.name = 'leg0';
+    l0.position.set(-0.20, -0.46, 0.04);
+    l0.add(createStrappyHeel('heelR'));
+    group.add(l0); legs.push(l0);
+
+    // Linkes Bein (+X, tritt leicht nach vorne durch den Beinschlitz)
+    const l1 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(l1.geometry, skinColor);
+    l1.name = 'leg1';
+    l1.position.set(0.21, -0.46, -0.10);
+    l1.rotation.x = 0.08;
+    l1.add(createStrappyHeel('heelL'));
+    group.add(l1); legs.push(l1);
+
+    group.rotation.y = Math.PI;
+    return { mesh: group, legs: legs, type: 6 };
+}
+
 // Erstellt das visuelle Kürbis-Schwein (früher fest verknüpft mit Typ 4)
 function createPigMesh(type) {
     const pigGroup = new THREE.Group();
@@ -666,8 +949,8 @@ function createPigKlasse4() {
 
 function spawnSchwein() {
     if (timeLeft <= 0 || hp <= 0 || isPaused || document.getElementById('loading-screen').style.display !== 'none' || pigPens.length === 0 || document.getElementById('instructions-overlay').style.display === 'flex') return;
-	const classIdx = Math.floor(Math.random() * 5) + 1; // Jetzt 1 bis 5
-	let pigData = classIdx === 1 ? createPigKlasse1() : (classIdx === 2 ? createPigKlasse2() : (classIdx === 3 ? createPigKlasse3() : (classIdx === 4 ? createPigKlasse4() : createPigKlasse5())));
+	const classIdx = Math.floor(Math.random() * 5) + 1; // Jetzt 1 bis 5, no shooter in free mode
+	let pigData = classIdx === 1 ? createPigKlasse1() : (classIdx === 2 ? createPigKlasse2() : (classIdx === 3 ? createPigKlasse3() : (classIdx === 4 ? createPigKlasse4() : createPigKlasse6())));
 	
     const selectedPen = pigPens[Math.floor(Math.random() * pigPens.length)];
     pigData.mesh.position.set(selectedPen.spawnX, pigData.type === 1 ? 1.1 : 1.0, selectedPen.spawnZ); 
@@ -837,9 +1120,9 @@ function buildLevelFromData(levelData) {
                     playerCurrentGroundY = yOffset;
                 }
 				// Aus 1-4 mach 1-5:
-				else if (cell === '1' || cell === '2' || cell === '3' || cell === '4' || cell === '5') {
+				else if (cell === '1' || cell === '2' || cell === '3' || cell === '4' || cell === '5' || cell === '6') {
 				    levelStats.totalPigs++;
-				    let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : (cell === '3' ? createPigKlasse3() : (cell === '4' ? createPigKlasse4() : createPigKlasse5())));
+				    let pigData = cell === '1' ? createPigKlasse1() : (cell === '2' ? createPigKlasse2() : (cell === '3' ? createPigKlasse3() : (cell === '4' ? createPigKlasse4() : (cell === '5' ? createPigKlasse5() : createPigKlasse6()))));
                     pigData.mesh.position.set(xPos, yOffset + (pigData.type === 1 ? 1.1 : 1.0), zPos);
                     scene.add(pigData.mesh);
                     pigData.isFleeing = false; pigData.fleeTarget = new THREE.Vector3();

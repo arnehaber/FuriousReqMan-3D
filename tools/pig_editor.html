@@ -384,7 +384,7 @@
         };
 
         const fMain = gui.addFolder('Allgemein');
-        fMain.add(guiParams, 'pigClass', ['1', '2', '3', '4', '5', 'Custom']).name('Schweine-Klasse').onChange(loadPig);
+        fMain.add(guiParams, 'pigClass', ['1', '2', '3', '4', '5', '6', 'Custom']).name('Schweine-Klasse').onChange(loadPig);
         fMain.add(guiParams, 'undo').name('↩️ Rückgängig (Ctrl+Z)');
         fMain.add(guiParams, 'createNewPig').name('➕ Neues Schwein (Blanko)');
         fMain.add(guiParams, 'export').name('💾 CODE EXPORTIEREN');
@@ -504,6 +504,7 @@
             else if (cls === 4 && typeof createPigKlasse4 === 'function') pigData = createPigKlasse4();
             else if (cls === 4 && typeof createPigMesh === 'function') pigData = createPigMesh(4);
             else if (cls === 5 && typeof createPigKlasse5 === 'function') pigData = createPigKlasse5();
+            else if (cls === 6 && typeof createPigKlasse6 === 'function') pigData = createPigKlasse6();
 
             if (pigData) {
                 currentPig = pigData.mesh || pigData;
