@@ -5,8 +5,11 @@
     <title>Zombieschweine - Universal 3D Model Editor</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #1e1e24; font-family: sans-serif; }
-        #info { position: absolute; top: 10px; left: 10px; color: #fff; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 6px; pointer-events: none; line-height: 1.4; font-size: 13px; z-index: 100; }
+        canvas { display: block; outline: none; }
+        #info { position: absolute; top: 10px; left: 10px; color: #fff; background: rgba(0,0,0,0.82); padding: 12px; border-radius: 6px; pointer-events: none; line-height: 1.5; font-size: 13px; z-index: 100; border: 1px solid #333; }
         #info kbd { background: #444; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
+        .mode-pill { display: inline-block; padding: 1px 6px; border-radius: 3px; transition: background 0.15s; }
+        .mode-pill.active { background: #0066cc; color: #fff; font-weight: bold; }
         
         /* Baumanzeige (links unten) */
         #treeContainer {
@@ -38,9 +41,12 @@
 <body>
     <div id="info">
         <strong>Universal 3D Model Editor</strong> (Lädt aus <code>js/entities.js</code>)<br>
-        • Werkzeuge: <kbd>W</kbd> Bewegen | <kbd>E</kbd> Drehen | <kbd>R</kbd> Skalieren<br>
-        • <kbd>Ctrl + Z</kbd> Rückgängig | <kbd>Entf</kbd> Element löschen<br>
-        • Navigieren: Linksklick (Drehen), Rechtsklick (Schieben)
+        • Werkzeuge: 
+        <span id="mode-translate" class="mode-pill active"><kbd>W</kbd> Bewegen</span> | 
+        <span id="mode-rotate" class="mode-pill"><kbd>E</kbd> Drehen</span> | 
+        <span id="mode-scale" class="mode-pill"><kbd>R</kbd> Skalieren</span><br>
+        • <kbd>Ctrl + Z</kbd> Rückgängig | <kbd>Ctrl + Y</kbd> Wiederholen | <kbd>Entf</kbd> Löschen | <kbd>Esc</kbd> Abwählen<br>
+        • Navigieren: Linksklick-Ziehen (Drehen), Rechtsklick (Schieben), Klick (Auswählen)
     </div>
 
     <!-- Baumanzeige links unten -->
@@ -55,7 +61,8 @@
             <h2 id="exportTitle">Dein fertiger Code</h2>
             <p style="color: #ccc;">Kopiere diesen Code und passe damit deine <em>entities.js</em> an.</p>
             <textarea id="codeOutput" readonly></textarea>
-            <button class="btn-close" onclick="document.getElementById('exportModal').style.display='none'">Schließen</button>
+            <button class="btn-close" style="background: #2b7a2b; margin-right: 8px;" onclick="navigator.clipboard.writeText(document.getElementById('codeOutput').value); this.innerText='✅ Kopiert!'; setTimeout(() => this.innerText='📋 In Zwischenablage kopieren', 1500);">📋 In Zwischenablage kopieren</button>
+            <button class="btn-close" onclick="document.getElementById('exportModal').style.display='none'">Schließen</button>            
         </div>
     </div>
 
@@ -67,10 +74,8 @@
 
     <!-- DUMMY-SPIELUMGEBUNG FÜR ENTITIES.JS -->
     <script>
-        // Merging für den Editor global deaktivieren
         window.mergeMeshGroups = false;
 
-        // Variablen an window hängen, um SyntaxError durch doppelte 'let'-Deklarationen mit entities.js zu vermeiden
         window.scene = new THREE.Scene();
         window.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
         window.pigs3D = [];
@@ -100,7 +105,7 @@
     <!-- DIREKTES LADEN DER SPIELDATEI AUS DEM JS-ORDNER -->
     <script src="../js/entities.js"></script>
 
-    <!-- EDITOR SKRIPT & UNDO LOGIK -->
+    <!-- EDITOR SKRIPT & UNDO/REDO LOGIK -->
     <script>
         // --- 1. EDITOR SZENE SETUP ---
         scene.background = new THREE.Color(0x222233);
@@ -108,6 +113,7 @@
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.domElement.tabIndex = 0; // Ermöglicht sauberen Fokus-Wechsel weg von dat.GUI
         document.body.appendChild(renderer.domElement);
 
         const orbit = new THREE.OrbitControls(camera, renderer.domElement);
@@ -123,68 +129,165 @@
         scene.add(new THREE.GridHelper(10, 10, 0x555555, 0x444444));
         scene.add(new THREE.AxesHelper(2));
 
-        // --- 2. UNDO-SYSTEM ---
+        function setTransformMode(mode) {
+            transformControl.setMode(mode);
+            if (typeof guiParams !== 'undefined') guiParams.transformMode = mode;
+            ['translate', 'rotate', 'scale'].forEach(m => {
+                const el = document.getElementById(`mode-${m}`);
+                if (el) el.classList.toggle('active', m === mode);
+            });
+        }
+
+        // --- 2. UNDO- & REDO-SYSTEM ---
         const undoStack = [];
-        const MAX_UNDO = 50;
+        const redoStack = [];
+        const MAX_UNDO = 60;
         let transformStateBeforeDrag = null;
+        let pendingGuiTransform = null;
+        let undoCtrl = null;
+        let redoCtrl = null;
+
+        function updateUndoRedoLabels() {
+            if (undoCtrl) undoCtrl.name(`↩️ Rückgängig (${undoStack.length})`);
+            if (redoCtrl) redoCtrl.name(`↪️ Wiederholen (${redoStack.length})`);
+        }
+
+        function clearHistory() {
+            undoStack.length = 0;
+            redoStack.length = 0;
+            transformStateBeforeDrag = null;
+            pendingGuiTransform = null;
+            updateUndoRedoLabels();
+        }
 
         function pushUndo(action) {
             undoStack.push(action);
             if (undoStack.length > MAX_UNDO) undoStack.shift();
+            redoStack.length = 0; // Neue Aktion löscht Redo-Pfad
+            updateUndoRedoLabels();
         }
 
-        function undo() {
-            if (undoStack.length === 0) return;
-            const action = undoStack.pop();
+        function commitPendingGuiTransform() {
+            if (!pendingGuiTransform) return;
+            const { object, oldPos, oldRot, oldScale } = pendingGuiTransform;
+            pendingGuiTransform = null;
+            if (!object) return;
+            if (!object.position.equals(oldPos) || !object.rotation.equals(oldRot) || !object.scale.equals(oldScale)) {
+                pushUndo({
+                    type: 'transform',
+                    object,
+                    oldPos, oldRot, oldScale,
+                    newPos: object.position.clone(),
+                    newRot: object.rotation.clone(),
+                    newScale: object.scale.clone()
+                });
+            }
+        }
 
+        function applyHistoryAction(action, isUndo) {
             if (action.type === 'transform') {
-                action.object.position.copy(action.position);
-                action.object.rotation.copy(action.rotation);
-                action.object.scale.copy(action.scale);
-                if (selectedObject === action.object) updateGuiFromObject(action.object);
-            } else if (action.type === 'add') {
-                if (action.object.parent) action.object.parent.remove(action.object);
-                if (selectedObject === action.object) deselectObject();
-            } else if (action.type === 'delete') {
-                action.parent.add(action.object);
+                action.object.position.copy(isUndo ? action.oldPos : action.newPos);
+                action.object.rotation.copy(isUndo ? action.oldRot : action.newRot);
+                action.object.scale.copy(isUndo ? action.oldScale : action.newScale);
                 selectObject(action.object);
+            } else if (action.type === 'add') {
+                if (isUndo) {
+                    if (action.object.parent) action.object.parent.remove(action.object);
+                    if (selectedObject === action.object) deselectObject();
+                } else {
+                    action.parent.add(action.object);
+                    selectObject(action.object);
+                }
+            } else if (action.type === 'delete') {
+                if (isUndo) {
+                    action.parent.add(action.object);
+                    // Ursprüngliche Reihenfolge im Baum wiederherstellen
+                    const idx = action.parent.children.indexOf(action.object);
+                    if (idx !== -1 && action.index < action.parent.children.length) {
+                        action.parent.children.splice(idx, 1);
+                        action.parent.children.splice(action.index, 0, action.object);
+                    }
+                    selectObject(action.object);
+                } else {
+                    if (selectedObject === action.object) deselectObject();
+                    if (action.object.parent) action.object.parent.remove(action.object);
+                }
+            } else if (action.type === 'group') {
+                if (isUndo) {
+                    action.oldParent.add(action.child);
+                    const idx = action.oldParent.children.indexOf(action.child);
+                    if (idx !== -1 && action.oldIndex < action.oldParent.children.length) {
+                        action.oldParent.children.splice(idx, 1);
+                        action.oldParent.children.splice(action.oldIndex, 0, action.child);
+                    }
+                    if (action.newGroup.parent) action.newGroup.parent.remove(action.newGroup);
+                    selectObject(action.child);
+                } else {
+                    action.oldParent.add(action.newGroup);
+                    action.newGroup.add(action.child);
+                    selectObject(action.newGroup);
+                }
             } else if (action.type === 'reparent') {
-                action.oldParent.attach(action.object);
-                action.object.position.copy(action.position);
-                action.object.rotation.copy(action.rotation);
-                action.object.scale.copy(action.scale);
+                const targetParent = isUndo ? action.oldParent : action.newParent;
+                targetParent.add(action.object);
+                action.object.position.copy(isUndo ? action.oldPos : action.newPos);
+                action.object.rotation.copy(isUndo ? action.oldRot : action.newRot);
+                action.object.scale.copy(isUndo ? action.oldScale : action.newScale);
+                selectObject(action.object);
+            } else if (action.type === 'prop') {
+                const val = isUndo ? action.oldValue : action.newValue;
+                action.applyFn(val);
                 selectObject(action.object);
             }
             refreshUIFolders();
+            updateUndoRedoLabels();
+        }
+
+        function undo() {
+            commitPendingGuiTransform();
+            if (undoStack.length === 0) return;
+            const action = undoStack.pop();
+            redoStack.push(action);
+            applyHistoryAction(action, true);
+        }
+
+        function redo() {
+            commitPendingGuiTransform();
+            if (redoStack.length === 0) return;
+            const action = redoStack.pop();
+            undoStack.push(action);
+            applyHistoryAction(action, false);
         }
 
         // Tracking für Transformationen über TransformControls (Gizmo)
         transformControl.addEventListener('dragging-changed', (event) => {
             orbit.enabled = !event.value;
             if (event.value) {
-                // Drag startet: Zustand vor der Bewegung merken
+                commitPendingGuiTransform();
                 const obj = transformControl.object;
                 if (obj) {
                     transformStateBeforeDrag = {
                         object: obj,
-                        position: obj.position.clone(),
-                        rotation: obj.rotation.clone(),
-                        scale: obj.scale.clone()
+                        oldPos: obj.position.clone(),
+                        oldRot: obj.rotation.clone(),
+                        oldScale: obj.scale.clone()
                     };
                 }
             } else {
-                // Drag beendet: Speichern wenn sich Werte verändert haben
                 if (transformStateBeforeDrag) {
                     const obj = transformStateBeforeDrag.object;
-                    if (!obj.position.equals(transformStateBeforeDrag.position) ||
-                        !obj.rotation.equals(transformStateBeforeDrag.rotation) ||
-                        !obj.scale.equals(transformStateBeforeDrag.scale)) {
+                    if (obj && (!obj.position.equals(transformStateBeforeDrag.oldPos) ||
+                        !obj.rotation.equals(transformStateBeforeDrag.oldRot) ||
+                        !obj.scale.equals(transformStateBeforeDrag.oldScale))) {
                         pushUndo({
                             type: 'transform',
                             object: obj,
-                            position: transformStateBeforeDrag.position,
-                            rotation: transformStateBeforeDrag.rotation,
-                            scale: transformStateBeforeDrag.scale
+                            oldPos: transformStateBeforeDrag.oldPos,
+                            oldRot: transformStateBeforeDrag.oldRot,
+                            oldScale: transformStateBeforeDrag.oldScale,
+                            newPos: obj.position.clone(),
+                            newRot: obj.rotation.clone(),
+                            newScale: obj.scale.clone()
                         });
                     }
                     transformStateBeforeDrag = null;
@@ -193,17 +296,38 @@
         });
 
         transformControl.addEventListener('change', () => {
-            if (transformControl.object) updateGuiFromObject(transformControl.object);
+            if (transformControl.object) updateGuiFromObject(transformControl.object, false);
         });
 
-        // --- 3. SELEKTION & PICKING ---
+        // --- 3. SELEKTION & PICKING (TRENNUNG VON KLICK UND KAMERA-ORBIT) ---
         let currentPig = null;
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
         let selectedObject = null;
+        let pointerDownPos = null;
 
-        window.addEventListener('pointerdown', (e) => {
-            if (e.target.closest('.dg.ac') || e.target.closest('#info') || e.target.closest('#exportModal') || e.target.closest('#treeContainer')) return; 
+        renderer.domElement.addEventListener('pointerdown', (e) => {
+            // Aktiven Input-Fokus aus dat.GUI sauber lösen, damit W/E/R sofort wieder gehen
+            if (document.activeElement && document.activeElement !== renderer.domElement) {
+                document.activeElement.blur();
+            }
+            renderer.domElement.focus({ preventScroll: true });
+
+            // Wenn Gizmo gegriffen/gehovert wird, Raycast-Auswahl komplett ignorieren
+            if (e.button !== 0 || transformControl.axis !== null || transformControl.dragging) {
+                pointerDownPos = null;
+                return;
+            }
+            pointerDownPos = { x: e.clientX, y: e.clientY };
+        });
+
+        renderer.domElement.addEventListener('pointerup', (e) => {
+            if (!pointerDownPos || e.button !== 0) return;
+            const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+            pointerDownPos = null;
+
+            // Nur als Auswahl-Klick werten, wenn die Maus kaum bewegt wurde (kein Kamera-Orbit)
+            if (dist >= 5 || transformControl.dragging || transformControl.axis !== null) return;
             if (guiParams.selectionLocked) return;
 
             mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -226,18 +350,20 @@
         });
 
         function selectObject(obj) {
+            if (selectedObject !== obj) commitPendingGuiTransform();
             selectedObject = obj;
             transformControl.attach(obj);
-            updateGuiFromObject(obj);
+            updateGuiFromObject(obj, true);
             renderTreeView();
         }
 
         function deselectObject() {
+            commitPendingGuiTransform();
             selectedObject = null;
             transformControl.detach();
             guiParams.selectedName = 'Nichts gewählt';
             guiParams.selectedPartDropdown = 'Nichts gewählt';
-            gui.updateDisplay();
+            buildThreePropsFolder();
             renderTreeView();
         }
 
@@ -246,27 +372,67 @@
                 alert('Das Hauptschwein kann nicht gelöscht werden!');
                 return;
             }
-            pushUndo({ type: 'delete', object: obj, parent: obj.parent });
+            commitPendingGuiTransform();
+            const parent = obj.parent;
+            const index = parent ? parent.children.indexOf(obj) : 0;
+            pushUndo({ type: 'delete', object: obj, parent, index });
             if (selectedObject === obj) deselectObject();
-            if (obj.parent) obj.parent.remove(obj);
+            if (parent) parent.remove(obj);
             refreshUIFolders();
         }
 
         window.addEventListener('keydown', (e) => {
-            if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
-            
-            // Strg+Z / Cmd+Z Undo
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+            // Export-Modal per Escape schließen
+            const modal = document.getElementById('exportModal');
+            if (modal && modal.style.display === 'flex') {
+                if (e.key === 'Escape') modal.style.display = 'none';
+                return;
+            }
+
+            // Nur blockieren, wenn tatsächlich Text/Zahlen eingetippt werden (NICHT bei Checkboxen!)
+            const active = document.activeElement;
+            const isTextInput = active && (
+                active.tagName === 'TEXTAREA' ||
+                (active.tagName === 'INPUT' && ['text', 'number', 'search', 'password'].includes(active.type))
+            );
+            if (isTextInput) {
+                if (e.key === 'Escape') active.blur();
+                return;
+            }
+
+            // Falls ein <select>-Dropdown fokussiert ist, Fokus lösen, damit W/E/R nicht die Liste springen lassen
+            if (active && active.tagName === 'SELECT') {
+                active.blur();
+            }
+
+            const key = e.key.toLowerCase();
+            const code = e.code;
+
+            // Undo: Ctrl+Z / Cmd+Z
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (key === 'z' || code === 'KeyZ')) {
                 e.preventDefault();
                 undo();
                 return;
             }
 
-            switch(e.key.toLowerCase()) {
-                case 'w': transformControl.setMode('translate'); break;
-                case 'e': transformControl.setMode('rotate'); break;
-                case 'r': transformControl.setMode('scale'); break;
-                case 'delete': case 'backspace': if (selectedObject) deleteObject(selectedObject); break;
+            // Redo: Ctrl+Y / Ctrl+Shift+Z / Cmd+Shift+Z
+            if ((e.ctrlKey || e.metaKey) && (key === 'y' || code === 'KeyY' || (e.shiftKey && (key === 'z' || code === 'KeyZ')))) {
+                e.preventDefault();
+                redo();
+                return;
+            }
+
+            // Werkzeug-Modi (ohne Strg/Alt/Cmd)
+            if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+                if (key === 'w' || code === 'KeyW') { e.preventDefault(); setTransformMode('translate'); }
+                else if (key === 'e' || code === 'KeyE') { e.preventDefault(); setTransformMode('rotate'); }
+                else if (key === 'r' || code === 'KeyR') { e.preventDefault(); setTransformMode('scale'); }
+                else if (e.key === 'Delete' || e.key === 'Backspace') {
+                    e.preventDefault();
+                    if (selectedObject) deleteObject(selectedObject);
+                } else if (e.key === 'Escape') {
+                    if (selectedObject) deselectObject();
+                }
             }
         });
 
@@ -274,9 +440,11 @@
         const gui = new dat.GUI({ width: 360 });
         let elementCounter = 1;
         let groupCounter = 1;
-const guiParams = {
+
+        const guiParams = {
             pigCategory: 'Horde',
             pigVariant: '0',
+            transformMode: 'translate',
             selectionLocked: false,
             selectedPartDropdown: 'Nichts gewählt',
             selectedName: 'Nichts gewählt',
@@ -302,22 +470,26 @@ const guiParams = {
             side: 'DoubleSide',
 
             undo: undo,
+            redo: redo,
             export: generateExportCode,
             deleteCurrent: function() { deleteObject(selectedObject); },
 
             createNewPig: function() {
+                clearHistory();
                 if (currentPig) { scene.remove(currentPig); transformControl.detach(); }
                 currentPig = new THREE.Group(); currentPig.name = 'pigGroup';
                 const bodyGeo = new THREE.SphereGeometry(0.85, 24, 16);
                 if (typeof applyZombieRot === 'function') applyZombieRot(bodyGeo, 0xd4748c);
-                const body = new THREE.Mesh(bodyGeo, rottenMat || new THREE.MeshStandardMaterial()); 
+                const body = new THREE.Mesh(bodyGeo, (typeof rottenMat !== 'undefined' && rottenMat) ? rottenMat : new THREE.MeshStandardMaterial()); 
                 body.name = 'body'; currentPig.add(body);
                 currentPig.rotation.y = Math.PI; scene.add(currentPig);
+                selectedObject = null;
                 refreshUIFolders();
             },
 
             addShape: function() {
                 if (!currentPig) return;
+                commitPendingGuiTransform();
                 let geo; const type = guiParams.newShapeType;
                 if (type === 'Box') geo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
                 else if (type === 'Sphere') geo = new THREE.SphereGeometry(0.4, 16, 16);
@@ -332,26 +504,36 @@ const guiParams = {
                 const targetParent = (selectedObject && selectedObject.isGroup) ? selectedObject : currentPig;
                 targetParent.add(mesh);
 
-                pushUndo({ type: 'add', object: mesh });
+                pushUndo({ type: 'add', object: mesh, parent: targetParent });
                 refreshUIFolders();
                 selectObject(mesh);
             },
 
             groupSelection: function() {
                 if (!currentPig) return;
+                commitPendingGuiTransform();
                 const groupName = `group_${groupCounter++}`;
                 const newGroup = new THREE.Group(); newGroup.name = groupName;
 
                 if (selectedObject && selectedObject !== currentPig) {
-                    const parent = selectedObject.parent || currentPig;
-                    parent.remove(selectedObject);
+                    const oldParent = selectedObject.parent || currentPig;
+                    const oldIndex = oldParent.children.indexOf(selectedObject);
+                    oldParent.remove(selectedObject);
                     newGroup.add(selectedObject);
-                    parent.add(newGroup);
+                    oldParent.add(newGroup);
+
+                    pushUndo({
+                        type: 'group',
+                        newGroup,
+                        child: selectedObject,
+                        oldParent,
+                        oldIndex
+                    });
                 } else {
                     currentPig.add(newGroup);
+                    pushUndo({ type: 'add', object: newGroup, parent: currentPig });
                 }
 
-                pushUndo({ type: 'add', object: newGroup });
                 refreshUIFolders();
                 selectObject(newGroup);
             },
@@ -360,24 +542,33 @@ const guiParams = {
                 if (!selectedObject || selectedObject === currentPig) {
                     alert('Bitte wähle zuerst ein Element oder eine Gruppe aus!'); return;
                 }
+                commitPendingGuiTransform();
                 let targetGroup = (guiParams.targetGroupDropdown === currentPig.name) ? currentPig : null;
                 if (!targetGroup) {
                     currentPig.traverse(c => { if (c.isGroup && c.name === guiParams.targetGroupDropdown) targetGroup = c; });
                 }
-                if (!targetGroup || targetGroup === selectedObject) return;
+                if (!targetGroup || targetGroup === selectedObject || targetGroup === selectedObject.parent) return;
                 let isChild = false; selectedObject.traverse(c => { if (c === targetGroup) isChild = true; });
                 if (isChild) return;
+
+                const oldParent = selectedObject.parent;
+                const oldPos = selectedObject.position.clone();
+                const oldRot = selectedObject.rotation.clone();
+                const oldScale = selectedObject.scale.clone();
+
+                currentPig.updateMatrixWorld(true);
+                targetGroup.attach(selectedObject);
 
                 pushUndo({
                     type: 'reparent',
                     object: selectedObject,
-                    oldParent: selectedObject.parent,
-                    position: selectedObject.position.clone(),
-                    rotation: selectedObject.rotation.clone(),
-                    scale: selectedObject.scale.clone()
+                    oldParent, oldPos, oldRot, oldScale,
+                    newParent: targetGroup,
+                    newPos: selectedObject.position.clone(),
+                    newRot: selectedObject.rotation.clone(),
+                    newScale: selectedObject.scale.clone()
                 });
 
-                targetGroup.attach(selectedObject);
                 refreshUIFolders();
                 selectObject(selectedObject);
             }
@@ -406,10 +597,17 @@ const guiParams = {
                 fMain.add(guiParams, 'pigVariant', variantOptions).name('Modell aus Array').onChange(loadPig);
             }
 
-            fMain.add(guiParams, 'undo').name('↩️ Rückgängig (Ctrl+Z)');
+            fMain.add(guiParams, 'transformMode', { 'Bewegen (W)': 'translate', 'Drehen (E)': 'rotate', 'Skalieren (R)': 'scale' })
+                .name('Werkzeug')
+                .listen()
+                .onChange(mode => setTransformMode(mode));
+
+            undoCtrl = fMain.add(guiParams, 'undo').name('↩️ Rückgängig (0)');
+            redoCtrl = fMain.add(guiParams, 'redo').name('↪️ Wiederholen (0)');
             fMain.add(guiParams, 'createNewPig').name('➕ Neues Schwein (Blanko)');
             fMain.add(guiParams, 'export').name('💾 CODE EXPORTIEREN');
             fMain.open();
+            updateUndoRedoLabels();
         }
 
         function buildAddFolder() {
@@ -425,11 +623,32 @@ const guiParams = {
                 currentPig.traverse(c => { if (c.isGroup && c !== currentPig && c.name) groupNames.push(c.name); });
             }
             if (groupNames.length === 0) groupNames.push('pigGroup');
-            guiParams.targetGroupDropdown = groupNames[0];
+            if (!groupNames.includes(guiParams.targetGroupDropdown)) {
+                guiParams.targetGroupDropdown = groupNames[0];
+            }
 
             fAdd.add(guiParams, 'targetGroupDropdown', groupNames).name('Ziel-Gruppe').listen();
             fAdd.add(guiParams, 'moveToGroup').name('➡️ In Ziel-Gruppe verschieben');
             fAdd.open();
+        }
+
+        function bindNumberTransform(folder, propKey, label, type, axis) {
+            folder.add(guiParams, propKey).name(label).step(0.01).listen()
+                .onChange(v => {
+                    if (!selectedObject) return;
+                    if (!pendingGuiTransform || pendingGuiTransform.object !== selectedObject) {
+                        pendingGuiTransform = {
+                            object: selectedObject,
+                            oldPos: selectedObject.position.clone(),
+                            oldRot: selectedObject.rotation.clone(),
+                            oldScale: selectedObject.scale.clone()
+                        };
+                    }
+                    selectedObject[type][axis] = v;
+                })
+                .onFinishChange(() => {
+                    commitPendingGuiTransform();
+                });
         }
 
         function buildTransFolder() {
@@ -451,48 +670,135 @@ const guiParams = {
             });
 
             fTrans.add(guiParams, 'selectionLocked').name('🔒 Klick-Schutz (Lock)').listen();
-            fTrans.add(guiParams, 'selectedName').name('Name (ID)').listen();
+            fTrans.add(guiParams, 'selectedName').name('Name (ID)').listen().onFinishChange(newName => {
+                if (!selectedObject || selectedObject === currentPig) return;
+                const trimmed = (newName || '').trim();
+                if (!trimmed || trimmed === selectedObject.name) {
+                    guiParams.selectedName = selectedObject.name;
+                    return;
+                }
+                const targetObj = selectedObject;
+                const oldName = targetObj.name;
+                targetObj.name = trimmed;
+                pushUndo({
+                    type: 'prop',
+                    object: targetObj,
+                    oldValue: oldName,
+                    newValue: trimmed,
+                    applyFn: (val) => { targetObj.name = val; }
+                });
+                refreshUIFolders();
+            });
             fTrans.add(guiParams, 'deleteCurrent').name('🗑️ Element löschen');
 
-            fTrans.add(guiParams, 'pX').name('Pos X').step(0.01).listen().onChange(v => setPropWithUndo('position', 'x', v));
-            fTrans.add(guiParams, 'pY').name('Pos Y').step(0.01).listen().onChange(v => setPropWithUndo('position', 'y', v));
-            fTrans.add(guiParams, 'pZ').name('Pos Z').step(0.01).listen().onChange(v => setPropWithUndo('position', 'z', v));
-            fTrans.add(guiParams, 'rX').name('Rot X').step(0.01).listen().onChange(v => setPropWithUndo('rotation', 'x', v));
-            fTrans.add(guiParams, 'rY').name('Rot Y').step(0.01).listen().onChange(v => setPropWithUndo('rotation', 'y', v));
-            fTrans.add(guiParams, 'rZ').name('Rot Z').step(0.01).listen().onChange(v => setPropWithUndo('rotation', 'z', v));
-            fTrans.add(guiParams, 'sX').name('Scale X').step(0.01).listen().onChange(v => setPropWithUndo('scale', 'x', v));
-            fTrans.add(guiParams, 'sY').name('Scale Y').step(0.01).listen().onChange(v => setPropWithUndo('scale', 'y', v));
-            fTrans.add(guiParams, 'sZ').name('Scale Z').step(0.01).listen().onChange(v => setPropWithUndo('scale', 'z', v));
+            bindNumberTransform(fTrans, 'pX', 'Pos X', 'position', 'x');
+            bindNumberTransform(fTrans, 'pY', 'Pos Y', 'position', 'y');
+            bindNumberTransform(fTrans, 'pZ', 'Pos Z', 'position', 'z');
+            bindNumberTransform(fTrans, 'rX', 'Rot X', 'rotation', 'x');
+            bindNumberTransform(fTrans, 'rY', 'Rot Y', 'rotation', 'y');
+            bindNumberTransform(fTrans, 'rZ', 'Rot Z', 'rotation', 'z');
+            bindNumberTransform(fTrans, 'sX', 'Scale X', 'scale', 'x');
+            bindNumberTransform(fTrans, 'sY', 'Scale Y', 'scale', 'y');
+            bindNumberTransform(fTrans, 'sZ', 'Scale Z', 'scale', 'z');
             fTrans.open();
 
             buildThreePropsFolder();
         }
 
+        function recordPropChange(obj, oldValue, newValue, applyFn) {
+            if (oldValue === newValue) return;
+            pushUndo({ type: 'prop', object: obj, oldValue, newValue, applyFn });
+        }
+
         function buildThreePropsFolder() {
             if (fThreeProps) gui.removeFolder(fThreeProps);
+            fThreeProps = null;
             if (!selectedObject) return;
 
+            const obj = selectedObject;
             fThreeProps = gui.addFolder('Three.js Eigenschaften');
-            fThreeProps.add(guiParams, 'visible').name('Sichtbar').listen().onChange(v => { selectedObject.visible = v; });
-            fThreeProps.add(guiParams, 'castShadow').name('Wirft Schatten').listen().onChange(v => { selectedObject.castShadow = v; });
-            fThreeProps.add(guiParams, 'receiveShadow').name('Empfängt Schatten').listen().onChange(v => { selectedObject.receiveShadow = v; });
-            fThreeProps.add(guiParams, 'renderOrder').step(1).name('Render-Order').listen().onChange(v => { selectedObject.renderOrder = v; });
 
-            if (selectedObject.isMesh && selectedObject.material) {
-                const mat = selectedObject.material;
-                if (mat.color) fThreeProps.addColor(guiParams, 'matColor').name('Farbe').listen().onChange(v => mat.color.set(v));
-                if (mat.roughness !== undefined) fThreeProps.add(guiParams, 'roughness', 0, 1).step(0.01).name('Rauheit').listen().onChange(v => mat.roughness = v);
-                if (mat.metalness !== undefined) fThreeProps.add(guiParams, 'metalness', 0, 1).step(0.01).name('Metallizität').listen().onChange(v => mat.metalness = v);
-                if (mat.wireframe !== undefined) fThreeProps.add(guiParams, 'wireframe').name('Gittermodell').listen().onChange(v => mat.wireframe = v);
-                if (mat.transparent !== undefined) fThreeProps.add(guiParams, 'transparent').name('Transparent').listen().onChange(v => mat.transparent = v);
-                if (mat.opacity !== undefined) fThreeProps.add(guiParams, 'opacity', 0, 1).step(0.01).name('Deckkraft (Opacity)').listen().onChange(v => mat.opacity = v);
+            fThreeProps.add(guiParams, 'visible').name('Sichtbar').listen().onChange(v => {
+                const old = obj.visible; obj.visible = v; renderTreeView();
+                recordPropChange(obj, old, v, val => { obj.visible = val; });
+            });
+            fThreeProps.add(guiParams, 'castShadow').name('Wirft Schatten').listen().onChange(v => {
+                const old = obj.castShadow; obj.castShadow = v;
+                recordPropChange(obj, old, v, val => { obj.castShadow = val; });
+            });
+            fThreeProps.add(guiParams, 'receiveShadow').name('Empfängt Schatten').listen().onChange(v => {
+                const old = obj.receiveShadow; obj.receiveShadow = v;
+                recordPropChange(obj, old, v, val => { obj.receiveShadow = val; });
+            });
+            fThreeProps.add(guiParams, 'renderOrder').step(1).name('Render-Order').listen().onFinishChange(v => {
+                const old = obj.renderOrder; obj.renderOrder = v;
+                recordPropChange(obj, old, v, val => { obj.renderOrder = val; });
+            });
+
+            if (obj.isMesh && obj.material) {
+                // Gemeinsame Materialien aus entities.js beim Bearbeiten klonen, damit andere Teile unberührt bleiben
+                if (!obj.userData._clonedMaterial) {
+                    obj.material = obj.material.clone();
+                    obj.userData._clonedMaterial = true;
+                }
+                const mat = obj.material;
+
+                if (mat.color) {
+                    let startHex = '#' + mat.color.getHexString();
+                    fThreeProps.addColor(guiParams, 'matColor').name('Farbe').listen()
+                        .onChange(v => mat.color.set(v))
+                        .onFinishChange(v => {
+                            recordPropChange(obj, startHex, v, val => mat.color.set(val));
+                            startHex = v;
+                        });
+                }
+                if (mat.roughness !== undefined) {
+                    let startVal = mat.roughness;
+                    fThreeProps.add(guiParams, 'roughness', 0, 1).step(0.01).name('Rauheit').listen()
+                        .onChange(v => mat.roughness = v)
+                        .onFinishChange(v => { recordPropChange(obj, startVal, v, val => mat.roughness = val); startVal = v; });
+                }
+                if (mat.metalness !== undefined) {
+                    let startVal = mat.metalness;
+                    fThreeProps.add(guiParams, 'metalness', 0, 1).step(0.01).name('Metallizität').listen()
+                        .onChange(v => mat.metalness = v)
+                        .onFinishChange(v => { recordPropChange(obj, startVal, v, val => mat.metalness = val); startVal = v; });
+                }
+                if (mat.wireframe !== undefined) {
+                    fThreeProps.add(guiParams, 'wireframe').name('Gittermodell').listen().onChange(v => {
+                        const old = mat.wireframe; mat.wireframe = v;
+                        recordPropChange(obj, old, v, val => mat.wireframe = val);
+                    });
+                }
+                if (mat.transparent !== undefined) {
+                    fThreeProps.add(guiParams, 'transparent').name('Transparent').listen().onChange(v => {
+                        const old = mat.transparent; mat.transparent = v; mat.needsUpdate = true;
+                        recordPropChange(obj, old, v, val => { mat.transparent = val; mat.needsUpdate = true; });
+                    });
+                }
+                if (mat.opacity !== undefined) {
+                    let startVal = mat.opacity;
+                    fThreeProps.add(guiParams, 'opacity', 0, 1).step(0.01).name('Deckkraft (Opacity)').listen()
+                        .onChange(v => mat.opacity = v)
+                        .onFinishChange(v => { recordPropChange(obj, startVal, v, val => mat.opacity = val); startVal = v; });
+                }
                 if (mat.emissive) {
-                    fThreeProps.addColor(guiParams, 'emissiveColor').name('Selbstleuchten').listen().onChange(v => mat.emissive.set(v));
-                    if (mat.emissiveIntensity !== undefined) fThreeProps.add(guiParams, 'emissiveIntensity', 0, 5).step(0.1).name('Leuchtstärke').listen().onChange(v => mat.emissiveIntensity = v);
+                    let startHex = '#' + mat.emissive.getHexString();
+                    fThreeProps.addColor(guiParams, 'emissiveColor').name('Selbstleuchten').listen()
+                        .onChange(v => mat.emissive.set(v))
+                        .onFinishChange(v => { recordPropChange(obj, startHex, v, val => mat.emissive.set(val)); startHex = v; });
+                    if (mat.emissiveIntensity !== undefined) {
+                        let startVal = mat.emissiveIntensity;
+                        fThreeProps.add(guiParams, 'emissiveIntensity', 0, 5).step(0.1).name('Leuchtstärke').listen()
+                            .onChange(v => mat.emissiveIntensity = v)
+                            .onFinishChange(v => { recordPropChange(obj, startVal, v, val => mat.emissiveIntensity = val); startVal = v; });
+                    }
                 }
                 if (mat.side !== undefined) {
                     fThreeProps.add(guiParams, 'side', ['FrontSide', 'BackSide', 'DoubleSide']).name('Sichtseite').listen().onChange(v => {
+                        const oldSide = mat.side;
                         mat.side = THREE[v]; mat.needsUpdate = true;
+                        recordPropChange(obj, oldSide, THREE[v], val => { mat.side = val; mat.needsUpdate = true; });
                     });
                 }
             }
@@ -510,8 +816,9 @@ const guiParams = {
             if (currentPig) { scene.remove(currentPig); transformControl.detach(); }
             
             window.mergeMeshGroups = false;
-            guiParams.selectionLocked = false; 
-            undoStack.length = 0;
+            guiParams.selectionLocked = false;
+            selectedObject = null;
+            clearHistory();
 
             const activeArray = (guiParams.pigCategory === 'Schussschweine') ? (window.SHOOTER_PIGS || []) : (window.HORDE_PIGS || []);
             const index = parseInt(guiParams.pigVariant, 10) || 0;
@@ -542,11 +849,7 @@ const guiParams = {
             refreshUIFolders(); 
         }
 
-        // Initiales Laden (statt nur loadPig())
-        buildMainFolder();
-        loadPig();
-
-        function updateGuiFromObject(obj) {
+        function updateGuiFromObject(obj, rebuildProps = true) {
             selectedObject = obj;
             guiParams.selectedName = obj.name || 'Unbenannt';
             guiParams.selectedPartDropdown = obj.name || 'Nichts gewählt';
@@ -573,21 +876,7 @@ const guiParams = {
                     guiParams.side = mat.side === THREE.DoubleSide ? 'DoubleSide' : (mat.side === THREE.BackSide ? 'BackSide' : 'FrontSide');
                 }
             }
-            buildThreePropsFolder();
-            renderTreeView();
-        }
-
-        function setPropWithUndo(type, axis, value) {
-            if (selectedObject) {
-                pushUndo({
-                    type: 'transform',
-                    object: selectedObject,
-                    position: selectedObject.position.clone(),
-                    rotation: selectedObject.rotation.clone(),
-                    scale: selectedObject.scale.clone()
-                });
-                selectedObject[type][axis] = value;
-            }
+            if (rebuildProps) buildThreePropsFolder();
         }
 
         // --- 5. BAUMANZEIGE LOGIK (LINKS UNTEN) ---
@@ -606,6 +895,7 @@ const guiParams = {
                 const row = document.createElement('div');
                 row.className = `tree-node ${selectedObject === obj ? 'active' : ''}`;
                 row.style.marginLeft = `${depth * 10}px`;
+                if (!obj.visible) row.style.opacity = '0.5';
 
                 const icon = obj.isGroup ? '📁' : '🧊';
                 const label = document.createElement('span');
@@ -617,7 +907,6 @@ const guiParams = {
                 const actions = document.createElement('div');
                 actions.className = 'tree-actions';
 
-                // Entfern-Button (aus Eltern-Gruppe lösen)
                 if (obj.parent && obj.parent !== currentPig && obj !== currentPig) {
                     const btnOut = document.createElement('button');
                     btnOut.className = 'tree-btn tree-btn-out';
@@ -625,22 +914,30 @@ const guiParams = {
                     btnOut.title = 'Aus Eltern-Gruppe lösen (nach oben verschieben)';
                     btnOut.onclick = (e) => {
                         e.stopPropagation();
+                        commitPendingGuiTransform();
+                        const oldParent = obj.parent;
+                        const oldPos = obj.position.clone();
+                        const oldRot = obj.rotation.clone();
+                        const oldScale = obj.scale.clone();
+
+                        currentPig.updateMatrixWorld(true);
+                        currentPig.attach(obj);
+
                         pushUndo({
                             type: 'reparent',
                             object: obj,
-                            oldParent: obj.parent,
-                            position: obj.position.clone(),
-                            rotation: obj.rotation.clone(),
-                            scale: obj.scale.clone()
+                            oldParent, oldPos, oldRot, oldScale,
+                            newParent: currentPig,
+                            newPos: obj.position.clone(),
+                            newRot: obj.rotation.clone(),
+                            newScale: obj.scale.clone()
                         });
-                        currentPig.attach(obj);
                         refreshUIFolders();
                         selectObject(obj);
                     };
                     actions.appendChild(btnOut);
                 }
 
-                // Löschen Button
                 if (obj !== currentPig) {
                     const btnDel = document.createElement('button');
                     btnDel.className = 'tree-btn';
@@ -665,97 +962,394 @@ const guiParams = {
             if (countDisplay) countDisplay.innerText = `(${totalCount} Objekte)`;
         }
 
-        // Initiales Laden
+        // Initiales Laden (einmalig)
+        buildMainFolder();
         loadPig();
 
-        // --- 6. CODE EXPORTER ---
+       // --- 6. CODE EXPORTER ---
         function generateExportCode() {
-            const getT = (name) => {
-                let obj = null;
-                currentPig.traverse(c => { if(c.name === name) obj = c; });
-                if(!obj) return { p: '0, 0, 0', r: '0, 0, 0', s: '1, 1, 1' };
-                return {
-                    p: `${obj.position.x.toFixed(3)}, ${obj.position.y.toFixed(3)}, ${obj.position.z.toFixed(3)}`,
-                    r: `${obj.rotation.x.toFixed(3)}, ${obj.rotation.y.toFixed(3)}, ${obj.rotation.z.toFixed(3)}`,
-                    s: `${obj.scale.x.toFixed(3)}, ${obj.scale.y.toFixed(3)}, ${obj.scale.z.toFixed(3)}`
-                };
+            commitPendingGuiTransform();
+            if (!currentPig) return;
+
+            const fmt = (n) => {
+                const v = Math.round((Number(n) || 0) * 10000) / 10000;
+                return Object.is(v, -0) ? '0' : String(v);
             };
 
-            let code = "";
-            const cls = guiParams.pigCategory === 'Schussschweine' ? '5' : guiParams.pigCategory;
+            const trimDefaults = (args, defaults) => {
+                const out = [...args];
+                while (out.length > 0 && out[out.length - 1] === defaults[out.length - 1]) {
+                    out.pop();
+                }
+                return out;
+            };
 
-            if (cls === '5') {
-                code = `function createPigKlasse5() {
-    const group = new THREE.Group(); group.name = 'pigGroup';
-    const staticGroup = new THREE.Group(); staticGroup.name = 'staticGroup';
-    
-    const bodyGeo = new THREE.SphereGeometry(0.85, 24, 16); applyZombieRot(bodyGeo, 0x8a7a65); 
-    const body = new THREE.Mesh(bodyGeo, rottenMat); body.name = 'body';
-    body.scale.set(${getT('body').s}); body.position.set(${getT('body').p}); body.rotation.set(${getT('body').r});
-    staticGroup.add(body); 
-    
-    addUltraHeadParts(staticGroup, ${getT('head').p.split(',')[1]}, ${getT('head').p.split(',')[2]}, 0x8a7a65); 
-    addProceduralCurlyTail(staticGroup, 0.1, 0.7); 
-    
-    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2.2), helmetMat);
-    helmet.name = 'helmet'; helmet.position.set(${getT('helmet').p}); helmet.rotation.set(${getT('helmet').r}); helmet.scale.set(${getT('helmet').s});
-    staticGroup.add(helmet);
-    
-    const armGeo = new THREE.CylinderGeometry(0.12, 0.08, 0.8, 12); 
-    const armL = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(armL.geometry, 0x566344); 
-    armL.name = 'armL'; armL.position.set(${getT('armL').p}); armL.rotation.set(${getT('armL').r}); armL.scale.set(${getT('armL').s});
-    staticGroup.add(armL); 
-    
-    group.add(mergeGroupIntoSingleMesh(staticGroup, rottenMat));
+            const reservedWords = new Set([
+                'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default',
+                'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function', 'if',
+                'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw',
+                'try', 'typeof', 'var', 'void', 'while', 'with', 'yield', 'let', 'static', 'enum',
+                'await', 'implements', 'interface', 'package', 'private', 'protected', 'public',
+                'group', 'legs', 'THREE'
+            ]);
 
-    const armRGroup = new THREE.Group(); armRGroup.name = 'armRGroup';
-    armRGroup.position.set(${getT('armRGroup').p}); armRGroup.rotation.set(${getT('armRGroup').r});
-    
-    const armWithGunGroup = new THREE.Group(); armWithGunGroup.name = 'armWithGunGroup';
-    armWithGunGroup.position.set(${getT('armWithGunGroup').p}); armWithGunGroup.rotation.set(${getT('armWithGunGroup').r});
-    
-    const armRMesh = new THREE.Mesh(armGeo.clone(), rottenMat); applyZombieRot(armRMesh.geometry, 0x566344); 
-    armRMesh.name = 'armRMesh'; armRMesh.position.set(${getT('armRMesh').p}); armRMesh.rotation.set(${getT('armRMesh').r}); armRMesh.scale.set(${getT('armRMesh').s});
-    armWithGunGroup.add(armRMesh);
-    
-    const gunGroup = new THREE.Group(); gunGroup.name = 'gunGroup';
-    gunGroup.position.set(${getT('gunGroup').p}); gunGroup.rotation.set(${getT('gunGroup').r});
-    
-    const gunBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.3), gunMetalMat); 
-    gunBarrel.name = 'gunBarrel'; gunBarrel.position.set(${getT('gunBarrel').p}); gunBarrel.rotation.set(${getT('gunBarrel').r}); gunBarrel.scale.set(${getT('gunBarrel').s});
-    
-    const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.2, 12), gunShinyMat); 
-    muzzle.name = 'muzzle'; muzzle.position.set(${getT('muzzle').p}); muzzle.rotation.set(${getT('muzzle').r}); muzzle.scale.set(${getT('muzzle').s});
-    
-    const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 0.2), gunWoodMat); 
-    gunGrip.name = 'gunGrip'; gunGrip.position.set(${getT('gunGrip').p}); gunGrip.rotation.set(${getT('gunGrip').r}); gunGrip.scale.set(${getT('gunGrip').s});
+            const usedVars = new Set();
+            const makeUniqueVar = (rawName, fallback = 'obj') => {
+                let base = (rawName || fallback).replace(/[^a-zA-Z0-9_$]/g, '_');
+                if (!base || /^[0-9]/.test(base)) base = '_' + base;
+                if (reservedWords.has(base)) base += '_obj';
+                let candidate = base;
+                let counter = 2;
+                while (usedVars.has(candidate)) {
+                    candidate = `${base}_${counter++}`;
+                }
+                usedVars.add(candidate);
+                return candidate;
+            };
 
-    gunGroup.add(gunBarrel); gunGroup.add(muzzle); gunGroup.add(gunGrip);
-    armWithGunGroup.add(gunGroup); armRGroup.add(armWithGunGroup); group.add(armRGroup); 
+            // Materialien deduplizieren und serialisieren
+            const matDeclarations = [];
+            const matSignatureMap = new Map();
+            const matInstanceMap = new Map();
+            let matCounter = 0;
 
-    const legGeo = new THREE.CylinderGeometry(0.14, 0.1, 0.9, 12); 
-    const legs = [];
-    const l0 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(l0.geometry, 0x8a7a65); 
-    l0.name = 'leg0'; l0.position.set(${getT('leg0').p}); l0.rotation.set(${getT('leg0').r}); group.add(l0); legs.push(l0);
-    
-    const l1 = new THREE.Mesh(legGeo.clone(), rottenMat); applyZombieRot(l1.geometry, 0x8a7a65); 
-    l1.name = 'leg1'; l1.position.set(${getT('leg1').p}); l1.rotation.set(${getT('leg1').r}); group.add(l1); legs.push(l1);
-    
-    group.rotation.y = Math.PI; 
-    return { mesh: group, legs: legs, gunArm: armRGroup, type: 5 }; 
-}`;
-            } else {
-                code = `// Exportierter Baum für Klasse ${cls}\nfunction createCustomPig() {\n    const pigGroup = new THREE.Group(); pigGroup.name = 'pigGroup';\n`;
-                currentPig.traverse(c => {
-                    if (c !== currentPig && c.name) {
-                        code += `    // Object: ${c.name} | Pos: ${c.position.x.toFixed(3)}, ${c.position.y.toFixed(3)}, ${c.position.z.toFixed(3)}\n`;
+            function getMaterialVar(mat) {
+                if (!mat) return 'new THREE.MeshStandardMaterial()';
+                if (matInstanceMap.has(mat)) return matInstanceMap.get(mat);
+
+                const matType = ['MeshBasicMaterial', 'MeshPhongMaterial', 'MeshLambertMaterial', 'MeshStandardMaterial'].includes(mat.type)
+                    ? mat.type
+                    : 'MeshStandardMaterial';
+
+                const props = [];
+                if (mat.color) props.push(`color: 0x${mat.color.getHexString()}`);
+                if (mat.roughness !== undefined && mat.roughness !== 1) props.push(`roughness: ${fmt(mat.roughness)}`);
+                if (mat.metalness !== undefined && mat.metalness !== 0) props.push(`metalness: ${fmt(mat.metalness)}`);
+                if (mat.emissive && mat.emissive.getHex() !== 0x000000) {
+                    props.push(`emissive: 0x${mat.emissive.getHexString()}`);
+                    if (mat.emissiveIntensity !== undefined && mat.emissiveIntensity !== 1) {
+                        props.push(`emissiveIntensity: ${fmt(mat.emissiveIntensity)}`);
                     }
-                });
-                code += `    return pigGroup;\n}`;
+                }
+                if (mat.transparent) props.push(`transparent: true`);
+                if (mat.opacity !== undefined && mat.opacity < 1) props.push(`opacity: ${fmt(mat.opacity)}`);
+                if (mat.wireframe) props.push(`wireframe: true`);
+                if (mat.vertexColors) props.push(`vertexColors: true`);
+                if (mat.side === THREE.DoubleSide) props.push(`side: THREE.DoubleSide`);
+                else if (mat.side === THREE.BackSide) props.push(`side: THREE.BackSide`);
+
+                const signature = `${matType}|{${props.join(', ')}}`;
+                if (matSignatureMap.has(signature)) {
+                    const existingVar = matSignatureMap.get(signature);
+                    matInstanceMap.set(mat, existingVar);
+                    return existingVar;
+                }
+
+                const varName = makeUniqueVar(`mat_${matCounter++}`, 'mat');
+                matDeclarations.push(`    const ${varName} = new THREE.${matType}({ ${props.join(', ')} });`);
+                matSignatureMap.set(signature, varName);
+                matInstanceMap.set(mat, varName);
+                return varName;
             }
 
-            document.getElementById('exportTitle').innerText = `Dein fertiger Code (${cls})`;
-            document.getElementById('codeOutput').value = code;
+            let needsBufferHelper = false;
+
+            function buildGeometryLines(geo, geoVar) {
+                const lines = [];
+                if (!geo) {
+                    lines.push(`    const ${geoVar} = new THREE.BoxGeometry(0.5, 0.5, 0.5);`);
+                    return lines;
+                }
+
+                const cleanType = (geo.type || '').replace('BufferGeometry', 'Geometry');
+                const p = geo.parameters || {};
+                let ctorExpr = null;
+
+                switch (cleanType) {
+                    case 'BoxGeometry': {
+                        const args = trimDefaults(
+                            [fmt(p.width ?? 1), fmt(p.height ?? 1), fmt(p.depth ?? 1), fmt(p.widthSegments ?? 1), fmt(p.heightSegments ?? 1), fmt(p.depthSegments ?? 1)],
+                            ['1', '1', '1', '1', '1', '1']
+                        );
+                        ctorExpr = `new THREE.BoxGeometry(${args.join(', ')})`;
+                        break;
+                    }
+                    case 'SphereGeometry': {
+                        const args = trimDefaults(
+                            [
+                                fmt(p.radius ?? 1),
+                                fmt(p.widthSegments ?? 8),
+                                fmt(p.heightSegments ?? 6),
+                                fmt(p.phiStart ?? 0),
+                                fmt(p.phiLength ?? Math.PI * 2),
+                                fmt(p.thetaStart ?? 0),
+                                fmt(p.thetaLength ?? Math.PI)
+                            ],
+                            ['1', '8', '6', '0', fmt(Math.PI * 2), '0', fmt(Math.PI)]
+                        );
+                        ctorExpr = `new THREE.SphereGeometry(${args.join(', ')})`;
+                        break;
+                    }
+                    case 'CylinderGeometry': {
+                        const args = trimDefaults(
+                            [
+                                fmt(p.radiusTop ?? 1),
+                                fmt(p.radiusBottom ?? 1),
+                                fmt(p.height ?? 1),
+                                fmt(p.radialSegments ?? 8),
+                                fmt(p.heightSegments ?? 1),
+                                String(Boolean(p.openEnded)),
+                                fmt(p.thetaStart ?? 0),
+                                fmt(p.thetaLength ?? Math.PI * 2)
+                            ],
+                            ['1', '1', '1', '8', '1', 'false', '0', fmt(Math.PI * 2)]
+                        );
+                        ctorExpr = `new THREE.CylinderGeometry(${args.join(', ')})`;
+                        break;
+                    }
+                    case 'ConeGeometry': {
+                        const args = trimDefaults(
+                            [
+                                fmt(p.radius ?? 1),
+                                fmt(p.height ?? 1),
+                                fmt(p.radialSegments ?? 8),
+                                fmt(p.heightSegments ?? 1),
+                                String(Boolean(p.openEnded)),
+                                fmt(p.thetaStart ?? 0),
+                                fmt(p.thetaLength ?? Math.PI * 2)
+                            ],
+                            ['1', '1', '8', '1', 'false', '0', fmt(Math.PI * 2)]
+                        );
+                        ctorExpr = `new THREE.ConeGeometry(${args.join(', ')})`;
+                        break;
+                    }
+                    case 'TorusGeometry': {
+                        const args = trimDefaults(
+                            [
+                                fmt(p.radius ?? 1),
+                                fmt(p.tube ?? 0.4),
+                                fmt(p.radialSegments ?? 8),
+                                fmt(p.tubularSegments ?? 6),
+                                fmt(p.arc ?? Math.PI * 2)
+                            ],
+                            ['1', '0.4', '8', '6', fmt(Math.PI * 2)]
+                        );
+                        ctorExpr = `new THREE.TorusGeometry(${args.join(', ')})`;
+                        break;
+                    }
+                    case 'TorusKnotGeometry': {
+                        const args = trimDefaults(
+                            [
+                                fmt(p.radius ?? 1),
+                                fmt(p.tube ?? 0.4),
+                                fmt(p.tubularSegments ?? 64),
+                                fmt(p.radialSegments ?? 8),
+                                fmt(p.p ?? 2),
+                                fmt(p.q ?? 3)
+                            ],
+                            ['1', '0.4', '64', '8', '2', '3']
+                        );
+                        ctorExpr = `new THREE.TorusKnotGeometry(${args.join(', ')})`;
+                        break;
+                    }
+                    case 'PlaneGeometry': {
+                        const args = trimDefaults(
+                            [fmt(p.width ?? 1), fmt(p.height ?? 1), fmt(p.widthSegments ?? 1), fmt(p.heightSegments ?? 1)],
+                            ['1', '1', '1', '1']
+                        );
+                        ctorExpr = `new THREE.PlaneGeometry(${args.join(', ')})`;
+                        break;
+                    }
+                    case 'CircleGeometry': {
+                        const args = trimDefaults(
+                            [fmt(p.radius ?? 1), fmt(p.segments ?? 8), fmt(p.thetaStart ?? 0), fmt(p.thetaLength ?? Math.PI * 2)],
+                            ['1', '8', '0', fmt(Math.PI * 2)]
+                        );
+                        ctorExpr = `new THREE.CircleGeometry(${args.join(', ')})`;
+                        break;
+                    }
+                    case 'RingGeometry': {
+                        const args = trimDefaults(
+                            [
+                                fmt(p.innerRadius ?? 0.5),
+                                fmt(p.outerRadius ?? 1),
+                                fmt(p.thetaSegments ?? 8),
+                                fmt(p.phiSegments ?? 1),
+                                fmt(p.thetaStart ?? 0),
+                                fmt(p.thetaLength ?? Math.PI * 2)
+                            ],
+                            ['0.5', '1', '8', '1', '0', fmt(Math.PI * 2)]
+                        );
+                        ctorExpr = `new THREE.RingGeometry(${args.join(', ')})`;
+                        break;
+                    }
+                    case 'IcosahedronGeometry':
+                    case 'DodecahedronGeometry':
+                    case 'OctahedronGeometry':
+                    case 'TetrahedronGeometry': {
+                        const args = trimDefaults([fmt(p.radius ?? 1), fmt(p.detail ?? 0)], ['1', '0']);
+                        ctorExpr = `new THREE.${cleanType}(${args.join(', ')})`;
+                        break;
+                    }
+                    case 'LatheGeometry': {
+                        if (Array.isArray(p.points)) {
+                            const ptsStr = p.points.map(pt => `new THREE.Vector2(${fmt(pt.x)}, ${fmt(pt.y)})`).join(', ');
+                            const args = trimDefaults(
+                                [`[${ptsStr}]`, fmt(p.segments ?? 12), fmt(p.phiStart ?? 0), fmt(p.phiLength ?? Math.PI * 2)],
+                                ['[]', '12', '0', fmt(Math.PI * 2)]
+                            );
+                            ctorExpr = `new THREE.LatheGeometry(${args.join(', ')})`;
+                        }
+                        break;
+                    }
+                }
+
+                if (ctorExpr) {
+                    lines.push(`    const ${geoVar} = ${ctorExpr};`);
+                    // Vertex-Colors (z. B. durch applyZombieRot) erhalten
+                    if (geo.attributes && geo.attributes.color) {
+                        const cAttr = geo.attributes.color;
+                        let rSum = 0, gSum = 0, bSum = 0;
+                        for (let i = 0; i < cAttr.count; i++) {
+                            rSum += cAttr.getX(i);
+                            gSum += cAttr.getY(i);
+                            bSum += cAttr.getZ(i);
+                        }
+                        const avgColor = new THREE.Color(rSum / cAttr.count, gSum / cAttr.count, bSum / cAttr.count);
+                        lines.push(`    if (typeof applyZombieRot === 'function') applyZombieRot(${geoVar}, 0x${avgColor.getHexString()});`);
+                    }
+                } else {
+                    // Fallback für komplexe/custom BufferGeometries (z. B. ExtrudeGeometry)
+                    needsBufferHelper = true;
+                    const posArr = geo.attributes && geo.attributes.position ? Array.from(geo.attributes.position.array).map(fmt) : [];
+                    const normArr = geo.attributes && geo.attributes.normal ? Array.from(geo.attributes.normal.array).map(fmt) : [];
+                    const uvArr = geo.attributes && geo.attributes.uv ? Array.from(geo.attributes.uv.array).map(fmt) : [];
+                    const colArr = geo.attributes && geo.attributes.color ? Array.from(geo.attributes.color.array).map(fmt) : [];
+                    const idxArr = geo.index ? Array.from(geo.index.array) : [];
+                    lines.push(`    const ${geoVar} = _buildBufferGeo([${posArr.join(',')}], [${normArr.join(',')}], [${uvArr.join(',')}], [${colArr.join(',')}], [${idxArr.join(',')}]);`);
+                }
+
+                return lines;
+            }
+
+            const bodyLines = [];
+            const detectedLegs = [];
+            let detectedGunArm = null;
+
+            function appendTransformAndMeta(obj, varName) {
+                if (obj.name) {
+                    bodyLines.push(`    ${varName}.name = ${JSON.stringify(obj.name)};`);
+                }
+                if (obj.position.x !== 0 || obj.position.y !== 0 || obj.position.z !== 0) {
+                    bodyLines.push(`    ${varName}.position.set(${fmt(obj.position.x)}, ${fmt(obj.position.y)}, ${fmt(obj.position.z)});`);
+                }
+                if (obj.rotation.x !== 0 || obj.rotation.y !== 0 || obj.rotation.z !== 0) {
+                    bodyLines.push(`    ${varName}.rotation.set(${fmt(obj.rotation.x)}, ${fmt(obj.rotation.y)}, ${fmt(obj.rotation.z)});`);
+                }
+                if (obj.scale.x !== 1 || obj.scale.y !== 1 || obj.scale.z !== 1) {
+                    bodyLines.push(`    ${varName}.scale.set(${fmt(obj.scale.x)}, ${fmt(obj.scale.y)}, ${fmt(obj.scale.z)});`);
+                }
+                if (obj.visible === false) bodyLines.push(`    ${varName}.visible = false;`);
+                if (obj.castShadow) bodyLines.push(`    ${varName}.castShadow = true;`);
+                if (obj.receiveShadow) bodyLines.push(`    ${varName}.receiveShadow = true;`);
+                if (obj.renderOrder !== 0) bodyLines.push(`    ${varName}.renderOrder = ${obj.renderOrder};`);
+            }
+
+            function traverseAndEmit(obj, parentVar) {
+                if (obj.isMesh) {
+                    const meshVar = makeUniqueVar(obj.name, 'mesh');
+                    const geoVar = makeUniqueVar(`${obj.name || 'mesh'}_geo`, 'geo');
+                    const matVar = getMaterialVar(obj.material);
+
+                    bodyLines.push('');
+                    bodyLines.push(...buildGeometryLines(obj.geometry, geoVar));
+                    bodyLines.push(`    const ${meshVar} = new THREE.Mesh(${geoVar}, ${matVar});`);
+                    appendTransformAndMeta(obj, meshVar);
+
+                    const legMatch = (obj.name || '').match(/^leg(\d+)$/i);
+                    if (legMatch) {
+                        detectedLegs.push({ index: parseInt(legMatch[1], 10), varName: meshVar });
+                    }
+
+                    if (obj.children && obj.children.length > 0) {
+                        obj.children.forEach(child => traverseAndEmit(child, meshVar));
+                    }
+                    bodyLines.push(`    ${parentVar}.add(${meshVar});`);
+                } else if (obj.isGroup || obj.isObject3D) {
+                    const grpVar = makeUniqueVar(obj.name, 'group');
+                    bodyLines.push('');
+                    bodyLines.push(`    const ${grpVar} = new THREE.Group();`);
+                    appendTransformAndMeta(obj, grpVar);
+
+                    const legMatch = (obj.name || '').match(/^leg(\d+)$/i);
+                    if (legMatch) {
+                        detectedLegs.push({ index: parseInt(legMatch[1], 10), varName: grpVar });
+                    }
+                    if (obj.name === 'armRGroup' || obj.name === 'gunArm') {
+                        detectedGunArm = grpVar;
+                    }
+
+                    if (obj.children && obj.children.length > 0) {
+                        obj.children.forEach(child => traverseAndEmit(child, grpVar));
+                    }
+
+                    if (obj.name === 'staticGroup' && parentVar === 'group') {
+                        const childMats = new Set();
+                        obj.traverse(c => { if (c.isMesh && c.material) childMats.add(getMaterialVar(c.material)); });
+                        if (childMats.size === 1) {
+                            const singleMat = Array.from(childMats)[0];
+                            bodyLines.push(`    group.add(typeof mergeGroupIntoSingleMesh === 'function' ? mergeGroupIntoSingleMesh(${grpVar}, ${singleMat}) : ${grpVar});`);
+                        } else {
+                            bodyLines.push(`    group.add(${grpVar});`);
+                        }
+                    } else {
+                        bodyLines.push(`    ${parentVar}.add(${grpVar});`);
+                    }
+                }
+            }
+
+            currentPig.children.forEach(child => traverseAndEmit(child, 'group'));
+
+            // Beine in numerischer Reihenfolge (leg0, leg1, ...) sortieren
+            detectedLegs.sort((a, b) => a.index - b.index);
+            const legsArrayStr = detectedLegs.map(l => l.varName).join(', ');
+
+            // Funktionsnamen aus dem gewählten Modell ableiten
+            const activeArray = (guiParams.pigCategory === 'Schussschweine') ? (window.SHOOTER_PIGS || []) : (window.HORDE_PIGS || []);
+            const selectedFn = activeArray[parseInt(guiParams.pigVariant, 10)];
+            const fnName = (selectedFn && selectedFn.name) ? selectedFn.name : 'createCustomPig';
+
+            const helperCode = needsBufferHelper ? `
+    function _buildBufferGeo(pos, norm, uv, col, idx) {
+        const g = new THREE.BufferGeometry();
+        if (pos.length) g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        if (norm.length) g.setAttribute('normal', new THREE.Float32BufferAttribute(norm, 3));
+        if (uv.length) g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        if (col.length) g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+        if (idx.length) g.setIndex(idx);
+        if (!norm.length) g.computeVertexNormals();
+        return g;
+    }\n` : '';
+
+            const returnFields = [`mesh: group`, `legs: [${legsArrayStr}]`];
+            if (detectedGunArm) returnFields.push(`gunArm: ${detectedGunArm}`);
+            if (guiParams.pigCategory === 'Schussschweine' || detectedGunArm) returnFields.push(`type: 5`);
+
+            const fullCode = [
+                `function ${fnName}() {`,
+                `    const group = new THREE.Group();`,
+                `    group.name = 'pigGroup';`,
+                helperCode,
+                matDeclarations.length ? `    // Materialien\n${matDeclarations.join('\n')}` : '',
+                ...bodyLines,
+                '',
+                `    group.rotation.set(${fmt(currentPig.rotation.x)}, ${fmt(currentPig.rotation.y)}, ${fmt(currentPig.rotation.z)});`,
+                `    return { ${returnFields.join(', ')} };`,
+                `}`
+            ].filter((line, idx, arr) => !(line === '' && arr[idx - 1] === '')).join('\n');
+
+            document.getElementById('exportTitle').innerText = `Dein fertiger Code (${fnName})`;
+            document.getElementById('codeOutput').value = fullCode;
             document.getElementById('exportModal').style.display = 'flex';
         }
 
