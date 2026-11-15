@@ -894,12 +894,21 @@ function perform3DShoot() {
             let isHeadshot = false;
             let localHit = intersects[0].point.clone();
             pigData.mesh.worldToLocal(localHit);
-            if (pigData.type === 1 && localHit.y > 0.1 && localHit.z < -0.5) isHeadshot = true;
-            if (pigData.type === 2 && localHit.y > 1.2) isHeadshot = true;
-            if (pigData.type === 3 && localHit.y > 1.1) isHeadshot = true;
-            if (pigData.type === 4 && localHit.y > 1.15) isHeadshot = true;
-            if (pigData.type === 5 && localHit.y > 1.2) isHeadshot = true;
-            if (pigData.type === 6 && localHit.y > 1.6) isHeadshot = true;
+
+            const headshotY = pigData.headshotY !== undefined ? pigData.headshotY : (pigData.headHeight !== undefined ? pigData.headHeight : pigData.headY);
+            if (headshotY !== undefined) {
+                const headshotZ = pigData.headshotZ !== undefined ? pigData.headshotZ : (pigData.type === 1 ? -0.5 : undefined);
+                if (localHit.y > headshotY && (headshotZ === undefined || localHit.z < headshotZ)) {
+                    isHeadshot = true;
+                }
+            } else {
+                if (pigData.type === 1 && localHit.y > 0.1 && localHit.z < -0.5) isHeadshot = true;
+                if (pigData.type === 2 && localHit.y > 1.2) isHeadshot = true;
+                if (pigData.type === 3 && localHit.y > 1.1) isHeadshot = true;
+                if (pigData.type === 4 && localHit.y > 1.15) isHeadshot = true;
+                if (pigData.type === 5 && localHit.y > 1.2) isHeadshot = true;
+                if (pigData.type === 6 && localHit.y > 1.6) isHeadshot = true;
+            }
             
             hit3DPig(pigData, isHeadshot); return; 
         }

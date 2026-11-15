@@ -448,7 +448,7 @@ function createPigKlasse5() {
     l1.name = 'leg1'; l1.position.set(0.350, -0.600, 0.000); l1.rotation.set(0.000, 0.000, 0.000); group.add(l1); legs.push(l1);
     
     group.rotation.y = Math.PI; 
-    return { mesh: group, legs: legs, gunArm: armRGroup, type: 5 }; 
+    return { mesh: group, legs: legs, gunArm: armRGroup, type: 5, headshotY: 1.2 }; 
 }
 
 function createPigKlasse6() {
@@ -884,7 +884,7 @@ function createPigKlasse6() {
     group.add(leg1);
 
     group.rotation.set(0, 3.1416, 0);
-    return { mesh: group, legs: [leg0, leg1], type: 6 };
+    return { mesh: group, legs: [leg0, leg1], type: 6, headshotY: 1.6 };
 }
 
 // Erstellt das visuelle Kürbis-Schwein (früher fest verknüpft mit Typ 4)
@@ -962,7 +962,7 @@ function createPigMesh(type) {
     }
 
     pigGroup.userData = { legs: legs, type: type };
-    return { mesh: pigGroup, legs: legs, type: type || 4 };
+    return { mesh: pigGroup, legs: legs, type: type || 4, headshotY: (type === 4 ? 1.15 : 1.1) };
 }
 
 // NEU: Diese Funktion prüft das aktuelle System-Datum des Spielers
@@ -994,7 +994,7 @@ function createPigKlasse1() {
     }
     
     group.rotation.y = Math.PI; 
-    return { mesh: group, legs: legs, type: 1 }; 
+    return { mesh: group, legs: legs, type: 1, headshotY: 0.1, headshotZ: -0.5 }; 
 }
 
 function createPigKlasse2() {
@@ -1032,7 +1032,7 @@ function createPigKlasse2() {
     leg1.name = 'leg1'; leg1.position.set(0.35, -0.6, 0); group.add(leg1); legs.push(leg1);
     
     group.rotation.y = Math.PI; 
-    return { mesh: group, legs: legs, type: 2 }; 
+    return { mesh: group, legs: legs, type: 2, headshotY: 1.2 }; 
 }
 
 function createPigKlasse3() {
@@ -1065,7 +1065,7 @@ function createPigKlasse3() {
     leg1.name = 'leg1'; leg1.position.set(0.45, -0.5, 0); group.add(leg1); legs.push(leg1);
     
     group.rotation.y = Math.PI; 
-    return { mesh: group, legs: legs, type: 3 };
+    return { mesh: group, legs: legs, type: 3, headshotY: 1.1 };
 }
 
 function createPigKlasse4() {
@@ -1129,7 +1129,7 @@ function createPigKlasse4() {
     group.add(mouth);
     
     group.rotation.y = Math.PI;
-    return { mesh: group, legs: legs, type: 4 };
+    return { mesh: group, legs: legs, type: 4, headshotY: 1.15 };
 }
 
 function spawnSchwein() {

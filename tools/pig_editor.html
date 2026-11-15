@@ -470,6 +470,9 @@
             side: 'DoubleSide',
 
             pigType: 0,
+            headshotY: 1.2,
+            autoHeadshotY: true,
+            headshotZ: 0,
 
             undo: undo,
             redo: redo,
@@ -486,6 +489,10 @@
                 body.name = 'body'; currentPig.add(body);
                 currentPig.rotation.y = Math.PI; scene.add(currentPig);
                 selectedObject = null;
+                guiParams.pigType = 0;
+                guiParams.autoHeadshotY = true;
+                guiParams.headshotY = autoDetectHeadHeight(currentPig) || 1.2;
+                guiParams.headshotZ = 0;
                 refreshUIFolders();
             },
 
@@ -607,7 +614,16 @@
             undoCtrl = fMain.add(guiParams, 'undo').name('↩️ Rückgängig (0)');
             redoCtrl = fMain.add(guiParams, 'redo').name('↪️ Wiederholen (0)');
             fMain.add(guiParams, 'createNewPig').name('➕ Neues Schwein (Blanko)');
-            fMain.add(guiParams, 'pigType').step(1).min(0).name('🏷️ Schwein-Type (für Export)').listen();
+            fMain.add(guiParams, 'pigType').step(1).min(0).name('🏷️ Schwein-Type').listen();
+            fMain.add(guiParams, 'autoHeadshotY').name('⚡ Kopfhöhe auto').listen().onChange(v => {
+                if (v && currentPig) {
+                    const detected = autoDetectHeadHeight(currentPig);
+                    if (detected !== null) guiParams.headshotY = detected;
+                }
+            });
+            fMain.add(guiParams, 'headshotY').step(0.01).name('🎯 Kopfhöhe (Headshot Y)').listen().onChange(() => {
+                guiParams.autoHeadshotY = false;
+            });
             fMain.add(guiParams, 'export').name('💾 CODE EXPORTIEREN');
             fMain.open();
             updateUndoRedoLabels();
@@ -814,6 +830,76 @@
             renderTreeView();
         }
 
+        // --- HILFSFUNKTIONEN ZUR KOPFHÖHEN-ERKENNUNG ---
+        function getObjectLocalBoundingBox(targetObj, rootObj) {
+            if (!targetObj || !rootObj) return new THREE.Box3();
+            rootObj.updateMatrixWorld(true);
+            const invRootMatrix = new THREE.Matrix4().copy(rootObj.matrixWorld).invert();
+            const box = new THREE.Box3();
+            box.makeEmpty();
+
+            targetObj.traverse(child => {
+                if (child.isMesh && child.geometry) {
+                    const geom = child.geometry;
+                    if (!geom.boundingBox) geom.computeBoundingBox();
+                    if (geom.boundingBox) {
+                        const childToRoot = new THREE.Matrix4().multiplyMatrices(invRootMatrix, child.matrixWorld);
+                        const localChildBox = geom.boundingBox.clone().applyMatrix4(childToRoot);
+                        box.union(localChildBox);
+                    }
+                }
+            });
+            return box;
+        }
+
+        function autoDetectHeadHeight(root) {
+            if (!root) return null;
+
+            let headObj = null;
+
+            // 1. Suche nach pumpkin (z.B. Kürbis-Kopf)
+            root.traverse(c => {
+                if (!headObj && c.name && /^pumpkin$/i.test(c.name)) headObj = c;
+            });
+
+            // 2. Suche nach exakt 'head' oder 'kopf'
+            if (!headObj) {
+                root.traverse(c => {
+                    if (!headObj && c.name && /^(head|kopf)$/i.test(c.name)) headObj = c;
+                });
+            }
+
+            // 3. Suche nach 'headgroup' oder 'kopfgroup'
+            if (!headObj) {
+                root.traverse(c => {
+                    if (!headObj && c.name && /^(headgroup|kopfgroup)$/i.test(c.name)) headObj = c;
+                });
+            }
+
+            // 4. Suche nach Objekten mit head oder kopf im Namen
+            if (!headObj) {
+                root.traverse(c => {
+                    if (!headObj && c.name && /(?:^|[^a-z])(head|kopf)(?:[^a-z]|$)/i.test(c.name)) headObj = c;
+                });
+            }
+
+            if (headObj) {
+                const box = getObjectLocalBoundingBox(headObj, root);
+                if (!box.isEmpty() && isFinite(box.min.y)) {
+                    return Math.round(box.min.y * 100) / 100;
+                }
+            }
+
+            // Fallback: oberste 25% der gesamten Schweine-Geometrie
+            const totalBox = getObjectLocalBoundingBox(root, root);
+            if (!totalBox.isEmpty() && isFinite(totalBox.max.y) && isFinite(totalBox.min.y)) {
+                const h = totalBox.max.y - totalBox.min.y;
+                return Math.round((totalBox.max.y - h * 0.25) * 100) / 100;
+            }
+
+            return 1.2;
+        }
+
         // SCHWEIN AUS JS/ENTITIES.JS LADEN
         function loadPig() {
             if (currentPig) { scene.remove(currentPig); transformControl.detach(); }
@@ -835,9 +921,21 @@
             if (pigData) {
                 currentPig = pigData.mesh || pigData;
                 guiParams.pigType = pigData.type || 0;
+                if (pigData.headshotY !== undefined) {
+                    guiParams.headshotY = pigData.headshotY;
+                    guiParams.autoHeadshotY = false;
+                } else {
+                    const detected = autoDetectHeadHeight(currentPig);
+                    guiParams.headshotY = detected !== null ? detected : 1.2;
+                    guiParams.autoHeadshotY = true;
+                }
+                guiParams.headshotZ = pigData.headshotZ !== undefined ? pigData.headshotZ : 0;
             } else {
                 currentPig = new THREE.Group();
                 guiParams.pigType = 0;
+                guiParams.headshotY = 1.2;
+                guiParams.autoHeadshotY = true;
+                guiParams.headshotZ = 0;
             }
 
             currentPig.name = 'pigGroup';
@@ -1340,6 +1438,25 @@
             if (detectedGunArm) returnFields.push(`gunArm: ${detectedGunArm}`);
             const exportType = guiParams.pigType || 0;
             if (exportType > 0) returnFields.push(`type: ${exportType}`);
+
+            // Automatische Kopfhöhe beim Export setzen
+            let finalHeadshotY = guiParams.headshotY;
+            if (guiParams.autoHeadshotY) {
+                const detected = autoDetectHeadHeight(currentPig);
+                if (detected !== null) {
+                    finalHeadshotY = detected;
+                    guiParams.headshotY = detected;
+                }
+            } else if (finalHeadshotY === undefined || finalHeadshotY === null) {
+                finalHeadshotY = autoDetectHeadHeight(currentPig) || 1.2;
+            }
+
+            if (finalHeadshotY !== undefined && finalHeadshotY !== null && !isNaN(finalHeadshotY)) {
+                returnFields.push(`headshotY: ${fmt(finalHeadshotY)}`);
+            }
+            if (guiParams.headshotZ !== undefined && guiParams.headshotZ !== 0) {
+                returnFields.push(`headshotZ: ${fmt(guiParams.headshotZ)}`);
+            }
 
             const fullCode = [
                 `function ${fnName}() {`,
