@@ -6,14 +6,23 @@
     <style>
         body { margin: 0; overflow: hidden; background-color: #1e1e24; font-family: sans-serif; }
         canvas { display: block; outline: none; }
-        #info { position: absolute; top: 10px; left: 10px; color: #fff; background: rgba(0,0,0,0.82); padding: 12px; border-radius: 6px; pointer-events: none; line-height: 1.5; font-size: 13px; z-index: 100; border: 1px solid #333; }
-        #info kbd { background: #444; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
+        #info {
+            position: absolute; top: 10px; left: 10px; color: #fff;
+            background: rgba(0, 0, 0, 0.85); padding: 10px 12px; border-radius: 6px;
+            pointer-events: none; line-height: 1.65; font-size: 12px; z-index: 100;
+            border: 1px solid #3a3a45; max-width: 690px;
+        }
+        #info kbd { background: #3c3c46; border: 1px solid #555; padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 11px; }
         .mode-pill { display: inline-block; padding: 1px 6px; border-radius: 3px; transition: background 0.15s; }
         .mode-pill.active { background: #0066cc; color: #fff; font-weight: bold; }
+        .mode-pill.locked { background: #b83227; color: #fff; font-weight: bold; }
+
+        /* Scrollbare dat.GUI Sidebar damit Material & Effekte nie abgeschnitten wird */
+        .dg.main { max-height: calc(100vh - 16px); overflow-y: auto; overflow-x: hidden; }
         
         /* Baumanzeige (links unten) */
         #treeContainer {
-            position: absolute; bottom: 10px; left: 10px; width: 320px; max-height: 380px;
+            position: absolute; bottom: 10px; left: 10px; width: 330px; max-height: 360px;
             background: rgba(15, 15, 20, 0.92); color: #eee; font-family: sans-serif; font-size: 12px;
             border-radius: 6px; padding: 10px; box-sizing: border-box; overflow-y: auto;
             border: 1px solid #444; z-index: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
@@ -22,7 +31,7 @@
         .tree-node { margin-left: 10px; margin-top: 2px; padding: 3px 5px; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); cursor: pointer; }
         .tree-node:hover { background: rgba(255,255,255,0.1); }
         .tree-node.active { background: #0055aa; color: #fff; font-weight: bold; }
-        .tree-node-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; }
+        .tree-node-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 175px; }
         .tree-actions { display: flex; gap: 4px; }
         .tree-btn { background: #aa2222; border: none; color: white; padding: 2px 5px; border-radius: 3px; cursor: pointer; font-size: 10px; }
         .tree-btn:hover { background: #ff3333; }
@@ -40,13 +49,15 @@
 </head>
 <body>
     <div id="info">
-        <strong>Universal 3D Model Editor</strong> (Lädt aus <code>js/entities.js</code>)<br>
-        • Werkzeuge: 
+        <strong>Universal 3D Model Editor</strong> (<code>js/entities.js</code>)<br>
+        • <strong>Werkzeuge:</strong> 
         <span id="mode-translate" class="mode-pill active"><kbd>W</kbd> Bewegen</span> | 
         <span id="mode-rotate" class="mode-pill"><kbd>E</kbd> Drehen</span> | 
-        <span id="mode-scale" class="mode-pill"><kbd>R</kbd> Skalieren</span><br>
-        • <kbd>Ctrl + Z</kbd> Rückgängig | <kbd>Ctrl + Y</kbd> Wiederholen | <kbd>Entf</kbd> Löschen | <kbd>Esc</kbd> Abwählen<br>
-        • Navigieren: Linksklick-Ziehen (Drehen), Rechtsklick (Schieben), Klick (Auswählen)
+        <span id="mode-scale" class="mode-pill"><kbd>R</kbd> Skalieren</span> | 
+        <span id="lock-status" class="mode-pill"><kbd>L</kbd> Auswahl: Frei</span><br>
+        • <strong>Auswahl & Bearbeiten:</strong> <kbd>Linksklick</kbd> Wählen | <kbd>Esc</kbd> Abwählen / Modal schließen | <kbd>Ctrl+D</kbd> Duplizieren | <kbd>Entf</kbd> / <kbd>Backspace</kbd> Löschen<br>
+        • <strong>Verlauf & Material:</strong> <kbd>Ctrl+Z</kbd> Rückgängig | <kbd>Ctrl+Y</kbd> / <kbd>Ctrl+Shift+Z</kbd> Wiederholen | <kbd>Ctrl+Shift+C</kbd> Mat. kopieren | <kbd>Ctrl+Shift+V</kbd> Mat.-Referenz einfügen<br>
+        • <strong>Kamera:</strong> <kbd>Linksklick-Ziehen</kbd> Drehen | <kbd>Rechtsklick-Ziehen</kbd> Verschieben | <kbd>Mausrad</kbd> Zoom | <kbd>F</kbd> Fokus auf Auswahl
     </div>
 
     <!-- Baumanzeige links unten -->
@@ -113,7 +124,7 @@
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.domElement.tabIndex = 0; // Ermöglicht sauberen Fokus-Wechsel weg von dat.GUI
+        renderer.domElement.tabIndex = 0;
         document.body.appendChild(renderer.domElement);
 
         const orbit = new THREE.OrbitControls(camera, renderer.domElement);
@@ -136,6 +147,19 @@
                 const el = document.getElementById(`mode-${m}`);
                 if (el) el.classList.toggle('active', m === mode);
             });
+        }
+
+        function updateLockStatusUI() {
+            const el = document.getElementById('lock-status');
+            if (!el) return;
+            const locked = Boolean(guiParams.selectionLocked);
+            el.classList.toggle('locked', locked);
+            el.innerHTML = locked ? '<kbd>L</kbd> Auswahl: Gesperrt 🔒' : '<kbd>L</kbd> Auswahl: Frei';
+        }
+
+        function toggleSelectionLock(forceState) {
+            guiParams.selectionLocked = (typeof forceState === 'boolean') ? forceState : !guiParams.selectionLocked;
+            updateLockStatusUI();
         }
 
         // --- 2. UNDO- & REDO-SYSTEM ---
@@ -163,7 +187,7 @@
         function pushUndo(action) {
             undoStack.push(action);
             if (undoStack.length > MAX_UNDO) undoStack.shift();
-            redoStack.length = 0; // Neue Aktion löscht Redo-Pfad
+            redoStack.length = 0;
             updateUndoRedoLabels();
         }
 
@@ -201,7 +225,6 @@
             } else if (action.type === 'delete') {
                 if (isUndo) {
                     action.parent.add(action.object);
-                    // Ursprüngliche Reihenfolge im Baum wiederherstellen
                     const idx = action.parent.children.indexOf(action.object);
                     if (idx !== -1 && action.index < action.parent.children.length) {
                         action.parent.children.splice(idx, 1);
@@ -227,6 +250,32 @@
                     action.newGroup.add(action.child);
                     selectObject(action.newGroup);
                 }
+            } else if (action.type === 'ungroup') {
+                if (isUndo) {
+                    action.parent.add(action.group);
+                    const idx = action.parent.children.indexOf(action.group);
+                    if (idx !== -1 && action.groupIndex < action.parent.children.length) {
+                        action.parent.children.splice(idx, 1);
+                        action.parent.children.splice(action.groupIndex, 0, action.group);
+                    }
+                    action.childrenRecords.forEach(rec => {
+                        action.group.add(rec.child);
+                        rec.child.position.copy(rec.oldPos);
+                        rec.child.rotation.copy(rec.oldRot);
+                        rec.child.scale.copy(rec.oldScale);
+                    });
+                    selectObject(action.group);
+                } else {
+                    action.childrenRecords.forEach(rec => {
+                        action.parent.add(rec.child);
+                        rec.child.position.copy(rec.newPos);
+                        rec.child.rotation.copy(rec.newRot);
+                        rec.child.scale.copy(rec.newScale);
+                    });
+                    if (action.group.parent) action.group.parent.remove(action.group);
+                    if (action.childrenRecords.length > 0) selectObject(action.childrenRecords[0].child);
+                    else deselectObject();
+                }
             } else if (action.type === 'reparent') {
                 const targetParent = isUndo ? action.oldParent : action.newParent;
                 targetParent.add(action.object);
@@ -237,7 +286,7 @@
             } else if (action.type === 'prop') {
                 const val = isUndo ? action.oldValue : action.newValue;
                 action.applyFn(val);
-                selectObject(action.object);
+                if (action.object) selectObject(action.object);
             }
             refreshUIFolders();
             updateUndoRedoLabels();
@@ -299,7 +348,7 @@
             if (transformControl.object) updateGuiFromObject(transformControl.object, false);
         });
 
-        // --- 3. SELEKTION & PICKING (TRENNUNG VON KLICK UND KAMERA-ORBIT) ---
+        // --- 3. SELEKTION & PICKING ---
         let currentPig = null;
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
@@ -307,13 +356,11 @@
         let pointerDownPos = null;
 
         renderer.domElement.addEventListener('pointerdown', (e) => {
-            // Aktiven Input-Fokus aus dat.GUI sauber lösen, damit W/E/R sofort wieder gehen
             if (document.activeElement && document.activeElement !== renderer.domElement) {
                 document.activeElement.blur();
             }
             renderer.domElement.focus({ preventScroll: true });
 
-            // Wenn Gizmo gegriffen/gehovert wird, Raycast-Auswahl komplett ignorieren
             if (e.button !== 0 || transformControl.axis !== null || transformControl.dragging) {
                 pointerDownPos = null;
                 return;
@@ -326,7 +373,6 @@
             const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
             pointerDownPos = null;
 
-            // Nur als Auswahl-Klick werten, wenn die Maus kaum bewegt wurde (kein Kamera-Orbit)
             if (dist >= 5 || transformControl.dragging || transformControl.axis !== null) return;
             if (guiParams.selectionLocked) return;
 
@@ -363,7 +409,7 @@
             transformControl.detach();
             guiParams.selectedName = 'Nichts gewählt';
             guiParams.selectedPartDropdown = 'Nichts gewählt';
-            buildThreePropsFolder();
+            buildMaterialFolder();
             renderTreeView();
         }
 
@@ -381,15 +427,60 @@
             refreshUIFolders();
         }
 
+        function ensureUniqueObjectName(baseName) {
+            if (!currentPig) return baseName;
+            const existing = new Set();
+            currentPig.traverse(c => { if (c.name) existing.add(c.name); });
+            if (!existing.has(baseName)) return baseName;
+            let idx = 2;
+            while (existing.has(`${baseName}_${idx}`)) idx++;
+            return `${baseName}_${idx}`;
+        }
+
+        function duplicateSelection() {
+            if (!selectedObject || selectedObject === currentPig) return;
+            commitPendingGuiTransform();
+
+            const clone = selectedObject.clone(true);
+            const origMeshes = [];
+            const cloneMeshes = [];
+            selectedObject.traverse(c => { if (c.isMesh) origMeshes.push(c); });
+            clone.traverse(c => { if (c.isMesh) cloneMeshes.push(c); });
+            cloneMeshes.forEach((cm, i) => {
+                if (origMeshes[i]) cm.material = origMeshes[i].material;
+            });
+
+            clone.traverse(c => {
+                if (c.name) c.name = ensureUniqueObjectName(c.name);
+            });
+            clone.position.x += 0.25;
+
+            const parent = selectedObject.parent || currentPig;
+            parent.add(clone);
+            pushUndo({ type: 'add', object: clone, parent });
+            refreshUIFolders();
+            selectObject(clone);
+        }
+
+        function focusCameraOnSelection() {
+            const target = selectedObject || currentPig;
+            if (!target) return;
+            const box = getObjectLocalBoundingBox(target, scene);
+            if (!box.isEmpty()) {
+                const center = new THREE.Vector3();
+                box.getCenter(center);
+                orbit.target.copy(center);
+                orbit.update();
+            }
+        }
+
         window.addEventListener('keydown', (e) => {
-            // Export-Modal per Escape schließen
             const modal = document.getElementById('exportModal');
             if (modal && modal.style.display === 'flex') {
                 if (e.key === 'Escape') modal.style.display = 'none';
                 return;
             }
 
-            // Nur blockieren, wenn tatsächlich Text/Zahlen eingetippt werden (NICHT bei Checkboxen!)
             const active = document.activeElement;
             const isTextInput = active && (
                 active.tagName === 'TEXTAREA' ||
@@ -400,13 +491,24 @@
                 return;
             }
 
-            // Falls ein <select>-Dropdown fokussiert ist, Fokus lösen, damit W/E/R nicht die Liste springen lassen
             if (active && active.tagName === 'SELECT') {
                 active.blur();
             }
 
             const key = e.key.toLowerCase();
             const code = e.code;
+
+            // Material kopieren / einfügen: Ctrl+Shift+C / Ctrl+Shift+V
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && (key === 'c' || code === 'KeyC')) {
+                e.preventDefault();
+                copySelectedMaterial();
+                return;
+            }
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && (key === 'v' || code === 'KeyV')) {
+                e.preventDefault();
+                pasteCopiedMaterial();
+                return;
+            }
 
             // Undo: Ctrl+Z / Cmd+Z
             if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (key === 'z' || code === 'KeyZ')) {
@@ -422,22 +524,314 @@
                 return;
             }
 
-            // Werkzeug-Modi (ohne Strg/Alt/Cmd)
+            // Duplizieren: Ctrl+D / Cmd+D
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (key === 'd' || code === 'KeyD')) {
+                e.preventDefault();
+                duplicateSelection();
+                return;
+            }
+
+            // Werkzeuge & Shortcuts (ohne Strg/Alt/Cmd)
             if (!e.ctrlKey && !e.metaKey && !e.altKey) {
                 if (key === 'w' || code === 'KeyW') { e.preventDefault(); setTransformMode('translate'); }
                 else if (key === 'e' || code === 'KeyE') { e.preventDefault(); setTransformMode('rotate'); }
                 else if (key === 'r' || code === 'KeyR') { e.preventDefault(); setTransformMode('scale'); }
+                else if (key === 'l' || code === 'KeyL') { e.preventDefault(); toggleSelectionLock(); }
+                else if (key === 'f' || code === 'KeyF') { e.preventDefault(); focusCameraOnSelection(); }
                 else if (e.key === 'Delete' || e.key === 'Backspace') {
                     e.preventDefault();
                     if (selectedObject) deleteObject(selectedObject);
                 } else if (e.key === 'Escape') {
-                    if (selectedObject) deselectObject();
+                    if (selectedObject && !guiParams.selectionLocked) deselectObject();
                 }
             }
         });
 
-        // --- 4. GUI & PROPERTY EDITOR ---
-        const gui = new dat.GUI({ width: 360 });
+        // --- 4. MATERIAL-REFERENZ & APPLYZOMBIEROT HILFSFUNKTIONEN ---
+        let copiedMaterial = null;
+        let copiedMaterialSourceName = '';
+        let pasteMatCtrl = null;
+
+        function getTargetMeshesForSelection(obj = selectedObject) {
+            if (!obj) return [];
+            if (obj.isMesh) return [obj];
+            const meshes = [];
+            obj.traverse(c => { if (c.isMesh) meshes.push(c); });
+            return meshes;
+        }
+
+        function meshHasZombieRot(mesh) {
+            return Boolean(mesh && mesh.geometry && mesh.geometry.attributes && mesh.geometry.attributes.color);
+        }
+
+        function getAverageVertexColorHex(geo, fallbackHex = '#d4748c') {
+            if (!geo || !geo.attributes || !geo.attributes.color) return fallbackHex;
+            const cAttr = geo.attributes.color;
+            if (!cAttr.count) return fallbackHex;
+            let rSum = 0, gSum = 0, bSum = 0;
+            for (let i = 0; i < cAttr.count; i++) {
+                rSum += cAttr.getX(i);
+                gSum += cAttr.getY(i);
+                bSum += cAttr.getZ(i);
+            }
+            const avg = new THREE.Color(rSum / cAttr.count, gSum / cAttr.count, bSum / cAttr.count);
+            return '#' + avg.getHexString();
+        }
+
+        function applyZombieRotSafe(geo, hexNum) {
+            if (!geo) return;
+            if (typeof applyZombieRot === 'function') {
+                applyZombieRot(geo, hexNum);
+            } else {
+                const base = new THREE.Color(hexNum);
+                const count = geo.attributes.position.count;
+                const colors = new Float32Array(count * 3);
+                for (let i = 0; i < count; i++) {
+                    const rot = (Math.sin(i * 12.9898) * 43758.5453) % 1;
+                    const c = base.clone();
+                    if (Math.abs(rot) > 0.72) c.lerp(new THREE.Color(0x4d6b3c), 0.55);
+                    colors[i * 3] = c.r;
+                    colors[i * 3 + 1] = c.g;
+                    colors[i * 3 + 2] = c.b;
+                }
+                geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            }
+        }
+
+        function syncMaterialVertexColorsState(mesh) {
+            if (!mesh || !mesh.isMesh || !mesh.material) return;
+            const wantsVC = meshHasZombieRot(mesh);
+            const mat = mesh.material;
+
+            // Prüfe alle Meshes, die dieses Material teilen
+            const sharers = [];
+            if (currentPig) {
+                currentPig.traverse(c => {
+                    if (c.isMesh && c.material === mat) sharers.push(c);
+                });
+            }
+            if (!sharers.includes(mesh)) sharers.push(mesh);
+
+            const allSameVC = sharers.every(m => meshHasZombieRot(m) === wantsVC);
+            if (allSameVC) {
+                if (mat.vertexColors !== wantsVC) {
+                    mat.vertexColors = wantsVC;
+                    mat.needsUpdate = true;
+                }
+            } else {
+                // Material ist gemischt genutzt -> eigenes Material für dieses Mesh klonen, damit kein Teil schwarz wird
+                const cloned = mat.clone();
+                cloned.vertexColors = wantsVC;
+                cloned.needsUpdate = true;
+                mesh.material = cloned;
+            }
+        }
+
+        function setZombieRotForSelection(enabled, customBaseHexStr = null) {
+            const meshes = getTargetMeshesForSelection(selectedObject);
+            if (meshes.length === 0) return;
+
+            const baseColorStr = customBaseHexStr || guiParams.zombieRotColor || '#d4748c';
+            const hexNum = parseInt(baseColorStr.replace('#', ''), 16) || 0xd4748c;
+
+            const records = meshes.map(mesh => {
+                const oldColorAttr = meshHasZombieRot(mesh) ? mesh.geometry.attributes.color.clone() : null;
+                const oldMat = mesh.material;
+                const oldMatVC = oldMat ? oldMat.vertexColors : false;
+                const oldMatHex = (oldMat && oldMat.color) ? oldMat.color.getHex() : 0xffffff;
+                const prevAvgHex = getAverageVertexColorHex(mesh.geometry, baseColorStr);
+
+                if (enabled) {
+                    applyZombieRotSafe(mesh.geometry, hexNum);
+                    syncMaterialVertexColorsState(mesh);
+                    // Falls Material vorher farbig war, wird durch vertexColors multipliziert -> auf Weiß setzen, damit Rot-Farben exakt stimmen
+                    if (mesh.material && mesh.material.color && mesh.material.color.getHex() !== 0xffffff) {
+                        mesh.material.color.setHex(0xffffff);
+                    }
+                } else {
+                    if (mesh.geometry && mesh.geometry.attributes && mesh.geometry.attributes.color) {
+                        mesh.geometry.deleteAttribute('color');
+                    }
+                    syncMaterialVertexColorsState(mesh);
+                    // Falls Material vorher weiß war (rottenMat), direkt die vorherige Rot-Basisfarbe setzen
+                    if (mesh.material && mesh.material.color && mesh.material.color.getHex() === 0xffffff) {
+                        mesh.material.color.set(prevAvgHex);
+                    }
+                }
+
+                return {
+                    mesh,
+                    oldColorAttr,
+                    oldMat,
+                    oldMatVC,
+                    oldMatHex,
+                    newColorAttr: meshHasZombieRot(mesh) ? mesh.geometry.attributes.color.clone() : null,
+                    newMat: mesh.material,
+                    newMatVC: mesh.material ? mesh.material.vertexColors : false,
+                    newMatHex: (mesh.material && mesh.material.color) ? mesh.material.color.getHex() : 0xffffff
+                };
+            });
+
+            pushUndo({
+                type: 'prop',
+                object: selectedObject,
+                oldValue: false,
+                newValue: true,
+                applyFn: (isRedo) => {
+                    records.forEach(r => {
+                        const attr = isRedo ? r.newColorAttr : r.oldColorAttr;
+                        const mat = isRedo ? r.newMat : r.oldMat;
+                        const vc = isRedo ? r.newMatVC : r.oldMatVC;
+                        const hex = isRedo ? r.newMatHex : r.oldMatHex;
+
+                        if (attr) r.mesh.geometry.setAttribute('color', attr.clone());
+                        else if (r.mesh.geometry.attributes.color) r.mesh.geometry.deleteAttribute('color');
+
+                        r.mesh.material = mat;
+                        if (mat) {
+                            mat.vertexColors = vc;
+                            if (mat.color) mat.color.setHex(hex);
+                            mat.needsUpdate = true;
+                        }
+                    });
+                    if (selectedObject) updateGuiFromObject(selectedObject, true);
+                }
+            });
+
+            updateGuiFromObject(selectedObject, true);
+        }
+
+        function applyMaterialReference(mesh, mat) {
+            if (!mesh || !mesh.isMesh || !mat) return;
+            if (mat.vertexColors && !meshHasZombieRot(mesh)) {
+                applyZombieRotSafe(mesh.geometry, parseInt((guiParams.zombieRotColor || '#d4748c').replace('#', ''), 16));
+            } else if (!mat.vertexColors && meshHasZombieRot(mesh)) {
+                mesh.geometry.deleteAttribute('color');
+            }
+            mesh.material = mat;
+        }
+
+        function countMaterialUsers(mat) {
+            if (!currentPig || !mat) return 0;
+            let count = 0;
+            currentPig.traverse(c => {
+                if (c.isMesh && c.material === mat) count++;
+            });
+            return count;
+        }
+
+        function getAvailableMaterialMap() {
+            const map = new Map();
+            const seenMats = new Map();
+
+            const globalCandidates = [
+                ['entities: rottenMat', typeof rottenMat !== 'undefined' ? rottenMat : null],
+                ['entities: snoutMat', typeof snoutMat !== 'undefined' ? snoutMat : null],
+                ['entities: eyeMat', typeof eyeMat !== 'undefined' ? eyeMat : null],
+                ['entities: browMat', typeof browMat !== 'undefined' ? browMat : null],
+                ['entities: darkMat', typeof darkMat !== 'undefined' ? darkMat : null],
+                ['entities: helmetMat', typeof helmetMat !== 'undefined' ? helmetMat : null],
+                ['entities: gunMetalMat', typeof gunMetalMat !== 'undefined' ? gunMetalMat : null],
+                ['entities: gunWoodMat', typeof gunWoodMat !== 'undefined' ? gunWoodMat : null],
+                ['entities: gunShinyMat', typeof gunShinyMat !== 'undefined' ? gunShinyMat : null]
+            ];
+
+            globalCandidates.forEach(([label, mat]) => {
+                if (mat && !seenMats.has(mat)) {
+                    seenMats.set(mat, label);
+                    map.set(label, mat);
+                }
+            });
+
+            if (currentPig) {
+                currentPig.traverse(c => {
+                    if (c.isMesh && c.material && !seenMats.has(c.material)) {
+                        const hex = c.material.color ? `#${c.material.color.getHexString()}` : '';
+                        const label = `Szene: ${c.name || 'Mesh'} (${hex})`;
+                        seenMats.set(c.material, label);
+                        map.set(label, c.material);
+                    }
+                });
+            }
+
+            return { map, seenMats };
+        }
+
+        function copySelectedMaterial() {
+            const meshes = getTargetMeshesForSelection(selectedObject);
+            const targetMesh = meshes[0];
+            if (!targetMesh || !targetMesh.material) {
+                alert('Bitte wähle zuerst ein Element mit Material aus!');
+                return;
+            }
+            copiedMaterial = targetMesh.material;
+            copiedMaterialSourceName = targetMesh.name || 'Material';
+            if (pasteMatCtrl) {
+                pasteMatCtrl.name(`🎨 Mat. einfügen (${copiedMaterialSourceName})`);
+            }
+        }
+
+        function pasteCopiedMaterial() {
+            const meshes = getTargetMeshesForSelection(selectedObject);
+            if (meshes.length === 0) {
+                alert('Bitte wähle zuerst ein Ziel-Element aus!');
+                return;
+            }
+            if (!copiedMaterial) {
+                alert('Es wurde noch kein Material kopiert (Ctrl+Shift+C)!');
+                return;
+            }
+            const newMat = copiedMaterial;
+            const records = meshes.map(m => ({
+                mesh: m,
+                oldMat: m.material,
+                oldColorAttr: meshHasZombieRot(m) ? m.geometry.attributes.color.clone() : null
+            }));
+
+            meshes.forEach(m => applyMaterialReference(m, newMat));
+
+            pushUndo({
+                type: 'prop',
+                object: selectedObject,
+                oldValue: false,
+                newValue: true,
+                applyFn: (isRedo) => {
+                    records.forEach(r => {
+                        if (isRedo) {
+                            applyMaterialReference(r.mesh, newMat);
+                        } else {
+                            r.mesh.material = r.oldMat;
+                            if (r.oldColorAttr) r.mesh.geometry.setAttribute('color', r.oldColorAttr.clone());
+                            else if (r.mesh.geometry.attributes.color) r.mesh.geometry.deleteAttribute('color');
+                        }
+                    });
+                    if (selectedObject) updateGuiFromObject(selectedObject, true);
+                }
+            });
+            updateGuiFromObject(selectedObject, true);
+        }
+
+        function cloneSelectedMaterial() {
+            const meshes = getTargetMeshesForSelection(selectedObject);
+            const targetMesh = meshes[0];
+            if (!targetMesh || !targetMesh.material) return;
+
+            const oldMat = targetMesh.material;
+            const clonedMat = oldMat.clone();
+            meshes.forEach(m => { m.material = clonedMat; });
+
+            pushUndo({
+                type: 'prop',
+                object: selectedObject,
+                oldValue: oldMat,
+                newValue: clonedMat,
+                applyFn: (mat) => { meshes.forEach(m => { m.material = mat; }); }
+            });
+            updateGuiFromObject(selectedObject, true);
+        }
+
+        // --- 5. GUI & PROPERTY EDITOR ---
+        const gui = new dat.GUI({ width: 375 });
         let elementCounter = 1;
         let groupCounter = 1;
 
@@ -454,11 +848,18 @@
             rX: 0, rY: 0, rZ: 0,
             sX: 1, sY: 1, sZ: 1,
 
-            // Three.js Eigenschaften
+            // Three.js, ApplyZombieRot & Material Eigenschaften
+            applyZombieRot: false,
+            zombieRotColor: '#d4748c',
+            rerollZombieRot: function() {
+                setZombieRotForSelection(true, guiParams.zombieRotColor);
+            },
             visible: true,
             castShadow: false,
             receiveShadow: false,
             renderOrder: 0,
+            materialAssignPreset: '',
+            materialUsersInfo: '1 Teil',
             matColor: '#ffffff',
             roughness: 0.5,
             metalness: 0.5,
@@ -478,16 +879,50 @@
             redo: redo,
             export: generateExportCode,
             deleteCurrent: function() { deleteObject(selectedObject); },
+            duplicateCurrent: duplicateSelection,
+            copyMaterial: copySelectedMaterial,
+            pasteMaterial: pasteCopiedMaterial,
+            cloneMaterial: cloneSelectedMaterial,
 
             createNewPig: function() {
                 clearHistory();
                 if (currentPig) { scene.remove(currentPig); transformControl.detach(); }
-                currentPig = new THREE.Group(); currentPig.name = 'pigGroup';
+                currentPig = new THREE.Group();
+                currentPig.name = 'pigGroup';
+
                 const bodyGeo = new THREE.SphereGeometry(0.85, 24, 16);
-                if (typeof applyZombieRot === 'function') applyZombieRot(bodyGeo, 0xd4748c);
-                const body = new THREE.Mesh(bodyGeo, (typeof rottenMat !== 'undefined' && rottenMat) ? rottenMat : new THREE.MeshStandardMaterial()); 
-                body.name = 'body'; currentPig.add(body);
-                currentPig.rotation.y = Math.PI; scene.add(currentPig);
+                applyZombieRotSafe(bodyGeo, 0xd4748c);
+                const mat = (typeof rottenMat !== 'undefined' && rottenMat) ? rottenMat : new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true });
+                const body = new THREE.Mesh(bodyGeo, mat);
+                body.name = 'body';
+                body.position.set(0, 0.5, 0);
+                currentPig.add(body);
+
+                if (typeof addUltraHeadParts === 'function') {
+                    addUltraHeadParts(currentPig, 1.4, -0.55, 0xd4748c);
+                }
+                if (typeof addProceduralCurlyTail === 'function') {
+                    addProceduralCurlyTail(currentPig, 0.5, 0.75);
+                }
+
+                const legGeo = new THREE.CylinderGeometry(0.14, 0.1, 0.85, 12);
+                const legPositions = [
+                    [-0.35, -0.5, -0.35],
+                    [0.35, -0.5, -0.35],
+                    [-0.35, -0.5, 0.35],
+                    [0.35, -0.5, 0.35]
+                ];
+                legPositions.forEach((pos, i) => {
+                    const lGeo = legGeo.clone();
+                    applyZombieRotSafe(lGeo, 0xd4748c);
+                    const leg = new THREE.Mesh(lGeo, mat);
+                    leg.name = `leg${i}`;
+                    leg.position.set(pos[0], pos[1], pos[2]);
+                    currentPig.add(leg);
+                });
+
+                currentPig.rotation.y = Math.PI;
+                scene.add(currentPig);
                 selectedObject = null;
                 guiParams.pigType = 0;
                 guiParams.autoHeadshotY = true;
@@ -504,10 +939,11 @@
                 else if (type === 'Sphere') geo = new THREE.SphereGeometry(0.4, 16, 16);
                 else if (type === 'Cylinder') geo = new THREE.CylinderGeometry(0.2, 0.2, 0.6, 16);
                 else if (type === 'Cone') geo = new THREE.ConeGeometry(0.3, 0.6, 16);
+                else if (type === 'Torus') geo = new THREE.TorusGeometry(0.3, 0.08, 12, 24);
 
                 const mat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.5 });
                 const mesh = new THREE.Mesh(geo, mat);
-                mesh.name = `${type.toLowerCase()}_${elementCounter++}`;
+                mesh.name = ensureUniqueObjectName(`${type.toLowerCase()}_${elementCounter++}`);
                 mesh.position.set(0, 1, 0);
 
                 const targetParent = (selectedObject && selectedObject.isGroup) ? selectedObject : currentPig;
@@ -518,10 +954,66 @@
                 selectObject(mesh);
             },
 
+            addPigHead: function() {
+                if (!currentPig) return;
+                commitPendingGuiTransform();
+                const targetParent = (selectedObject && selectedObject.isGroup) ? selectedObject : currentPig;
+
+                if (typeof addUltraHeadParts === 'function') {
+                    addUltraHeadParts(targetParent, 1.5, -0.5, 0xd4748c);
+                } else {
+                    const fallbackHead = new THREE.Group();
+                    const hMesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), new THREE.MeshStandardMaterial({ color: 0xd4748c }));
+                    hMesh.name = 'head';
+                    hMesh.position.set(0, 1.5, -0.5);
+                    fallbackHead.add(hMesh);
+                    targetParent.add(fallbackHead);
+                }
+
+                const newHeadGroup = targetParent.children[targetParent.children.length - 1];
+                if (newHeadGroup) {
+                    newHeadGroup.name = ensureUniqueObjectName(newHeadGroup.name || 'headGroup');
+                    pushUndo({ type: 'add', object: newHeadGroup, parent: targetParent });
+
+                    if (guiParams.autoHeadshotY) {
+                        const detected = autoDetectHeadHeight(currentPig);
+                        if (detected !== null) guiParams.headshotY = detected;
+                    }
+
+                    refreshUIFolders();
+                    selectObject(newHeadGroup);
+                }
+            },
+
+            addPigTail: function() {
+                if (!currentPig) return;
+                commitPendingGuiTransform();
+                const targetParent = (selectedObject && selectedObject.isGroup) ? selectedObject : currentPig;
+
+                if (typeof addProceduralCurlyTail === 'function') {
+                    addProceduralCurlyTail(targetParent, 0.5, 0.7);
+                } else {
+                    const fallbackTail = new THREE.Group();
+                    const tMesh = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.03, 8, 16), new THREE.MeshStandardMaterial({ color: 0xc4788c }));
+                    tMesh.name = 'tail';
+                    tMesh.position.set(0, 0.5, 0.7);
+                    fallbackTail.add(tMesh);
+                    targetParent.add(fallbackTail);
+                }
+
+                const newTailGroup = targetParent.children[targetParent.children.length - 1];
+                if (newTailGroup) {
+                    newTailGroup.name = ensureUniqueObjectName(newTailGroup.name || 'tailGroup');
+                    pushUndo({ type: 'add', object: newTailGroup, parent: targetParent });
+                    refreshUIFolders();
+                    selectObject(newTailGroup);
+                }
+            },
+
             groupSelection: function() {
                 if (!currentPig) return;
                 commitPendingGuiTransform();
-                const groupName = `group_${groupCounter++}`;
+                const groupName = ensureUniqueObjectName(`group_${groupCounter++}`);
                 const newGroup = new THREE.Group(); newGroup.name = groupName;
 
                 if (selectedObject && selectedObject !== currentPig) {
@@ -545,6 +1037,46 @@
 
                 refreshUIFolders();
                 selectObject(newGroup);
+            },
+
+            ungroupSelection: function() {
+                if (!selectedObject || !selectedObject.isGroup || selectedObject === currentPig) {
+                    alert('Bitte wähle zuerst eine Untergruppe aus!');
+                    return;
+                }
+                commitPendingGuiTransform();
+                const group = selectedObject;
+                const parent = group.parent || currentPig;
+                const groupIndex = parent.children.indexOf(group);
+                const children = [...group.children];
+
+                currentPig.updateMatrixWorld(true);
+                const childrenRecords = children.map(child => {
+                    const oldPos = child.position.clone();
+                    const oldRot = child.rotation.clone();
+                    const oldScale = child.scale.clone();
+                    parent.attach(child);
+                    return {
+                        child,
+                        oldPos, oldRot, oldScale,
+                        newPos: child.position.clone(),
+                        newRot: child.rotation.clone(),
+                        newScale: child.scale.clone()
+                    };
+                });
+
+                parent.remove(group);
+                pushUndo({
+                    type: 'ungroup',
+                    group,
+                    parent,
+                    groupIndex,
+                    childrenRecords
+                });
+
+                refreshUIFolders();
+                if (childrenRecords.length > 0) selectObject(childrenRecords[0].child);
+                else deselectObject();
             },
 
             moveToGroup: function() {
@@ -583,7 +1115,7 @@
             }
         };
 
-        let fMain = null, fAdd = null, fTrans = null, fThreeProps = null;
+        let fMain = null, fAdd = null, fTrans = null, fMaterial = null;
 
         function buildMainFolder() {
             if (fMain) gui.removeFolder(fMain);
@@ -630,11 +1162,15 @@
         }
 
         function buildAddFolder() {
+            const wasOpen = fAdd ? !fAdd.closed : false;
             if (fAdd) gui.removeFolder(fAdd);
             fAdd = gui.addFolder('Elemente & Gruppen');
-            fAdd.add(guiParams, 'newShapeType', ['Box', 'Sphere', 'Cylinder', 'Cone']).name('Form wählen');
+            fAdd.add(guiParams, 'newShapeType', ['Box', 'Sphere', 'Cylinder', 'Cone', 'Torus']).name('Form wählen');
             fAdd.add(guiParams, 'addShape').name('➕ Form einfügen');
+            fAdd.add(guiParams, 'addPigHead').name('🐷 Schweinekopf einfügen');
+            fAdd.add(guiParams, 'addPigTail').name('🌀 Ringelschwanz einfügen');
             fAdd.add(guiParams, 'groupSelection').name('📁 In neue Gruppe packen');
+            fAdd.add(guiParams, 'ungroupSelection').name('📂 Gruppe auflösen');
 
             const groupNames = [];
             if (currentPig) {
@@ -648,7 +1184,7 @@
 
             fAdd.add(guiParams, 'targetGroupDropdown', groupNames).name('Ziel-Gruppe').listen();
             fAdd.add(guiParams, 'moveToGroup').name('➡️ In Ziel-Gruppe verschieben');
-            fAdd.open();
+            if (wasOpen) fAdd.open();
         }
 
         function bindNumberTransform(folder, propKey, label, type, axis) {
@@ -688,7 +1224,9 @@
                 }
             });
 
-            fTrans.add(guiParams, 'selectionLocked').name('🔒 Klick-Schutz (Lock)').listen();
+            fTrans.add(guiParams, 'selectionLocked').name('🔒 Klick-Schutz (L)').listen().onChange(() => {
+                updateLockStatusUI();
+            });
             fTrans.add(guiParams, 'selectedName').name('Name (ID)').listen().onFinishChange(newName => {
                 if (!selectedObject || selectedObject === currentPig) return;
                 const trimmed = (newName || '').trim();
@@ -708,6 +1246,7 @@
                 });
                 refreshUIFolders();
             });
+            fTrans.add(guiParams, 'duplicateCurrent').name('📋 Duplizieren (Ctrl+D)');
             fTrans.add(guiParams, 'deleteCurrent').name('🗑️ Element löschen');
 
             bindNumberTransform(fTrans, 'pX', 'Pos X', 'position', 'x');
@@ -721,7 +1260,7 @@
             bindNumberTransform(fTrans, 'sZ', 'Scale Z', 'scale', 'z');
             fTrans.open();
 
-            buildThreePropsFolder();
+            buildMaterialFolder();
         }
 
         function recordPropChange(obj, oldValue, newValue, applyFn) {
@@ -729,42 +1268,90 @@
             pushUndo({ type: 'prop', object: obj, oldValue, newValue, applyFn });
         }
 
-        function buildThreePropsFolder() {
-            if (fThreeProps) gui.removeFolder(fThreeProps);
-            fThreeProps = null;
+        function buildMaterialFolder() {
+            if (fMaterial) gui.removeFolder(fMaterial);
+            fMaterial = null;
+            pasteMatCtrl = null;
             if (!selectedObject) return;
 
             const obj = selectedObject;
-            fThreeProps = gui.addFolder('Three.js Eigenschaften');
+            const targetMeshes = getTargetMeshesForSelection(obj);
+            const primaryMesh = targetMeshes[0] || null;
+            const mat = primaryMesh ? primaryMesh.material : null;
 
-            fThreeProps.add(guiParams, 'visible').name('Sichtbar').listen().onChange(v => {
-                const old = obj.visible; obj.visible = v; renderTreeView();
-                recordPropChange(obj, old, v, val => { obj.visible = val; });
-            });
-            fThreeProps.add(guiParams, 'castShadow').name('Wirft Schatten').listen().onChange(v => {
-                const old = obj.castShadow; obj.castShadow = v;
-                recordPropChange(obj, old, v, val => { obj.castShadow = val; });
-            });
-            fThreeProps.add(guiParams, 'receiveShadow').name('Empfängt Schatten').listen().onChange(v => {
-                const old = obj.receiveShadow; obj.receiveShadow = v;
-                recordPropChange(obj, old, v, val => { obj.receiveShadow = val; });
-            });
-            fThreeProps.add(guiParams, 'renderOrder').step(1).name('Render-Order').listen().onFinishChange(v => {
-                const old = obj.renderOrder; obj.renderOrder = v;
-                recordPropChange(obj, old, v, val => { obj.renderOrder = val; });
-            });
+            fMaterial = gui.addFolder(obj.isGroup ? `Material & Effekte (${targetMeshes.length} Meshes)` : 'Material & Effekte');
 
-            if (obj.isMesh && obj.material) {
-                // Gemeinsame Materialien aus entities.js beim Bearbeiten klonen, damit andere Teile unberührt bleiben
-                if (!obj.userData._clonedMaterial) {
-                    obj.material = obj.material.clone();
-                    obj.userData._clonedMaterial = true;
+            if (targetMeshes.length > 0) {
+                // ApplyZombieRot Steuerung
+                fMaterial.add(guiParams, 'applyZombieRot').name('🦠 ApplyZombieRot').listen().onChange(enabled => {
+                    setZombieRotForSelection(enabled, guiParams.zombieRotColor);
+                });
+
+                if (guiParams.applyZombieRot) {
+                    fMaterial.addColor(guiParams, 'zombieRotColor').name('Rot-Basisfarbe').listen().onFinishChange(hex => {
+                        setZombieRotForSelection(true, hex);
+                    });
+                    fMaterial.add(guiParams, 'rerollZombieRot').name('🔄 Rot-Muster neu würfeln');
                 }
-                const mat = obj.material;
+            }
+
+            if (mat) {
+                const usersCount = countMaterialUsers(mat);
+                guiParams.materialUsersInfo = usersCount > 1 ? `${usersCount} Teile (synchron)` : '1 Teil (einzeln)';
+
+                const usersCtrl = fMaterial.add(guiParams, 'materialUsersInfo').name('Verknüpfung').listen();
+                if (usersCtrl.domElement && usersCtrl.domElement.querySelector('input')) {
+                    usersCtrl.domElement.querySelector('input').readOnly = true;
+                }
+
+                // Material-Referenz kopieren & einfügen
+                fMaterial.add(guiParams, 'copyMaterial').name('📋 Mat. kopieren (Ctrl+Shift+C)');
+                const pasteLabel = copiedMaterial
+                    ? `🎨 Mat. einfügen (${copiedMaterialSourceName})`
+                    : '🎨 Mat. einfügen (Referenz)';
+                pasteMatCtrl = fMaterial.add(guiParams, 'pasteMaterial').name(pasteLabel);
+
+                // Dropdown zum Zuweisen bestehender Material-Referenzen
+                const { map: matMap, seenMats } = getAvailableMaterialMap();
+                const presetLabels = Array.from(matMap.keys());
+                if (presetLabels.length > 0) {
+                    guiParams.materialAssignPreset = seenMats.get(mat) || presetLabels[0];
+                    fMaterial.add(guiParams, 'materialAssignPreset', presetLabels).name('Referenz zuweisen').listen().onChange(label => {
+                        const chosenMat = matMap.get(label);
+                        if (!chosenMat || chosenMat === mat) return;
+                        const records = targetMeshes.map(m => ({
+                            mesh: m,
+                            oldMat: m.material,
+                            oldColorAttr: meshHasZombieRot(m) ? m.geometry.attributes.color.clone() : null
+                        }));
+                        targetMeshes.forEach(m => applyMaterialReference(m, chosenMat));
+                        pushUndo({
+                            type: 'prop',
+                            object: obj,
+                            oldValue: false,
+                            newValue: true,
+                            applyFn: (isRedo) => {
+                                records.forEach(r => {
+                                    if (isRedo) {
+                                        applyMaterialReference(r.mesh, chosenMat);
+                                    } else {
+                                        r.mesh.material = r.oldMat;
+                                        if (r.oldColorAttr) r.mesh.geometry.setAttribute('color', r.oldColorAttr.clone());
+                                        else if (r.mesh.geometry.attributes.color) r.mesh.geometry.deleteAttribute('color');
+                                    }
+                                });
+                                updateGuiFromObject(obj, true);
+                            }
+                        });
+                        updateGuiFromObject(obj, true);
+                    });
+                }
+
+                fMaterial.add(guiParams, 'cloneMaterial').name('🧬 Material klonen (eigenständig)');
 
                 if (mat.color) {
                     let startHex = '#' + mat.color.getHexString();
-                    fThreeProps.addColor(guiParams, 'matColor').name('Farbe').listen()
+                    fMaterial.addColor(guiParams, 'matColor').name('🎨 Farbe').listen()
                         .onChange(v => mat.color.set(v))
                         .onFinishChange(v => {
                             recordPropChange(obj, startHex, v, val => mat.color.set(val));
@@ -773,55 +1360,74 @@
                 }
                 if (mat.roughness !== undefined) {
                     let startVal = mat.roughness;
-                    fThreeProps.add(guiParams, 'roughness', 0, 1).step(0.01).name('Rauheit').listen()
+                    fMaterial.add(guiParams, 'roughness', 0, 1).step(0.01).name('Rauheit').listen()
                         .onChange(v => mat.roughness = v)
                         .onFinishChange(v => { recordPropChange(obj, startVal, v, val => mat.roughness = val); startVal = v; });
                 }
                 if (mat.metalness !== undefined) {
                     let startVal = mat.metalness;
-                    fThreeProps.add(guiParams, 'metalness', 0, 1).step(0.01).name('Metallizität').listen()
+                    fMaterial.add(guiParams, 'metalness', 0, 1).step(0.01).name('Metallizität').listen()
                         .onChange(v => mat.metalness = v)
                         .onFinishChange(v => { recordPropChange(obj, startVal, v, val => mat.metalness = val); startVal = v; });
                 }
-                if (mat.wireframe !== undefined) {
-                    fThreeProps.add(guiParams, 'wireframe').name('Gittermodell').listen().onChange(v => {
-                        const old = mat.wireframe; mat.wireframe = v;
-                        recordPropChange(obj, old, v, val => mat.wireframe = val);
-                    });
+                if (mat.emissive) {
+                    let startHex = '#' + mat.emissive.getHexString();
+                    fMaterial.addColor(guiParams, 'emissiveColor').name('Selbstleuchten').listen()
+                        .onChange(v => mat.emissive.set(v))
+                        .onFinishChange(v => { recordPropChange(obj, startHex, v, val => mat.emissive.set(val)); startHex = v; });
+                    if (mat.emissiveIntensity !== undefined) {
+                        let startVal = mat.emissiveIntensity;
+                        fMaterial.add(guiParams, 'emissiveIntensity', 0, 5).step(0.1).name('Leuchtstärke').listen()
+                            .onChange(v => mat.emissiveIntensity = v)
+                            .onFinishChange(v => { recordPropChange(obj, startVal, v, val => mat.emissiveIntensity = val); startVal = v; });
+                    }
                 }
                 if (mat.transparent !== undefined) {
-                    fThreeProps.add(guiParams, 'transparent').name('Transparent').listen().onChange(v => {
+                    fMaterial.add(guiParams, 'transparent').name('Transparent').listen().onChange(v => {
                         const old = mat.transparent; mat.transparent = v; mat.needsUpdate = true;
                         recordPropChange(obj, old, v, val => { mat.transparent = val; mat.needsUpdate = true; });
                     });
                 }
                 if (mat.opacity !== undefined) {
                     let startVal = mat.opacity;
-                    fThreeProps.add(guiParams, 'opacity', 0, 1).step(0.01).name('Deckkraft (Opacity)').listen()
+                    fMaterial.add(guiParams, 'opacity', 0, 1).step(0.01).name('Deckkraft (Opacity)').listen()
                         .onChange(v => mat.opacity = v)
                         .onFinishChange(v => { recordPropChange(obj, startVal, v, val => mat.opacity = val); startVal = v; });
                 }
-                if (mat.emissive) {
-                    let startHex = '#' + mat.emissive.getHexString();
-                    fThreeProps.addColor(guiParams, 'emissiveColor').name('Selbstleuchten').listen()
-                        .onChange(v => mat.emissive.set(v))
-                        .onFinishChange(v => { recordPropChange(obj, startHex, v, val => mat.emissive.set(val)); startHex = v; });
-                    if (mat.emissiveIntensity !== undefined) {
-                        let startVal = mat.emissiveIntensity;
-                        fThreeProps.add(guiParams, 'emissiveIntensity', 0, 5).step(0.1).name('Leuchtstärke').listen()
-                            .onChange(v => mat.emissiveIntensity = v)
-                            .onFinishChange(v => { recordPropChange(obj, startVal, v, val => mat.emissiveIntensity = val); startVal = v; });
-                    }
+                if (mat.wireframe !== undefined) {
+                    fMaterial.add(guiParams, 'wireframe').name('Gittermodell').listen().onChange(v => {
+                        const old = mat.wireframe; mat.wireframe = v;
+                        recordPropChange(obj, old, v, val => mat.wireframe = val);
+                    });
                 }
                 if (mat.side !== undefined) {
-                    fThreeProps.add(guiParams, 'side', ['FrontSide', 'BackSide', 'DoubleSide']).name('Sichtseite').listen().onChange(v => {
+                    fMaterial.add(guiParams, 'side', ['FrontSide', 'BackSide', 'DoubleSide']).name('Sichtseite').listen().onChange(v => {
                         const oldSide = mat.side;
                         mat.side = THREE[v]; mat.needsUpdate = true;
                         recordPropChange(obj, oldSide, THREE[v], val => { mat.side = val; mat.needsUpdate = true; });
                     });
                 }
             }
-            fThreeProps.open();
+
+            // Objekt-Sichtbarkeit & Schatten
+            fMaterial.add(guiParams, 'visible').name('Sichtbar').listen().onChange(v => {
+                const old = obj.visible; obj.visible = v; renderTreeView();
+                recordPropChange(obj, old, v, val => { obj.visible = val; });
+            });
+            fMaterial.add(guiParams, 'castShadow').name('Wirft Schatten').listen().onChange(v => {
+                const old = obj.castShadow; obj.castShadow = v;
+                recordPropChange(obj, old, v, val => { obj.castShadow = val; });
+            });
+            fMaterial.add(guiParams, 'receiveShadow').name('Empfängt Schatten').listen().onChange(v => {
+                const old = obj.receiveShadow; obj.receiveShadow = v;
+                recordPropChange(obj, old, v, val => { obj.receiveShadow = val; });
+            });
+            fMaterial.add(guiParams, 'renderOrder').step(1).name('Render-Order').listen().onFinishChange(v => {
+                const old = obj.renderOrder; obj.renderOrder = v;
+                recordPropChange(obj, old, v, val => { obj.renderOrder = val; });
+            });
+
+            fMaterial.open();
         }
 
         function refreshUIFolders() {
@@ -857,26 +1463,19 @@
 
             let headObj = null;
 
-            // 1. Suche nach pumpkin (z.B. Kürbis-Kopf)
             root.traverse(c => {
                 if (!headObj && c.name && /^pumpkin$/i.test(c.name)) headObj = c;
             });
-
-            // 2. Suche nach exakt 'head' oder 'kopf'
             if (!headObj) {
                 root.traverse(c => {
                     if (!headObj && c.name && /^(head|kopf)$/i.test(c.name)) headObj = c;
                 });
             }
-
-            // 3. Suche nach 'headgroup' oder 'kopfgroup'
             if (!headObj) {
                 root.traverse(c => {
                     if (!headObj && c.name && /^(headgroup|kopfgroup)$/i.test(c.name)) headObj = c;
                 });
             }
-
-            // 4. Suche nach Objekten mit head oder kopf im Namen
             if (!headObj) {
                 root.traverse(c => {
                     if (!headObj && c.name && /(?:^|[^a-z])(head|kopf)(?:[^a-z]|$)/i.test(c.name)) headObj = c;
@@ -890,7 +1489,6 @@
                 }
             }
 
-            // Fallback: oberste 25% der gesamten Schweine-Geometrie
             const totalBox = getObjectLocalBoundingBox(root, root);
             if (!totalBox.isEmpty() && isFinite(totalBox.max.y) && isFinite(totalBox.min.y)) {
                 const h = totalBox.max.y - totalBox.min.y;
@@ -905,7 +1503,7 @@
             if (currentPig) { scene.remove(currentPig); transformControl.detach(); }
             
             window.mergeMeshGroups = false;
-            guiParams.selectionLocked = false;
+            toggleSelectionLock(false);
             selectedObject = null;
             clearHistory();
 
@@ -965,8 +1563,17 @@
             guiParams.receiveShadow = obj.receiveShadow;
             guiParams.renderOrder = obj.renderOrder;
 
-            if (obj.isMesh && obj.material) {
-                const mat = obj.material;
+            const targetMeshes = getTargetMeshesForSelection(obj);
+            const primaryMesh = targetMeshes[0] || null;
+            const hasRot = targetMeshes.some(m => meshHasZombieRot(m));
+            guiParams.applyZombieRot = hasRot;
+
+            if (primaryMesh && hasRot) {
+                guiParams.zombieRotColor = getAverageVertexColorHex(primaryMesh.geometry, guiParams.zombieRotColor);
+            }
+
+            if (primaryMesh && primaryMesh.material) {
+                const mat = primaryMesh.material;
                 if (mat.color) guiParams.matColor = '#' + mat.color.getHexString();
                 if (mat.roughness !== undefined) guiParams.roughness = mat.roughness;
                 if (mat.metalness !== undefined) guiParams.metalness = mat.metalness;
@@ -979,10 +1586,10 @@
                     guiParams.side = mat.side === THREE.DoubleSide ? 'DoubleSide' : (mat.side === THREE.BackSide ? 'BackSide' : 'FrontSide');
                 }
             }
-            if (rebuildProps) buildThreePropsFolder();
+            if (rebuildProps) buildMaterialFolder();
         }
 
-        // --- 5. BAUMANZEIGE LOGIK (LINKS UNTEN) ---
+        // --- 6. BAUMANZEIGE LOGIK (LINKS UNTEN) ---
         function renderTreeView() {
             const container = document.getElementById('treeContent');
             const countDisplay = document.getElementById('treeCount');
@@ -1065,11 +1672,11 @@
             if (countDisplay) countDisplay.innerText = `(${totalCount} Objekte)`;
         }
 
-        // Initiales Laden (einmalig)
+        // Initiales Laden
         buildMainFolder();
         loadPig();
 
-       // --- 6. CODE EXPORTER ---
+       // --- 7. CODE EXPORTER ---
         function generateExportCode() {
             commitPendingGuiTransform();
             if (!currentPig) return;
@@ -1110,7 +1717,7 @@
                 return candidate;
             };
 
-            // Materialien deduplizieren und serialisieren
+            // Materialien deduplizieren & gemeinsame Referenzen erhalten
             const matDeclarations = [];
             const matSignatureMap = new Map();
             const matInstanceMap = new Map();
@@ -1309,20 +1916,11 @@
 
                 if (ctorExpr) {
                     lines.push(`    const ${geoVar} = ${ctorExpr};`);
-                    // Vertex-Colors (z. B. durch applyZombieRot) erhalten
                     if (geo.attributes && geo.attributes.color) {
-                        const cAttr = geo.attributes.color;
-                        let rSum = 0, gSum = 0, bSum = 0;
-                        for (let i = 0; i < cAttr.count; i++) {
-                            rSum += cAttr.getX(i);
-                            gSum += cAttr.getY(i);
-                            bSum += cAttr.getZ(i);
-                        }
-                        const avgColor = new THREE.Color(rSum / cAttr.count, gSum / cAttr.count, bSum / cAttr.count);
-                        lines.push(`    if (typeof applyZombieRot === 'function') applyZombieRot(${geoVar}, 0x${avgColor.getHexString()});`);
+                        const avgHex = getAverageVertexColorHex(geo, '#d4748c').replace('#', '0x');
+                        lines.push(`    if (typeof applyZombieRot === 'function') applyZombieRot(${geoVar}, ${avgHex});`);
                     }
                 } else {
-                    // Fallback für komplexe/custom BufferGeometries (z. B. ExtrudeGeometry)
                     needsBufferHelper = true;
                     const posArr = geo.attributes && geo.attributes.position ? Array.from(geo.attributes.position.array).map(fmt) : [];
                     const normArr = geo.attributes && geo.attributes.normal ? Array.from(geo.attributes.normal.array).map(fmt) : [];
@@ -1413,11 +2011,9 @@
 
             currentPig.children.forEach(child => traverseAndEmit(child, 'group'));
 
-            // Beine in numerischer Reihenfolge (leg0, leg1, ...) sortieren
             detectedLegs.sort((a, b) => a.index - b.index);
             const legsArrayStr = detectedLegs.map(l => l.varName).join(', ');
 
-            // Funktionsnamen aus dem gewählten Modell ableiten
             const activeArray = (guiParams.pigCategory === 'Schussschweine') ? (window.SHOOTER_PIGS || []) : (window.HORDE_PIGS || []);
             const selectedFn = activeArray[parseInt(guiParams.pigVariant, 10)];
             const fnName = (selectedFn && selectedFn.name) ? selectedFn.name : 'createCustomPig';
@@ -1439,7 +2035,6 @@
             const exportType = guiParams.pigType || 0;
             if (exportType > 0) returnFields.push(`type: ${exportType}`);
 
-            // Automatische Kopfhöhe beim Export setzen
             let finalHeadshotY = guiParams.headshotY;
             if (guiParams.autoHeadshotY) {
                 const detected = autoDetectHeadHeight(currentPig);
@@ -1476,7 +2071,7 @@
             document.getElementById('exportModal').style.display = 'flex';
         }
 
-        // --- 7. RENDER LOOP ---
+        // --- 8. RENDER LOOP ---
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
