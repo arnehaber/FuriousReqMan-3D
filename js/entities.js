@@ -482,7 +482,7 @@ function createPigKlasse6() {
     staticGroup.name = "staticGroup";
 
     const hips_geo = new THREE.CylinderGeometry(0.35, 0.45, 0.52, 24);
-    if (typeof applyZombieRot === 'function') applyZombieRot(hips_geo, 0x5e5f4c);
+    if (typeof applyZombieRot === 'function') applyZombieRot(hips_geo, 0x5f5c4e);
     const hips = new THREE.Mesh(hips_geo, mat_0);
     hips.name = "hips";
     hips.position.set(0, 0.52, 0.02);
@@ -490,7 +490,7 @@ function createPigKlasse6() {
     staticGroup.add(hips);
 
     const skirtLower_geo = new THREE.CylinderGeometry(0.41, 0.56, 1.24, 24);
-    if (typeof applyZombieRot === 'function') applyZombieRot(skirtLower_geo, 0x615f4f);
+    if (typeof applyZombieRot === 'function') applyZombieRot(skirtLower_geo, 0x635e52);
     const skirtLower = new THREE.Mesh(skirtLower_geo, mat_0);
     skirtLower.name = "skirtLower";
     skirtLower.position.set(0.003, -0.323, 0.0475);
@@ -498,15 +498,15 @@ function createPigKlasse6() {
     staticGroup.add(skirtLower);
 
     const waist_geo = new THREE.CylinderGeometry(0.33, 0.35, 0.32, 24);
-    if (typeof applyZombieRot === 'function') applyZombieRot(waist_geo, 0x5a584a);
+    if (typeof applyZombieRot === 'function') applyZombieRot(waist_geo, 0x61614f);
     const waist = new THREE.Mesh(waist_geo, mat_1);
     waist.name = "waist";
-    waist.position.set(0, 0.9, 0.01);
-    waist.scale.set(1, 1, 0.76);
+    waist.position.set(0.0077, 1.0048, 0.0179);
+    waist.scale.set(1, 1.6806, 0.76);
     staticGroup.add(waist);
 
     const chestSkin_geo = new THREE.CylinderGeometry(0.37, 0.32, 0.46, 20);
-    if (typeof applyZombieRot === 'function') applyZombieRot(chestSkin_geo, 0x5d5d4b);
+    if (typeof applyZombieRot === 'function') applyZombieRot(chestSkin_geo, 0x636051);
     const chestSkin = new THREE.Mesh(chestSkin_geo, mat_2);
     chestSkin.name = "chestSkin";
     chestSkin.position.set(0, 1.26, 0.02);
@@ -514,14 +514,14 @@ function createPigKlasse6() {
     staticGroup.add(chestSkin);
 
     const backBodice_geo = new THREE.BoxGeometry(0.54, 0.45, 0.16);
-    if (typeof applyZombieRot === 'function') applyZombieRot(backBodice_geo, 0x6b5e57);
+    if (typeof applyZombieRot === 'function') applyZombieRot(backBodice_geo, 0x696b53);
     const backBodice = new THREE.Mesh(backBodice_geo, mat_3);
     backBodice.name = "backBodice";
     backBodice.position.set(0, 1.25, 0.16);
     staticGroup.add(backBodice);
 
     const bustierL_geo = new THREE.BoxGeometry(0.24, 0.5, 0.3);
-    if (typeof applyZombieRot === 'function') applyZombieRot(bustierL_geo, 0x6a5d57);
+    if (typeof applyZombieRot === 'function') applyZombieRot(bustierL_geo, 0x5c614a);
     const bustierL = new THREE.Mesh(bustierL_geo, mat_0);
     bustierL.name = "bustierL";
     bustierL.position.set(0.2, 1.26, -0.04);
@@ -536,7 +536,7 @@ function createPigKlasse6() {
     staticGroup.add(bustierR);
 
     const bustL_geo = new THREE.SphereGeometry(0.17, 16, 14);
-    if (typeof applyZombieRot === 'function') applyZombieRot(bustL_geo, 0x605e4e);
+    if (typeof applyZombieRot === 'function') applyZombieRot(bustL_geo, 0x615c50);
     const bustL = new THREE.Mesh(bustL_geo, mat_0);
     bustL.name = "bustL";
     bustL.position.set(0.19, 1.25, -0.15);
@@ -551,7 +551,7 @@ function createPigKlasse6() {
     staticGroup.add(bustR);
 
     const strapL_geo = new THREE.CylinderGeometry(0.015, 0.015, 0.34);
-    if (typeof applyZombieRot === 'function') applyZombieRot(strapL_geo, 0x555546);
+    if (typeof applyZombieRot === 'function') applyZombieRot(strapL_geo, 0x565647);
     const strapL = new THREE.Mesh(strapL_geo, mat_2);
     strapL.name = "strapL";
     strapL.position.set(0.29, 1.54, -0.02);
@@ -566,7 +566,7 @@ function createPigKlasse6() {
     staticGroup.add(strapR);
 
     const shoulders_geo = new THREE.CylinderGeometry(0.21, 0.38, 0.2, 20);
-    if (typeof applyZombieRot === 'function') applyZombieRot(shoulders_geo, 0x645953);
+    if (typeof applyZombieRot === 'function') applyZombieRot(shoulders_geo, 0x5e554e);
     const shoulders = new THREE.Mesh(shoulders_geo, mat_2);
     shoulders.name = "shoulders";
     shoulders.position.set(0, 1.52, 0.01);
@@ -574,21 +574,21 @@ function createPigKlasse6() {
     staticGroup.add(shoulders);
 
     const neck_geo = new THREE.CylinderGeometry(0.15, 0.21, 0.3, 16);
-    if (typeof applyZombieRot === 'function') applyZombieRot(neck_geo, 0x605b4f);
+    if (typeof applyZombieRot === 'function') applyZombieRot(neck_geo, 0x625e50);
     const neck = new THREE.Mesh(neck_geo, mat_2);
     neck.name = "neck";
     neck.position.set(0, 1.72, -0.02);
     staticGroup.add(neck);
 
     const shoulderL_geo = new THREE.SphereGeometry(0.072, 12, 12);
-    if (typeof applyZombieRot === 'function') applyZombieRot(shoulderL_geo, 0x5d5e4b);
+    if (typeof applyZombieRot === 'function') applyZombieRot(shoulderL_geo, 0x676054);
     const shoulderL = new THREE.Mesh(shoulderL_geo, mat_2);
     shoulderL.name = "shoulderL";
     shoulderL.position.set(0.42, 1.5, -0.01);
     staticGroup.add(shoulderL);
 
     const armL_geo = new THREE.CylinderGeometry(0.066, 0.046, 0.88, 12);
-    if (typeof applyZombieRot === 'function') applyZombieRot(armL_geo, 0x625d50);
+    if (typeof applyZombieRot === 'function') applyZombieRot(armL_geo, 0x62624f);
     const armL = new THREE.Mesh(armL_geo, mat_2);
     armL.name = "armL";
     armL.position.set(0.47, 1.07, -0.03);
@@ -609,21 +609,21 @@ function createPigKlasse6() {
     staticGroup.add(armR);
 
     const handbagBody_geo = new THREE.BoxGeometry(0.13, 0.23, 0.22);
-    if (typeof applyZombieRot === 'function') applyZombieRot(handbagBody_geo, 0x5f5b4e);
+    if (typeof applyZombieRot === 'function') applyZombieRot(handbagBody_geo, 0x615a50);
     const handbagBody = new THREE.Mesh(handbagBody_geo, mat_2);
     handbagBody.name = "handbagBody";
     handbagBody.position.set(-0.54, 0.48, -0.08);
     staticGroup.add(handbagBody);
 
     const handbagFlap_geo = new THREE.BoxGeometry(0.14, 0.055, 0.225);
-    if (typeof applyZombieRot === 'function') applyZombieRot(handbagFlap_geo, 0x665855);
+    if (typeof applyZombieRot === 'function') applyZombieRot(handbagFlap_geo, 0x5e584e);
     const handbagFlap = new THREE.Mesh(handbagFlap_geo, mat_2);
     handbagFlap.name = "handbagFlap";
     handbagFlap.position.set(-0.54, 0.57, -0.08);
     staticGroup.add(handbagFlap);
 
     const handbagHandle_geo = new THREE.TorusGeometry(0.062, 0.01, 8, 16, 3.1416);
-    if (typeof applyZombieRot === 'function') applyZombieRot(handbagHandle_geo, 0x646350);
+    if (typeof applyZombieRot === 'function') applyZombieRot(handbagHandle_geo, 0x5f5b4e);
     const handbagHandle = new THREE.Mesh(handbagHandle_geo, mat_2);
     handbagHandle.name = "handbagHandle";
     handbagHandle.position.set(-0.54, 0.6, -0.08);
@@ -634,7 +634,7 @@ function createPigKlasse6() {
     headGroup.name = "headGroup";
 
     const head_geo = new THREE.SphereGeometry(0.5, 24, 16);
-    if (typeof applyZombieRot === 'function') applyZombieRot(head_geo, 0x625f50);
+    if (typeof applyZombieRot === 'function') applyZombieRot(head_geo, 0x605b4f);
     const head = new THREE.Mesh(head_geo, mat_2);
     head.name = "head";
     head.position.set(0, 2.02, -0.08);
@@ -685,7 +685,7 @@ function createPigKlasse6() {
     tailGroup.name = "tailGroup";
 
     const tailJoint0_geo = new THREE.CylinderGeometry(0.04, 0.03, 0.15, 12);
-    if (typeof applyZombieRot === 'function') applyZombieRot(tailJoint0_geo, 0x625c50);
+    if (typeof applyZombieRot === 'function') applyZombieRot(tailJoint0_geo, 0x636151);
     const tailJoint0 = new THREE.Mesh(tailJoint0_geo, mat_2);
     tailJoint0.name = "tailJoint0";
     tailJoint0.position.set(0, 0.5, 0.42);
@@ -693,7 +693,7 @@ function createPigKlasse6() {
     tailGroup.add(tailJoint0);
 
     const tailJoint1_geo = new THREE.CylinderGeometry(0.04, 0.03, 0.15, 12);
-    if (typeof applyZombieRot === 'function') applyZombieRot(tailJoint1_geo, 0x5b594b);
+    if (typeof applyZombieRot === 'function') applyZombieRot(tailJoint1_geo, 0x62604f);
     const tailJoint1 = new THREE.Mesh(tailJoint1_geo, mat_2);
     tailJoint1.name = "tailJoint1";
     tailJoint1.position.set(0, 0.56, 0.5);
@@ -701,7 +701,7 @@ function createPigKlasse6() {
     tailGroup.add(tailJoint1);
 
     const tailJoint2_geo = new THREE.CylinderGeometry(0.04, 0.03, 0.15, 12);
-    if (typeof applyZombieRot === 'function') applyZombieRot(tailJoint2_geo, 0x655c53);
+    if (typeof applyZombieRot === 'function') applyZombieRot(tailJoint2_geo, 0x615c50);
     const tailJoint2 = new THREE.Mesh(tailJoint2_geo, mat_2);
     tailJoint2.name = "tailJoint2";
     tailJoint2.position.set(0.0466, 0.62, 0.58);
@@ -709,7 +709,7 @@ function createPigKlasse6() {
     tailGroup.add(tailJoint2);
 
     const tailJoint3_geo = new THREE.CylinderGeometry(0.04, 0.03, 0.15, 12);
-    if (typeof applyZombieRot === 'function') applyZombieRot(tailJoint3_geo, 0x5c574d);
+    if (typeof applyZombieRot === 'function') applyZombieRot(tailJoint3_geo, 0x625e50);
     const tailJoint3 = new THREE.Mesh(tailJoint3_geo, mat_2);
     tailJoint3.name = "tailJoint3";
     tailJoint3.position.set(0.0804, 0.68, 0.66);
@@ -717,7 +717,7 @@ function createPigKlasse6() {
     tailGroup.add(tailJoint3);
 
     const tailJoint4_geo = new THREE.CylinderGeometry(0.04, 0.03, 0.15, 12);
-    if (typeof applyZombieRot === 'function') applyZombieRot(tailJoint4_geo, 0x615e4f);
+    if (typeof applyZombieRot === 'function') applyZombieRot(tailJoint4_geo, 0x656351);
     const tailJoint4 = new THREE.Mesh(tailJoint4_geo, mat_2);
     tailJoint4.name = "tailJoint4";
     tailJoint4.position.set(0.0582, 0.74, 0.74);
@@ -725,7 +725,7 @@ function createPigKlasse6() {
     tailGroup.add(tailJoint4);
 
     const tailJoint5_geo = new THREE.CylinderGeometry(0.04, 0.03, 0.15, 12);
-    if (typeof applyZombieRot === 'function') applyZombieRot(tailJoint5_geo, 0x636150);
+    if (typeof applyZombieRot === 'function') applyZombieRot(tailJoint5_geo, 0x5c584c);
     const tailJoint5 = new THREE.Mesh(tailJoint5_geo, mat_2);
     tailJoint5.name = "tailJoint5";
     tailJoint5.position.set(0.0084, 0.8, 0.82);
@@ -769,7 +769,7 @@ function createPigKlasse6() {
     staticGroup.add(earringR);
 
     const lips_geo = new THREE.CylinderGeometry(0.14, 0.14, 0.06, 16);
-    if (typeof applyZombieRot === 'function') applyZombieRot(lips_geo, 0x625b50);
+    if (typeof applyZombieRot === 'function') applyZombieRot(lips_geo, 0x605c4e);
     const lips = new THREE.Mesh(lips_geo, mat_2);
     lips.name = "lips";
     lips.position.set(0, 1.84, -0.62);
@@ -777,7 +777,7 @@ function createPigKlasse6() {
     staticGroup.add(lips);
 
     const lashL_geo = new THREE.BoxGeometry(0.18, 0.035, 0.08);
-    if (typeof applyZombieRot === 'function') applyZombieRot(lashL_geo, 0x625951);
+    if (typeof applyZombieRot === 'function') applyZombieRot(lashL_geo, 0x715760);
     const lashL = new THREE.Mesh(lashL_geo, mat_2);
     lashL.name = "lashL";
     lashL.position.set(0.28, 2.18, -0.49);
@@ -815,7 +815,7 @@ function createPigKlasse6() {
     heelR_sandalGroup.name = "heelR_sandalGroup";
 
     const heelR_sole_geo = new THREE.BoxGeometry(0.13, 0.035, 0.27);
-    if (typeof applyZombieRot === 'function') applyZombieRot(heelR_sole_geo, 0x6a6256);
+    if (typeof applyZombieRot === 'function') applyZombieRot(heelR_sole_geo, 0x736d5c);
     const heelR_sole = new THREE.Mesh(heelR_sole_geo, mat_2);
     heelR_sole.name = "heelR_sole";
     heelR_sole.position.set(0, -0.52, -0.04);
@@ -823,21 +823,21 @@ function createPigKlasse6() {
     heelR_sandalGroup.add(heelR_sole);
 
     const heelR_spike_geo = new THREE.CylinderGeometry(0.015, 0.009, 0.15);
-    if (typeof applyZombieRot === 'function') applyZombieRot(heelR_spike_geo, 0x666852);
+    if (typeof applyZombieRot === 'function') applyZombieRot(heelR_spike_geo, 0x636350);
     const heelR_spike = new THREE.Mesh(heelR_spike_geo, mat_2);
     heelR_spike.name = "heelR_spike";
     heelR_spike.position.set(0, -0.51, 0.07);
     heelR_sandalGroup.add(heelR_spike);
 
     const heelR_toeStrap_geo = new THREE.BoxGeometry(0.135, 0.025, 0.045);
-    if (typeof applyZombieRot === 'function') applyZombieRot(heelR_toeStrap_geo, 0x5b5f4a);
+    if (typeof applyZombieRot === 'function') applyZombieRot(heelR_toeStrap_geo, 0x5f634c);
     const heelR_toeStrap = new THREE.Mesh(heelR_toeStrap_geo, mat_2);
     heelR_toeStrap.name = "heelR_toeStrap";
     heelR_toeStrap.position.set(0, -0.51, -0.11);
     heelR_sandalGroup.add(heelR_toeStrap);
 
     const heelR_ankleStrap_geo = new THREE.TorusGeometry(0.072, 0.012, 8, 16);
-    if (typeof applyZombieRot === 'function') applyZombieRot(heelR_ankleStrap_geo, 0x655f53);
+    if (typeof applyZombieRot === 'function') applyZombieRot(heelR_ankleStrap_geo, 0x5c594b);
     const heelR_ankleStrap = new THREE.Mesh(heelR_ankleStrap_geo, mat_2);
     heelR_ankleStrap.name = "heelR_ankleStrap";
     heelR_ankleStrap.position.set(0, -0.42, 0);
@@ -856,7 +856,7 @@ function createPigKlasse6() {
     heelL_sandalGroup.name = "heelL_sandalGroup";
 
     const heelL_sole_geo = new THREE.BoxGeometry(0.13, 0.035, 0.27);
-    if (typeof applyZombieRot === 'function') applyZombieRot(heelL_sole_geo, 0x71685b);
+    if (typeof applyZombieRot === 'function') applyZombieRot(heelL_sole_geo, 0x706c59);
     const heelL_sole = new THREE.Mesh(heelL_sole_geo, mat_2);
     heelL_sole.name = "heelL_sole";
     heelL_sole.position.set(0, -0.52, -0.04);
@@ -864,21 +864,21 @@ function createPigKlasse6() {
     heelL_sandalGroup.add(heelL_sole);
 
     const heelL_spike_geo = new THREE.CylinderGeometry(0.015, 0.009, 0.15);
-    if (typeof applyZombieRot === 'function') applyZombieRot(heelL_spike_geo, 0x5e574e);
+    if (typeof applyZombieRot === 'function') applyZombieRot(heelL_spike_geo, 0x58524b);
     const heelL_spike = new THREE.Mesh(heelL_spike_geo, mat_2);
     heelL_spike.name = "heelL_spike";
     heelL_spike.position.set(0, -0.51, 0.07);
     heelL_sandalGroup.add(heelL_spike);
 
     const heelL_toeStrap_geo = new THREE.BoxGeometry(0.135, 0.025, 0.045);
-    if (typeof applyZombieRot === 'function') applyZombieRot(heelL_toeStrap_geo, 0x585948);
+    if (typeof applyZombieRot === 'function') applyZombieRot(heelL_toeStrap_geo, 0x656251);
     const heelL_toeStrap = new THREE.Mesh(heelL_toeStrap_geo, mat_2);
     heelL_toeStrap.name = "heelL_toeStrap";
     heelL_toeStrap.position.set(0, -0.51, -0.11);
     heelL_sandalGroup.add(heelL_toeStrap);
 
     const heelL_ankleStrap_geo = new THREE.TorusGeometry(0.072, 0.012, 8, 16);
-    if (typeof applyZombieRot === 'function') applyZombieRot(heelL_ankleStrap_geo, 0x5b5d4a);
+    if (typeof applyZombieRot === 'function') applyZombieRot(heelL_ankleStrap_geo, 0x5b554c);
     const heelL_ankleStrap = new THREE.Mesh(heelL_ankleStrap_geo, mat_2);
     heelL_ankleStrap.name = "heelL_ankleStrap";
     heelL_ankleStrap.position.set(0, -0.42, 0);
