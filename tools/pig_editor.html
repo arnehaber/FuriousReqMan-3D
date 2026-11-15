@@ -469,6 +469,8 @@
             emissiveIntensity: 1.0,
             side: 'DoubleSide',
 
+            pigType: 0,
+
             undo: undo,
             redo: redo,
             export: generateExportCode,
@@ -605,6 +607,7 @@
             undoCtrl = fMain.add(guiParams, 'undo').name('↩️ Rückgängig (0)');
             redoCtrl = fMain.add(guiParams, 'redo').name('↪️ Wiederholen (0)');
             fMain.add(guiParams, 'createNewPig').name('➕ Neues Schwein (Blanko)');
+            fMain.add(guiParams, 'pigType').step(1).min(0).name('🏷️ Schwein-Type (für Export)').listen();
             fMain.add(guiParams, 'export').name('💾 CODE EXPORTIEREN');
             fMain.open();
             updateUndoRedoLabels();
@@ -831,8 +834,10 @@
 
             if (pigData) {
                 currentPig = pigData.mesh || pigData;
+                guiParams.pigType = pigData.type || 0;
             } else {
                 currentPig = new THREE.Group();
+                guiParams.pigType = 0;
             }
 
             currentPig.name = 'pigGroup';
@@ -1333,7 +1338,8 @@
 
             const returnFields = [`mesh: group`, `legs: [${legsArrayStr}]`];
             if (detectedGunArm) returnFields.push(`gunArm: ${detectedGunArm}`);
-            if (guiParams.pigCategory === 'Schussschweine' || detectedGunArm) returnFields.push(`type: 5`);
+            const exportType = guiParams.pigType || 0;
+            if (exportType > 0) returnFields.push(`type: ${exportType}`);
 
             const fullCode = [
                 `function ${fnName}() {`,

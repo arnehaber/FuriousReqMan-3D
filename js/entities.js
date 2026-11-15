@@ -884,7 +884,7 @@ function createPigKlasse6() {
     group.add(leg1);
 
     group.rotation.set(0, 3.1416, 0);
-    return { mesh: group, legs: [leg0, leg1] };
+    return { mesh: group, legs: [leg0, leg1], type: 6 };
 }
 
 // Erstellt das visuelle Kürbis-Schwein (früher fest verknüpft mit Typ 4)
