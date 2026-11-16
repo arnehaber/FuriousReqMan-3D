@@ -164,6 +164,244 @@ function displayHighscores() {
 
 function escapeHtml(text) { if (!text) return text; return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
+// --- SICHTLINIEN- & WEGFINDUNGS-HELFER ---
+function segmentIntersectsAABB2D(x1, z1, x2, z2, minX, maxX, minZ, maxZ) {
+    let t0 = 0.0, t1 = 1.0;
+    const dx = x2 - x1;
+    const dz = z2 - z1;
+
+    const checks = [
+        [-dx, x1 - minX],
+        [ dx, maxX - x1],
+        [-dz, z1 - minZ],
+        [ dz, maxZ - z1]
+    ];
+
+    for (let i = 0; i < 4; i++) {
+        const p = checks[i][0];
+        const q = checks[i][1];
+        if (Math.abs(p) < 1e-8) {
+            if (q < 0) return false;
+        } else {
+            const t = q / p;
+            if (p < 0) {
+                if (t > t1) return false;
+                if (t > t0) t0 = t;
+            } else {
+                if (t < t0) return false;
+                if (t < t1) t1 = t;
+            }
+        }
+    }
+    return t0 <= t1;
+}
+
+function hasLineOfSightToPlayer(pig, pigGroundY, solidObstacles) {
+    const px = pig.mesh.position.x;
+    const pz = pig.mesh.position.z;
+    const tx = camera.position.x;
+    const tz = camera.position.z;
+
+    if (currentGameMode === 'LEVEL') {
+        if (Math.abs(pigGroundY - playerCurrentGroundY) > 1.0) return false;
+
+        for (let w = 0; w < solidObstacles.length; w++) {
+            const wall = solidObstacles[w];
+            if (Math.abs(wall.y - pigGroundY) < 1.0) {
+                const r = wall.radius;
+                if (segmentIntersectsAABB2D(px, pz, tx, tz, wall.x - r, wall.x + r, wall.z - r, wall.z + r)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    } else {
+        // Im FREE-Mode blockieren hohe Felsen die Sichtlinie von Schussschweinen
+        const segDx = tx - px;
+        const segDz = tz - pz;
+        const segLenSq = segDx * segDx + segDz * segDz;
+        if (segLenSq < 1e-6) return true;
+
+        for (let i = 0; i < obstacles.length; i++) {
+            const obs = obstacles[i];
+            if (obs.height !== undefined && obs.height < 1.5) continue;
+            const t = Math.max(0, Math.min(1, ((obs.x - px) * segDx + (obs.z - pz) * segDz) / segLenSq));
+            const closestX = px + t * segDx;
+            const closestZ = pz + t * segDz;
+            const distSq = (obs.x - closestX) * (obs.x - closestX) + (obs.z - closestZ) * (obs.z - closestZ);
+            if (distSq < obs.radius * obs.radius) return false;
+        }
+        return true;
+    }
+}
+
+function findNextGridWaypoint(pig, pigGroundY, targetX, targetZ, now) {
+    if (typeof episodes === 'undefined' || !episodes[activeEpisodeIndex]) return null;
+    const activeEpisode = episodes[activeEpisodeIndex];
+    const activeLevel = activeEpisode && activeEpisode.levels ? activeEpisode.levels[activeLevelIndex] : null;
+    if (!activeLevel || !activeLevel.layers) return null;
+
+    const layerIdx = Math.round(pigGroundY / LAYER_HEIGHT);
+    const layer = activeLevel.layers[layerIdx];
+    if (!layer || !levelMaxRows || !levelMaxCols) return null;
+
+    const halfW = (levelMaxCols * TILE_SIZE) / 2;
+    const halfH = (levelMaxRows * TILE_SIZE) / 2;
+
+    const startCol = Math.max(0, Math.min(levelMaxCols - 1, Math.round((pig.mesh.position.x + halfW) / TILE_SIZE)));
+    const startRow = Math.max(0, Math.min(levelMaxRows - 1, Math.round((pig.mesh.position.z + halfH) / TILE_SIZE)));
+    const goalCol = Math.max(0, Math.min(levelMaxCols - 1, Math.round((targetX + halfW) / TILE_SIZE)));
+    const goalRow = Math.max(0, Math.min(levelMaxRows - 1, Math.round((targetZ + halfH) / TILE_SIZE)));
+
+    if (startCol === goalCol && startRow === goalRow) {
+        return { x: targetX, z: targetZ, reachable: true };
+    }
+
+    // Gecachten Wegpunkt verwenden, solange er noch frisch ist und nicht erreicht wurde
+    if (pig.pathCache && pig.pathCacheTime && (now - pig.pathCacheTime) < 220 &&
+        pig.pathCache.goalCol === goalCol && pig.pathCache.goalRow === goalRow) {
+        const distToWp = Math.hypot(pig.pathCache.x - pig.mesh.position.x, pig.pathCache.z - pig.mesh.position.z);
+        if (distToWp > 0.45) {
+            return pig.pathCache;
+        }
+    }
+
+    const totalCells = levelMaxRows * levelMaxCols;
+    const blockedGrid = new Uint8Array(totalCells);
+
+    for (let r = 0; r < levelMaxRows; r++) {
+        const rowData = layer[r];
+        for (let c = 0; c < levelMaxCols; c++) {
+            const idx = r * levelMaxCols + c;
+            const cell = rowData ? rowData[c] : undefined;
+            if (cell === undefined || cell === '|') {
+                blockedGrid[idx] = 1;
+            } else if (cell === 'D' || cell === 'S') {
+                const tileX = c * TILE_SIZE - halfW;
+                const tileZ = r * TILE_SIZE - halfH;
+                const door = levelDoors.find(d =>
+                    Math.abs(d.y - pigGroundY) < 1.0 &&
+                    Math.abs(d.x - tileX) < TILE_SIZE * 0.6 &&
+                    Math.abs(d.z - tileZ) < TILE_SIZE * 0.6
+                );
+                if (!door || door.state !== 'open') {
+                    blockedGrid[idx] = 1;
+                }
+            }
+        }
+    }
+
+    // Zusätzliche Hitboxen auf derselben Etage berücksichtigen
+    for (let w = 0; w < levelWallHitboxes.length; w++) {
+        const wall = levelWallHitboxes[w];
+        if (Math.abs(wall.y - pigGroundY) < 1.0) {
+            const wc = Math.round((wall.x + halfW) / TILE_SIZE);
+            const wr = Math.round((wall.z + halfH) / TILE_SIZE);
+            if (wr >= 0 && wr < levelMaxRows && wc >= 0 && wc < levelMaxCols) {
+                blockedGrid[wr * levelMaxCols + wc] = 1;
+            }
+        }
+    }
+
+    const startIdx = startRow * levelMaxCols + startCol;
+    const goalIdx = goalRow * levelMaxCols + goalCol;
+    blockedGrid[startIdx] = 0; // Startkachel immer begehbar halten, falls das Schwein nah an einer Wand steht
+
+    const visited = new Uint8Array(totalCells);
+    const parent = new Int32Array(totalCells);
+    parent.fill(-1);
+
+    const queue = new Int32Array(totalCells);
+    let head = 0, tail = 0;
+    queue[tail++] = startIdx;
+    visited[startIdx] = 1;
+
+    // 4 Kardinal- + 4 Diagonalrichtungen
+    const dirs = [
+        [-1,  0, false],
+        [ 1,  0, false],
+        [ 0, -1, false],
+        [ 0,  1, false],
+        [-1, -1, true],
+        [-1,  1, true],
+        [ 1, -1, true],
+        [ 1,  1, true]
+    ];
+
+    let found = false;
+    while (head < tail) {
+        const curr = queue[head++];
+        if (curr === goalIdx) {
+            found = true;
+            break;
+        }
+        const cr = (curr / levelMaxCols) | 0;
+        const cc = curr % levelMaxCols;
+
+        for (let d = 0; d < 8; d++) {
+            const dr = dirs[d][0];
+            const dc = dirs[d][1];
+            const isDiag = dirs[d][2];
+            const nr = cr + dr;
+            const nc = cc + dc;
+
+            if (nr < 0 || nr >= levelMaxRows || nc < 0 || nc >= levelMaxCols) continue;
+            const nIdx = nr * levelMaxCols + nc;
+            if (visited[nIdx] || blockedGrid[nIdx]) continue;
+
+            // Diagonale Schritte nur erlauben, wenn beide angrenzenden Kacheln frei sind (verhindert Hängenbleiben an Ecken)
+            if (isDiag) {
+                if (blockedGrid[(cr + dr) * levelMaxCols + cc] || blockedGrid[cr * levelMaxCols + (cc + dc)]) {
+                    continue;
+                }
+            }
+
+            visited[nIdx] = 1;
+            parent[nIdx] = curr;
+            queue[tail++] = nIdx;
+        }
+    }
+
+    if (!found) {
+        pig.pathCache = null;
+        return null;
+    }
+
+    // Pfad vom Ziel zurück zum Start verfolgen
+    let stepIdx = goalIdx;
+    let prevIdx = parent[stepIdx];
+    const pathIndices = [stepIdx];
+    while (prevIdx !== -1 && prevIdx !== startIdx) {
+        pathIndices.push(prevIdx);
+        stepIdx = prevIdx;
+        prevIdx = parent[stepIdx];
+    }
+
+    // Ersten Wegpunkt wählen (oder den zweiten, falls der erste fast schon erreicht ist)
+    let chosenIdx = pathIndices[pathIndices.length - 1];
+    const firstCol = chosenIdx % levelMaxCols;
+    const firstRow = (chosenIdx / levelMaxCols) | 0;
+    const firstX = firstCol * TILE_SIZE - halfW;
+    const firstZ = firstRow * TILE_SIZE - halfH;
+
+    if (pathIndices.length >= 2 && Math.hypot(firstX - pig.mesh.position.x, firstZ - pig.mesh.position.z) < 0.75) {
+        chosenIdx = pathIndices[pathIndices.length - 2];
+    }
+
+    const wpCol = chosenIdx % levelMaxCols;
+    const wpRow = (chosenIdx / levelMaxCols) | 0;
+    const result = {
+        x: wpCol * TILE_SIZE - halfW,
+        z: wpRow * TILE_SIZE - halfH,
+        goalCol,
+        goalRow,
+        reachable: true
+    };
+    pig.pathCache = result;
+    pig.pathCacheTime = now;
+    return result;
+}
+
 function updateMapDiscovery(layerIdx, layerData) {
     if (!discoveredMaps[layerIdx]) discoveredMaps[layerIdx] = Array.from({length: levelMaxRows}, () => new Array(levelMaxCols).fill(false));
     let pCol = Math.round((camera.position.x + (levelMaxCols * TILE_SIZE) / 2) / TILE_SIZE);
@@ -189,7 +427,7 @@ function updateMapDiscovery(layerIdx, layerData) {
                 let cell = layerData[r] && layerData[r][c] ? layerData[r][c] : ' ';
                 if(cell === '|') break; 
                 if(cell === 'D' || cell === 'S') {
-                    let doorObj = levelDoors.find(d => Math.abs(d.y - playerCurrentGroundY) < 1.0 && Math.round((d.x + (levelMaxCols * TILE_SIZE) / 2) / TILE_SIZE) === c && Math.round((d.z + (levelMaxRows * TILE_SIZE) / TILE_SIZE) === r));
+                    let doorObj = levelDoors.find(d => Math.abs(d.y - playerCurrentGroundY) < 1.0 && Math.round((d.x + (levelMaxCols * TILE_SIZE) / 2) / TILE_SIZE) === c && Math.round((d.z + (levelMaxRows * TILE_SIZE) / 2) / TILE_SIZE) === r);
                     if (!doorObj || doorObj.state !== 'open') break; 
                 }
             } else break; 
@@ -428,33 +666,25 @@ function animate3D() {
             let playerPos2D = new THREE.Vector3(camera.position.x, 0, camera.position.z);
             let distToPlayer = playerPos2D.distanceTo(new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z));
 
+            // Aktuelle Sichtlinie zum Spieler prüfen
+            let canSeePlayer = hasLineOfSightToPlayer(pig, pigGroundY, solidObstacles);
+
             if (currentGameMode === 'LEVEL' && !pig.hasSeenPlayer) {
-                let canSee = true;
-                pigGroundY = Math.round(pig.mesh.position.y / LAYER_HEIGHT) * LAYER_HEIGHT;
-
-                if (Math.abs(pigGroundY - playerCurrentGroundY) > 1.0) {
-                    canSee = false;
+                if (canSeePlayer) {
+                    pig.hasSeenPlayer = true;
+                    pig.lastKnownPos = new THREE.Vector3(camera.position.x, pigGroundY, camera.position.z);
+                    playPigScreamAudio(pig.type === 4 ? 0 : undefined);
                 } else {
-                    let dx = camera.position.x - pig.mesh.position.x;
-                    let dz = camera.position.z - pig.mesh.position.z;
-                    let steps = Math.ceil(distToPlayer / 1.0);
-
-					for (let w = 0; w < solidObstacles.length; w++) {
-						let wall = solidObstacles[w]; 
-                        if (Math.abs(wall.y - pigGroundY) < 1.0) {
-                            for (let s = 1;s < steps;s++) {
-                                let px = pig.mesh.position.x + (dx * s / steps);
-                                let pz = pig.mesh.position.z + (dz * s / steps);
-                                if (Math.abs(px - wall.x) < wall.radius && Math.abs(pz - wall.z) < wall.radius) { canSee = false; break; }
-                            }
-                        }
-                        if (!canSee) break;
-                    }
+                    continue;
                 }
-                if (canSee) { pig.hasSeenPlayer = true; playPigScreamAudio(pig.type === 4 ? 0 : undefined); } else continue;
+            }
+
+            if (canSeePlayer) {
+                if (!pig.lastKnownPos) pig.lastKnownPos = new THREE.Vector3();
+                pig.lastKnownPos.set(camera.position.x, pigGroundY, camera.position.z);
             }
             
-			if (distToPlayer < 1.4 && !pig.isFleeing && freezeEndTime <= now) {
+			if (distToPlayer < 1.4 && canSeePlayer && !pig.isFleeing && freezeEndTime <= now) {
                 pig.isFleeing = true; hp -= 10; if (hp < 0) hp = 0; healthValueDisplay.innerText = t('hud_hp', { hp: hp });
                 let alphaValue = (1 - (hp / 100)) * RED_FILTER_MAX_OPACITY; damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${alphaValue})`;
                 playDamageAudio(); if (hp <= 90 && hp > 0) heartbeatLoop();
@@ -488,36 +718,77 @@ function animate3D() {
                 });
             }
 
+            // Zielpunkt bestimmen: direkte Sicht -> Spieler, verdeckt -> Grid-Wegfindung um Wände herum
             let targetPos = pig.isFleeing ? pig.fleeTarget : camera.position;
-            let dirToTarget = new THREE.Vector3().subVectors(targetPos, pig.mesh.position); dirToTarget.y = 0; let distToTarget = dirToTarget.length(); dirToTarget.normalize();
+            let usingWaypoint = false;
+
+            if (!pig.isFleeing && currentGameMode === 'LEVEL') {
+                if (canSeePlayer) {
+                    pig.pathCache = null;
+                    targetPos = camera.position;
+                } else {
+                    const sameFloor = Math.abs(pigGroundY - playerCurrentGroundY) <= 1.0;
+                    const navTargetX = sameFloor ? camera.position.x : (pig.lastKnownPos ? pig.lastKnownPos.x : pig.mesh.position.x);
+                    const navTargetZ = sameFloor ? camera.position.z : (pig.lastKnownPos ? pig.lastKnownPos.z : pig.mesh.position.z);
+
+                    const wp = findNextGridWaypoint(pig, pigGroundY, navTargetX, navTargetZ, now);
+                    if (wp) {
+                        targetPos = new THREE.Vector3(wp.x, pigGroundY, wp.z);
+                        usingWaypoint = true;
+                    } else if (pig.lastKnownPos) {
+                        // Weg durch geschlossene Tür/Wand blockiert -> bis zur letzten bekannten Position laufen und dort warten
+                        const fallbackWp = findNextGridWaypoint(pig, pigGroundY, pig.lastKnownPos.x, pig.lastKnownPos.z, now);
+                        if (fallbackWp) {
+                            targetPos = new THREE.Vector3(fallbackWp.x, pigGroundY, fallbackWp.z);
+                            usingWaypoint = true;
+                        } else {
+                            targetPos = pig.lastKnownPos;
+                        }
+                    }
+                }
+            }
+
+            let dirToTarget = new THREE.Vector3().subVectors(targetPos, pig.mesh.position);
+            dirToTarget.y = 0;
+            let distToTarget = dirToTarget.length();
+            if (distToTarget > 0.001) {
+                dirToTarget.normalize();
+            } else {
+                dirToTarget.set(0, 0, 0);
+            }
+
             if (pig.isFleeing && distToTarget < 3.0) { pig.isFleeing = false; playPigScreamAudio(pig.type === 4 ? 0 : undefined); }
 
             let avoidance = new THREE.Vector3(0, 0, 0);
             if (currentGameMode === 'FREE') {
                 obstacles.forEach(obs => {
                     let distToObs = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(obs.x, 0, obs.z));
-                    if(distToObs < obs.radius + 1.2) { let pushDir = new THREE.Vector3().subVectors(pig.mesh.position, new THREE.Vector3(obs.x, 0, obs.z)).normalize(); avoidance.addScaledVector(new THREE.Vector3(-pushDir.z, 0, pushDir.x), pig.speed * 1.5 * timeScale); }
+                    if(distToObs < obs.radius + 1.2) {
+                        let pushDir = new THREE.Vector3(pig.mesh.position.x - obs.x, 0, pig.mesh.position.z - obs.z).normalize();
+                        avoidance.addScaledVector(new THREE.Vector3(-pushDir.z, 0, pushDir.x), pig.speed * 1.5 * timeScale);
+                    }
                 });
                 pigPens.forEach(pen => {
                     let distToPen = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(pen.x, 0, pen.z));
                     if (distToPen < pen.radius + 0.5) { let dx = pig.mesh.position.x - pen.x; let dz = pig.mesh.position.z - pen.z; if (!(dz > 1.5 && Math.abs(dx) < 1.0)) { let pushPen = new THREE.Vector3(dx, 0, dz).normalize(); avoidance.addScaledVector(pushPen, pig.speed * 2.0 * timeScale); } }
                 });
             } else if (currentGameMode === 'LEVEL') {
+                // WICHTIG: wall.y und door.y mit pigGroundY vergleichen (nicht mit pig.mesh.position.y, da dieses um ~1.0 nach oben versetzt ist)
                 levelWallHitboxes.forEach(wall => {
-                    if (Math.abs(wall.y - pig.mesh.position.y) < 1.0) {
-                        let distToWall = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(wall.x, 0, wall.z));
-                        if (distToWall < wall.radius + 1.2) {
-                            let pushDir = new THREE.Vector3().subVectors(pig.mesh.position, new THREE.Vector3(wall.x, 0, wall.z)).normalize();
-                            avoidance.addScaledVector(new THREE.Vector3(pushDir.x, 0, pushDir.z), pig.speed * 1.5 * timeScale);
+                    if (Math.abs(wall.y - pigGroundY) < 1.0) {
+                        let distToWall = Math.hypot(pig.mesh.position.x - wall.x, pig.mesh.position.z - wall.z);
+                        if (distToWall < wall.radius + 1.05 && distToWall > 0.001) {
+                            let pushDir = new THREE.Vector3(pig.mesh.position.x - wall.x, 0, pig.mesh.position.z - wall.z).normalize();
+                            avoidance.addScaledVector(pushDir, pig.speed * 0.85 * timeScale);
                         }
                     }
                 });
                 levelDoors.forEach(door => {
-                    if (door.state !== 'open' && Math.abs(door.y - pig.mesh.position.y) < 1.0) {
-                        let distToDoor = new THREE.Vector3(pig.mesh.position.x, 0, pig.mesh.position.z).distanceTo(new THREE.Vector3(door.x, 0, door.z));
-                        if (distToDoor < door.radius + 1.2) {
-                            let pushDir = new THREE.Vector3().subVectors(pig.mesh.position, new THREE.Vector3(door.x, 0, door.z)).normalize();
-                            avoidance.addScaledVector(new THREE.Vector3(pushDir.x, 0, pushDir.z), pig.speed * 1.5 * timeScale);
+                    if (door.state !== 'open' && Math.abs(door.y - pigGroundY) < 1.0) {
+                        let distToDoor = Math.hypot(pig.mesh.position.x - door.x, pig.mesh.position.z - door.z);
+                        if (distToDoor < door.radius + 1.05 && distToDoor > 0.001) {
+                            let pushDir = new THREE.Vector3(pig.mesh.position.x - door.x, 0, pig.mesh.position.z - door.z).normalize();
+                            avoidance.addScaledVector(pushDir, pig.speed * 0.85 * timeScale);
                         }
                     }
                 });
@@ -532,57 +803,64 @@ function animate3D() {
                     pig.reloadTimer = 0; // Cooldown-Tracker
                 }
                 
-                // Wenn nah genug UND der Nachlade-Cooldown abgelaufen ist, beginnt es zu zielen
-                if (pig.attackState === 'idle' && distToTarget <= PIG_RANGED_ATTACK_DIST && now > pig.reloadTimer) {
+                // Nur zielen, wenn der Spieler tatsächlich sichtbar ist (keine Wand/Tür dazwischen)
+                if (pig.attackState === 'idle' && canSeePlayer && distToPlayer <= PIG_RANGED_ATTACK_DIST && now > pig.reloadTimer) {
                     pig.attackState = 'aiming';
                     pig.aimTimer = now + PIG_RANGED_AIM_TIME; // 2 Sekunden Timer startet
                 } 
                 
                 if (pig.attackState === 'aiming' || pig.attackState === 'recoil') {
-                    pig.isAiming = true;
-                    // Bewegung auf Null setzen, das Schwein bleibt zum Schießen stehen!
-                    dirToTarget.set(0, 0, 0); 
-                    avoidance.set(0, 0, 0);   
-                    
-                    if (pig.attackState === 'aiming') {
-                        // Rechten Arm langsam anheben (Zielen)
-                        pig.gunArm.rotation.x = THREE.MathUtils.lerp(pig.gunArm.rotation.x, -Math.PI / 2.1, 0.08);
-                        
-                        // Peng! Timer ist abgelaufen.
-                        if (now > pig.aimTimer) {
-                            pig.attackState = 'recoil';
-                            pig.aimTimer = now + 600; // 600ms Rückstoß-/Abklingzeit
-                            
-                            // NEU: Nachlade-Cooldown starten!
-                            pig.reloadTimer = now + PIG_RANGED_RELOAD_TIME; 
-                            
-                            pig.gunArm.rotation.x -= 0.6; // Heftiger optischer Rückstoß des Arms
-                            
-                            // Trefferwahrscheinlichkeit linear berechnen
-                            let hitProb = 1.0 - (distToTarget / PIG_RANGED_ATTACK_DIST) * (1.0 - PIG_RANGED_HIT_PROB_MIN);
-                            hitProb = Math.max(PIG_RANGED_HIT_PROB_MIN, Math.min(1.0, hitProb)); 
-                            
-                            playShotgunAudio(); 
-                            
-                            // Wurde der Spieler getroffen?
-                            if (Math.random() <= hitProb) {
-                                hp -= PIG_RANGED_DAMAGE; 
-                                if (hp < 0) hp = 0; 
-                                healthValueDisplay.innerText = t('hud_hp', { hp: hp });
-                                
-                                let alphaValue = (1 - (hp / 100)) * RED_FILTER_MAX_OPACITY; 
-                                damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${alphaValue})`;
-                                playDamageAudio(); 
-                                
-                                if (hp <= 90 && hp > 0) heartbeatLoop();
-                                if (hp <= 0) { endGame(true); return; } // Game Over
-                            }
-                        }
-                    } else if (pig.attackState === 'recoil') {
-                        // Arm nach dem Schuss langsam wieder senken
+                    // Geht der Spieler während des Zielens in Deckung, Zielen sofort abbrechen!
+                    if (pig.attackState === 'aiming' && !canSeePlayer) {
+                        pig.attackState = 'idle';
+                        pig.isAiming = false;
                         pig.gunArm.rotation.x = THREE.MathUtils.lerp(pig.gunArm.rotation.x, -Math.PI / 12, 0.1);
-                        if (now > pig.aimTimer) {
-                            pig.attackState = 'idle'; // Geht in den Idle-Zustand (Nachladen läuft im Hintergrund)
+                    } else {
+                        pig.isAiming = true;
+                        // Bewegung auf Null setzen, das Schwein bleibt zum Schießen stehen!
+                        dirToTarget.set(0, 0, 0); 
+                        avoidance.set(0, 0, 0);   
+                        
+                        if (pig.attackState === 'aiming') {
+                            // Rechten Arm langsam anheben (Zielen)
+                            pig.gunArm.rotation.x = THREE.MathUtils.lerp(pig.gunArm.rotation.x, -Math.PI / 2.1, 0.08);
+                            
+                            // Peng! Timer ist abgelaufen und Spieler ist immer noch sichtbar.
+                            if (now > pig.aimTimer) {
+                                pig.attackState = 'recoil';
+                                pig.aimTimer = now + 600; // 600ms Rückstoß-/Abklingzeit
+                                
+                                // Nachlade-Cooldown starten
+                                pig.reloadTimer = now + PIG_RANGED_RELOAD_TIME; 
+                                
+                                pig.gunArm.rotation.x -= 0.6; // Heftiger optischer Rückstoß des Arms
+                                
+                                // Trefferwahrscheinlichkeit linear berechnen
+                                let hitProb = 1.0 - (distToPlayer / PIG_RANGED_ATTACK_DIST) * (1.0 - PIG_RANGED_HIT_PROB_MIN);
+                                hitProb = Math.max(PIG_RANGED_HIT_PROB_MIN, Math.min(1.0, hitProb)); 
+                                
+                                playShotgunAudio(); 
+                                
+                                // Wurde der Spieler getroffen?
+                                if (Math.random() <= hitProb) {
+                                    hp -= PIG_RANGED_DAMAGE; 
+                                    if (hp < 0) hp = 0; 
+                                    healthValueDisplay.innerText = t('hud_hp', { hp: hp });
+                                    
+                                    let alphaValue = (1 - (hp / 100)) * RED_FILTER_MAX_OPACITY; 
+                                    damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${alphaValue})`;
+                                    playDamageAudio(); 
+                                    
+                                    if (hp <= 90 && hp > 0) heartbeatLoop();
+                                    if (hp <= 0) { endGame(true); return; } // Game Over
+                                }
+                            }
+                        } else if (pig.attackState === 'recoil') {
+                            // Arm nach dem Schuss langsam wieder senken
+                            pig.gunArm.rotation.x = THREE.MathUtils.lerp(pig.gunArm.rotation.x, -Math.PI / 12, 0.1);
+                            if (now > pig.aimTimer) {
+                                pig.attackState = 'idle'; // Geht in den Idle-Zustand (Nachladen läuft im Hintergrund)
+                            }
                         }
                     }
                 } else {
@@ -591,8 +869,12 @@ function animate3D() {
                 }
             }
 
+            let stepSpeed = pig.speed * timeScale;
+            if (!canSeePlayer && !usingWaypoint && distToTarget < 0.35) {
+                stepSpeed = 0; // An letzter bekannter Position stehen bleiben, wenn keine weitere Route existiert
+            }
 
-            let finalMove = dirToTarget.clone().multiplyScalar(pig.speed * timeScale).add(avoidance);
+            let finalMove = dirToTarget.clone().multiplyScalar(stepSpeed).add(avoidance);
             let nextX = pig.mesh.position.x + finalMove.x;
             let nextZ = pig.mesh.position.z + finalMove.z;
             let pigRadius = 0.8;
@@ -600,14 +882,15 @@ function animate3D() {
             let blockedZ = false;
 
             if (currentGameMode === 'LEVEL') {
+                // WICHTIG: wall.y und door.y gegen pigGroundY prüfen!
                 levelWallHitboxes.forEach(wall => {
-                    if (Math.abs(wall.y - pig.mesh.position.y) < 1.0) {
+                    if (Math.abs(wall.y - pigGroundY) < 1.0) {
                         if (Math.abs(nextX - wall.x) < (wall.radius + pigRadius) && Math.abs(pig.mesh.position.z - wall.z) < (wall.radius + pigRadius)) blockedX = true;
                         if (Math.abs(pig.mesh.position.x - wall.x) < (wall.radius + pigRadius) && Math.abs(nextZ - wall.z) < (wall.radius + pigRadius)) blockedZ = true;
                     }
                 });
                 levelDoors.forEach(door => {
-                    if (door.state !== 'open' && Math.abs(door.y - pig.mesh.position.y) < 1.0) {
+                    if (door.state !== 'open' && Math.abs(door.y - pigGroundY) < 1.0) {
                         if (Math.abs(nextX - door.x) < (door.radius + pigRadius) && Math.abs(pig.mesh.position.z - door.z) < (door.radius + pigRadius)) blockedX = true;
                         if (Math.abs(pig.mesh.position.x - door.x) < (door.radius + pigRadius) && Math.abs(nextZ - door.z) < (door.radius + pigRadius)) blockedZ = true;
                     }
@@ -627,16 +910,19 @@ function animate3D() {
                 pig.mesh.position.z = Math.max(MAP_MIN_Z + 2, Math.min(MAP_MAX_Z - 2, pig.mesh.position.z));
             }
 
-            pig.mesh.lookAt(new THREE.Vector3(targetPos.x, pig.mesh.position.y, targetPos.z));
-            pig.mesh.rotateY(Math.PI);
+            let lookTarget = pig.isAiming ? camera.position : targetPos;
+            if (Math.hypot(lookTarget.x - pig.mesh.position.x, lookTarget.z - pig.mesh.position.z) > 0.05) {
+                pig.mesh.lookAt(new THREE.Vector3(lookTarget.x, pig.mesh.position.y, lookTarget.z));
+                pig.mesh.rotateY(Math.PI);
+            }
 
 			const time = Date.now() * 0.01 * (pig.speed * 15); 
             pig.mesh.position.y = pigGroundY + (pig.type === 1 ? 1.1 : 1.0) + Math.sin(time) * 0.06;
             
 			// Beine animieren (Wackeln)
             if (pig.legs) {
-                if (pig.isAiming) {
-                    // Beim Zielen und Schießen ruhig stehen bleiben
+                if (pig.isAiming || stepSpeed === 0) {
+                    // Beim Zielen/Schießen oder Warten ruhig stehen bleiben
                     pig.legs.forEach(l => l.rotation.x = 0);
                 } else if (pig.legs.length === 4) { 
                     pig.legs[0].rotation.x = Math.sin(time) * 0.4; 
