@@ -77,10 +77,8 @@
         </div>
     </div>
 
-    <!-- Three.js & Controls -->    
-    <script src="../lib/three.min-r128.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+    <!-- Three.js & Controls (OrbitControls & TransformControls bundled in three.min-r187.js) -->    
+    <script src="../lib/three.min-r187.js"></script>
     <script src="../lib/data.gui.min-0.7.9.js"></script>    
 
     <!-- DUMMY-SPIELUMGEBUNG FÜR ENTITIES.JS -->
@@ -124,6 +122,7 @@
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.domElement.tabIndex = 0;
         document.body.appendChild(renderer.domElement);
 
@@ -132,7 +131,7 @@
         orbit.update();
 
         const transformControl = new THREE.TransformControls(camera, renderer.domElement);
-        scene.add(transformControl);
+        scene.add(transformControl.getHelper ? transformControl.getHelper() : transformControl);
 
         scene.add(new THREE.AmbientLight(0x888888));
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); dirLight.position.set(5, 10, -5); scene.add(dirLight);
