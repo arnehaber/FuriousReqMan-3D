@@ -1373,7 +1373,12 @@ function init3D() {
     initPlayerWeapon(); 
 
     renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight);
-    if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // Fügen Sie diese Zeilen hinzu:
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.CineonToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.gammaOutput = true;
     container.insertBefore(renderer.domElement, container.firstChild);
 
     ambientLight = new THREE.AmbientLight(0xffffff, AMBIENT_LIGHT); scene.add(ambientLight);
