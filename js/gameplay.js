@@ -1,5 +1,5 @@
 // --- GAMEPLAY AND MAIN LOOP ---
-const clock = new THREE.Clock(); // Delta-Time Clock
+const clock = typeof THREE.Timer !== 'undefined' ? new THREE.Timer() : new THREE.Clock(); // Delta-Time Clock / Timer
 
 const container = document.getElementById('game-container'), scoreDisplay = document.getElementById('score-display'), timerDisplay = document.getElementById('timer-display'), ammoDisplay = document.getElementById('ammo-display'), gameOverScreen = document.getElementById('game-over'), loadingScreen = document.getElementById('loading-screen'), finalScoreDisplay = document.getElementById('final-score'), highscoreForm = document.getElementById('highscore-form'), playerNameInput = document.getElementById('player-name'), loadingHighscoreBody = document.getElementById('loading-highscore-body'), gameoverHighscoreBody = document.getElementById('gameover-highscore-body'), instructionsOverlay = document.getElementById('instructions-overlay'), healthValueDisplay = document.getElementById('health-value'), gameOverTitle = document.getElementById('game-over-title'), damageVignette = document.getElementById('damage-vignette'), scoreCalcText = document.getElementById('score-calc-text');
 const statsHpCount = document.getElementById('stats-hp-count'), statsTimeCount = document.getElementById('stats-time-count'), statsCoffeeCount = document.getElementById('stats-coffee-count'), statsLightningCount = document.getElementById('stats-lightning-count'), statsFreezeCount = document.getElementById('stats-freeze-count');
@@ -537,6 +537,7 @@ function closeMap() {
 
 function animate3D() {
     requestAnimationFrame(animate3D);
+    if (clock.update) clock.update();
     const dt = clock.getDelta();
     const clampedDt = Math.min(dt, 0.1);
     const timeScale = clampedDt * 60;
@@ -1350,7 +1351,7 @@ function initPlayerWeapon() {
     const barrelR = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 16), barrelMat); barrelR.rotation.x = Math.PI / 2; barrelR.position.set(0.045, 0, -0.2); playerWeapon.add(barrelR);
     const stock = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.5), stockMat); stock.position.set(0, -0.04, 0.15); playerWeapon.add(stock);
 
-    muzzleFlash = new THREE.PointLight(0xffaa00, 0, 5); muzzleFlash.position.set(0, 0, -0.6); playerWeapon.add(muzzleFlash);
+    muzzleFlash = new THREE.PointLight(0xffaa00, 0, 5); muzzleFlash.decay = 1; muzzleFlash.position.set(0, 0, -0.6); playerWeapon.add(muzzleFlash);
     const flashGeo = new THREE.PlaneGeometry(0.4, 0.4);
     const flashMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
 
@@ -1372,6 +1373,12 @@ function init3D() {
     initPlayerWeapon(); 
 
     renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight);
+    // Fügen Sie diese Zeilen hinzu:
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.CineonToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.gammaOutput = true;
     container.insertBefore(renderer.domElement, container.firstChild);
 
     ambientLight = new THREE.AmbientLight(0xffffff, AMBIENT_LIGHT); scene.add(ambientLight);
@@ -1457,7 +1464,7 @@ function startGame() {
     
     initAudio(); 
     gameInterval = setInterval(updateTimer, 1000);
-    clock.getDelta(); 
+    if (clock.reset) clock.reset(); else if (clock.getDelta) clock.getDelta(); 
 }
 
 function restartAndPlay() { initAudio(); gameOverScreen.style.display = 'none'; loadingScreen.style.display = 'none'; if (!isTouchDevice) document.body.requestPointerLock(); startGame(); }
