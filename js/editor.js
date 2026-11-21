@@ -61,6 +61,19 @@ function initNewEpisode() {
     refreshEditorUI();
 }
 
+function updateEditorDimensions() {
+    if (!editData || !editData.levels || !editData.levels[curLvl]) return;
+    const lyr = (editData.levels[curLvl].layers && editData.levels[curLvl].layers[curLyr]) || (editData.levels[curLvl].layers && editData.levels[curLvl].layers[0]);
+    if (lyr && lyr.length > 0) {
+        EDITOR_ROWS = lyr.length;
+        let maxCols = 0;
+        lyr.forEach(r => {
+            if (r.length > maxCols) maxCols = r.length;
+        });
+        EDITOR_COLS = maxCols > 0 ? maxCols : (lyr[0] ? lyr[0].length : 32);
+    }
+}
+
 function loadEpisodeIntoEditor(epObj) {
     editData = JSON.parse(JSON.stringify(epObj)); 
 
@@ -75,12 +88,8 @@ function loadEpisodeIntoEditor(epObj) {
         });
     }
     
-    if (editData.levels && editData.levels.length > 0 && editData.levels[0].layers && editData.levels[0].layers.length > 0) {
-        EDITOR_ROWS = editData.levels[0].layers[0].length;
-        EDITOR_COLS = editData.levels[0].layers[0][0].length;
-    }
-
     curLvl = 0; curLyr = 0;
+    updateEditorDimensions();
     refreshEditorUI();
 }
 
@@ -150,15 +159,13 @@ function editorSelectLevel(idx) {
     curLvl = parseInt(idx); 
     curLyr = 0; 
     
-    const lyr = editData.levels[curLvl].layers[0];
-    EDITOR_ROWS = lyr.length;
-    EDITOR_COLS = lyr[0].length;
-    
+    updateEditorDimensions();
     refreshEditorUI(); 
 }
 
 function editorSelectLayer(idx) { 
     curLyr = parseInt(idx); 
+    updateEditorDimensions();
     refreshEditorUI(); 
 }
 
@@ -188,7 +195,13 @@ function resizeGridDimensions() {
 }
 
 function renderGrid() {
-    const container = document.getElementById('editor-grid-container'); container.innerHTML = '';
+    const container = document.getElementById('editor-grid-container'); 
+    container.innerHTML = '';
+    const mainEl = container.parentElement;
+    if (mainEl) {
+        const gridWidth = EDITOR_COLS * 24 + 4;
+        mainEl.style.alignItems = gridWidth > (mainEl.clientWidth - 40) ? 'flex-start' : 'center';
+    }
     const layer = editData.levels[curLvl].layers[curLyr];
     
     for (let r = 0; r < EDITOR_ROWS; r++) {
@@ -301,3 +314,15 @@ function editorTestPlay() {
         startGame();
     }, 100);
 }
+
+window.addEventListener('resize', () => {
+    const overlay = document.getElementById('editor-overlay');
+    if (overlay && overlay.style.display !== 'none') {
+        const container = document.getElementById('editor-grid-container');
+        const mainEl = container ? container.parentElement : null;
+        if (mainEl) {
+            const gridWidth = EDITOR_COLS * 24 + 4;
+            mainEl.style.alignItems = gridWidth > (mainEl.clientWidth - 40) ? 'flex-start' : 'center';
+        }
+    }
+});
