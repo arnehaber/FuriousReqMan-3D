@@ -1372,17 +1372,17 @@ function init3D() {
     scene.add(camera);
     initPlayerWeapon(); 
 
-    renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer = new THREE.WebGLRenderer({ antialias: true }); 
+    renderer.setSize(window.innerWidth, window.innerHeight);
     // Fügen Sie diese Zeilen hinzu:
     renderer.outputEncoding = THREE.sRGBEncoding;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.CineonToneMapping;
+    renderer.toneMapping = THREE.NoToneMapping;
     renderer.toneMappingExposure = 1.0;
     renderer.gammaOutput = true;
     container.insertBefore(renderer.domElement, container.firstChild);
 
-    ambientLight = new THREE.AmbientLight(0xffffff, AMBIENT_LIGHT); scene.add(ambientLight);
-    dirLight = new THREE.DirectionalLight(0xffcccc, GLOBAL_DIR_LIGHT); dirLight.position.set(10, 20, -10); scene.add(dirLight);
+    ambientLight = new THREE.AmbientLight(0xffffff, AMBIENT_LIGHT * 0.5); scene.add(ambientLight);
+    dirLight = new THREE.DirectionalLight(0xffcccc, GLOBAL_DIR_LIGHT * 0.6); dirLight.position.set(10, 20, -10); scene.add(dirLight);
 
     window.addEventListener('resize', onWindowResize);
     document.body.addEventListener('click', () => { initAudio(); if (!isPaused && timeLeft > 0 && hp > 0 && loadingScreen.style.display === 'none' && gameOverScreen.style.display === 'none' && instructionsOverlay.style.display !== 'flex') { if (!isTouchDevice) document.body.requestPointerLock(); } });

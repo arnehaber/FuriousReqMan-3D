@@ -13,8 +13,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.physicallyCorrectLights = true;
 renderer.outputEncoding = THREE.sRGBEncoding;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.CineonToneMapping;
+renderer.toneMapping = THREE.NoToneMapping;
 renderer.domElement.tabIndex = 0;
 
 document.body.appendChild(renderer.domElement);
