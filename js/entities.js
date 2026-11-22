@@ -81,9 +81,6 @@ function createPigByType(type, isShooter) {
             pigData = isShooter ? createRandomShooterPig() : createRandomHordePig();
             break;
     }
-    if (pigData) {
-        pigData.isShooter = Boolean(type === 5 || isShooter);
-    }
     return pigData;
 }
 
@@ -483,7 +480,7 @@ function createPigKlasse5() {
     l1.name = 'leg1'; l1.position.set(0.350, -0.600, 0.000); l1.rotation.set(0.000, 0.000, 0.000); group.add(l1); legs.push(l1);
     
     group.rotation.y = Math.PI; 
-    return { mesh: group, legs: legs, gunArm: armRGroup, type: 5, headshotY: 1.2 }; 
+    return { mesh: group, legs: legs, gunArm: armRGroup, type: 5, headshotY: 1.2, isShooter:true, reloadTimer:0 }; 
 }
 
 function createPigKlasse6() {

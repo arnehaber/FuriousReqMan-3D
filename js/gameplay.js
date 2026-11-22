@@ -797,7 +797,7 @@ function animate3D() {
 
             // ZIELEN & SCHIESSEN FÜR KLASSE 5 ---
             pig.isAiming = false;
-            if (pig.type === 5 && !pig.isFleeing && freezeEndTime <= now) {
+            if (pig.isShooter == true && !pig.isFleeing && freezeEndTime <= now) {
                 if (!pig.attackState) { 
                     pig.attackState = 'idle'; 
                     pig.aimTimer = 0; 
@@ -805,7 +805,7 @@ function animate3D() {
                 }
                 
                 // Nur zielen, wenn der Spieler tatsächlich sichtbar ist (keine Wand/Tür dazwischen)
-                if (pig.attackState === 'idle' && canSeePlayer && distToPlayer <= PIG_RANGED_ATTACK_DIST && now > pig.reloadTimer) {
+                if (pig.attackState === 'idle' && canSeePlayer && distToPlayer <= PIG_RANGED_ATTACK_DIST && (pig.reloadTimer === undefined || now > pig.reloadTimer)) {
                     pig.attackState = 'aiming';
                     pig.aimTimer = now + PIG_RANGED_AIM_TIME; // 2 Sekunden Timer startet
                 } 
@@ -1591,7 +1591,7 @@ function loadSavedGame(e) {
 
     if (Array.isArray(saveData.pigs)) {
         saveData.pigs.forEach(pSaved => {
-            const pig = createPigByType(pSaved.type, pSaved.isShooter);
+            const pig = createPigByType(pSaved.type);
             if (pig) {
                 pig.mesh.position.set(pSaved.x, pSaved.y, pSaved.z);
                 pig.mesh.rotation.y = pSaved.rotY || 0;
