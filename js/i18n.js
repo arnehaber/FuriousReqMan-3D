@@ -58,4 +58,8 @@ function translateDOM() {
             elem.setAttribute('placeholder', i18nData[key]);
         }
     });
+
+    if (typeof updateLoadButtonsState === 'function') {
+        updateLoadButtonsState();
+    }
 }

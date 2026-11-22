@@ -96,8 +96,17 @@
             #final-score { font-weight: bold; color: #5cb85c; font-size: 32px; }
             
             #highscore-form input { padding: 10px; font-size: 18px; border: 2px solid #555; background: #222; color: #fff; border-radius: 5px; }
-            #highscore-form button, #game-over button, #loading-screen button, .close-btn { padding: 12px 35px; font-size: 20px; font-family: 'Arial Black', sans-serif; background: #d9534f; color: white; border: 3px solid #fff; cursor: pointer; transition: 0.2s; margin: 5px; box-shadow: 0 4px 10px #000; }
-            #highscore-form button:hover, #game-over button:hover, #loading-screen button:hover, .close-btn:hover { background: #b52b27; transform: scale(1.05); }
+            #highscore-form button, #game-over button, #loading-screen button, .close-btn, #pause-menu button { padding: 12px 35px; font-size: 20px; font-family: 'Arial Black', sans-serif; background: #d9534f; color: white; border: 3px solid #fff; cursor: pointer; transition: 0.2s; margin: 5px; box-shadow: 0 4px 10px #000; }
+            #highscore-form button:hover, #game-over button:hover, #loading-screen button:hover, .close-btn:hover, #pause-menu button:hover { background: #b52b27; transform: scale(1.05); }
+
+            button:disabled, .btn-disabled, .disabled-btn {
+                opacity: 0.35 !important;
+                cursor: not-allowed !important;
+                pointer-events: none !important;
+                filter: grayscale(100%) !important;
+                box-shadow: none !important;
+                transform: none !important;
+            }
 
             .highscore-container { width: 80%; max-width: 700px; background: rgba(15, 15, 15, 0.9); padding: 15px; border-radius: 10px; border: 1px solid #444; box-shadow: 0 0 20px rgba(0,0,0,0.8); margin-top: 15px; }
             .highscore-container h3 { margin: 0 0 10px 0; font-size: 20px; color: #ff3333; text-transform: uppercase; text-align: center; }
@@ -262,6 +271,7 @@
             <div id="btn-reload" class="mobile-btn" data-i18n="mob_rel">REL</div>
             <div id="btn-door" class="mobile-btn" data-i18n="mob_door">DOOR</div>
             <div id="btn-map" class="mobile-btn" data-i18n="mob_map">MAP</div>
+            <div id="btn-mobile-pause" class="mobile-btn" style="top: 20px; right: 20px; width: 50px; height: 50px; border-radius: 10px; z-index: 2600;" onclick="showPauseMenu()">⏸</div>
         </div>
 
         <div id="game-container">
@@ -273,6 +283,18 @@
             </div>
             <canvas id="map-canvas" width="300" height="300"></canvas>
             <button id="map-bottom-close-btn" class="map-bottom-close-btn" type="button" data-i18n="btn_close_map">CLOSE MAP</button>
+        </div>
+
+        <!-- PAUSE MENU OVERLAY (ESC) -->
+        <div id="pause-menu" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 5, 5, 0.92); flex-direction: column; justify-content: center; align-items: center; z-index: 3500; text-align: center;">
+            <h1 data-i18n="pause_title" style="color: #ff2222; font-size: 50px; margin: 0 0 20px 0; letter-spacing: 3px; text-transform: uppercase; text-shadow: 4px 4px 4px #000, 0 0 25px #ff0000;">GAME PAUSED</h1>
+            <div id="pause-feedback" style="display: none; font-size: 20px; color: #5cb85c; margin-bottom: 20px; font-weight: bold; text-shadow: 2px 2px 4px #000;"></div>
+            <div style="display: flex; flex-direction: column; gap: 15px; width: 340px;">
+                <button id="btn-pause-resume" onclick="resumeGameFromPauseMenu()" data-i18n="btn_resume" style="padding: 15px 30px; font-size: 20px; font-family: 'Arial Black', sans-serif; background: #3366ff; color: white; border: 2px solid #fff; border-radius: 5px; cursor: pointer; box-shadow: 0 4px 10px #000;">RESUME</button>
+                <button id="btn-pause-save" onclick="saveCurrentGame()" data-i18n="btn_save" style="padding: 15px 30px; font-size: 20px; font-family: 'Arial Black', sans-serif; background: #5cb85c; color: white; border: 2px solid #fff; border-radius: 5px; cursor: pointer; box-shadow: 0 4px 10px #000;">SAVE</button>
+                <button id="btn-pause-load" class="btn-load-game" onclick="loadSavedGame()" data-i18n="btn_load" style="padding: 15px 30px; font-size: 20px; font-family: 'Arial Black', sans-serif; background: #f0ad4e; color: white; border: 2px solid #fff; border-radius: 5px; cursor: pointer; box-shadow: 0 4px 10px #000;">LOAD</button>
+                <button id="btn-pause-main-menu" onclick="returnToMainMenu()" data-i18n="btn_main_menu" style="padding: 15px 30px; font-size: 20px; font-family: 'Arial Black', sans-serif; background: #d9534f; color: white; border: 2px solid #fff; border-radius: 5px; cursor: pointer; box-shadow: 0 4px 10px #000;">MAIN MENU</button>
+            </div>
         </div>
         
             <div id="loading-screen">
@@ -294,6 +316,7 @@
                         </select>
                     </div>
                     <button onclick="startSelectedMode(event)" data-i18n="btn_start" style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #3366ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000;">START</button>
+                    <button id="btn-main-load" class="btn-load-game" onclick="loadSavedGame(event)" data-i18n="btn_load" style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #f0ad4e; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000;">LOAD</button>
                     <button onclick="openEditor()" data-i18n="btn_editor" style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #8833ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000; margin-left: 10px;">EDITOR</button>
                 </div>
                 <div class="highscore-container">
@@ -347,6 +370,7 @@
                             <tr><td data-i18n="manual_ctrl_use">Open Door / Secret Wall</td><td><strong>E</strong></td></tr>
                             <tr><td data-i18n="manual_ctrl_map">Map</td><td><strong>M</strong></td></tr>
                             <tr><td data-i18n="manual_ctrl_jmp">Super Jump</td><td><strong data-i18n="manual_ctrl_jmp_value">Spacebar</strong></td></tr>
+                            <tr><td data-i18n="manual_ctrl_pause_menu">Pause Menu (Save / Load)</td><td><strong data-i18n="manual_ctrl_pause_menu_value">ESC</strong></td></tr>
                             <tr><td data-i18n="manual_ctrl_pause">Open Manual / Pause</td><td><strong>F1</strong></td></tr>
                         </tbody>
                     </table>
@@ -362,6 +386,7 @@
                         <li data-i18n="manual_feat_freeze":><strong>Task-Killer (🧯):</strong> Freezes all pigs on the map for <span id="help-val-freezetime"></span> seconds.</li>
                         <li data-i18n="manual_feat_secret":><strong>Secret Door (S):</strong> Hidden passages marked by portraits. Approach and press E!</li>
                         <li data-i18n="manual_feat_treasure":><strong>Treasure ($):</strong> Rare diamond worth 20,000 Points!</li>
+                        <li data-i18n="manual_feat_saveload"><strong>Save & Load:</strong> Press <strong>ESC</strong> to open pause menu...</li>
                     </ul>
                 </div>
 
@@ -401,6 +426,7 @@
 
                 <div style="display: flex; gap: 20px; margin-bottom: 30px;">
                     <button onclick="startSelectedMode(event)" data-i18n="btn_start" style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #3366ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000;">START</button>
+                    <button id="btn-gameover-load" class="btn-load-game" onclick="loadSavedGame(event)" data-i18n="btn_load" style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #f0ad4e; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000;">LOAD</button>
                     <button onclick="openEditor()" data-i18n="btn_editor" style="padding: 15px 30px; font-size: 24px; font-weight: bold; cursor: pointer; background-color: #8833ff; color: white; border: 2px solid #fff; border-radius: 5px; box-shadow: 3px 3px 10px #000; margin-left: 10px;">EDITOR</button>
                 </div>
                 <div class="highscore-container">

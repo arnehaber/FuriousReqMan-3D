@@ -95,5 +95,17 @@
   "manual_feat_secret": "<strong>Geheimtür (S):</strong> Verborgene Wege hinter Porträts. Nähere dich und drücke E!",
   "manual_feat_treasure": "<strong>Schatz ($):</strong> Seltener Diamant, bringt 20.000 Punkte!",
   "manual_credits_title": "Credits & Bibliotheken",
-  "btn_back": "ZURÜCK (F1)"
+  "btn_back": "ZURÜCK (F1)",
+  "btn_load_game": "LADEN",
+  "pause_title": "SPIEL PAUSIERT",
+  "btn_resume": "WEITERSPIELEN",
+  "btn_save": "SPEICHERN",
+  "btn_load": "LADEN",
+  "btn_main_menu": "ZURÜCK ZUM HAUPTMENÜ",
+  "msg_game_saved": "Spielstand gespeichert!",
+  "msg_game_loaded": "Spielstand geladen!",
+  "msg_no_save": "Kein Spielstand gespeichert!",
+  "manual_ctrl_pause_menu": "Pause-Menü (Speichern / Laden)",
+  "manual_ctrl_pause_menu_value": "ESC",
+  "manual_feat_saveload": "<strong>Speichern & Laden:</strong> Drücke <strong>ESC</strong> während des Spiels, um das Pause-Menü zu öffnen. Hier kannst du den aktuellen Zustand des Levels im Browser speichern, einen Spielstand laden oder zum Hauptmenü zurückkehren. Das Laden von Spielständen steht auch direkt im Hauptmenü bereit."
 }

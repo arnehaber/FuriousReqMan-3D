@@ -66,6 +66,27 @@ function createRandomShooterPig() {
     return pig;
 }
 
+// Hilfsfunktion: Erzeugt ein Schwein anhand seines Typs (für Laden von Spielständen)
+function createPigByType(type, isShooter) {
+    let pigData = null;
+    switch(type) {
+        case 1: pigData = createPigKlasse1(); break;
+        case 2: pigData = createPigKlasse2(); break;
+        case 3: pigData = createPigKlasse3(); break;
+        case 4: pigData = createPigKlasse4(); break;
+        case 5: pigData = createPigKlasse5(); break;
+        case 6: pigData = createPigKlasse6(); break;
+        case 7: pigData = createPigKlasse7(); break;
+        default:
+            pigData = isShooter ? createRandomShooterPig() : createRandomHordePig();
+            break;
+    }
+    if (pigData) {
+        pigData.isShooter = Boolean(type === 5 || isShooter);
+    }
+    return pigData;
+}
+
 // --- MESH MERGER (DRAW CALL REDUKTION) ---
 function mergeMeshesIntoSingleGeometry(meshes) {
     let totalVertices = 0, totalIndices = 0;

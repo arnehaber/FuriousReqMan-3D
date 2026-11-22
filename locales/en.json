@@ -95,5 +95,17 @@
   "manual_feat_secret": "<strong>Secret Door (S):</strong> Hidden passages marked by portraits. Approach and press E!",
   "manual_feat_treasure": "<strong>Treasure ($):</strong> Rare diamond worth 20,000 Points!",
   "manual_credits_title": "Credits & Libraries",
-  "btn_back": "BACK (F1)"
+  "btn_back": "BACK (F1)",
+  "btn_load_game": "LOAD",
+  "pause_title": "GAME PAUSED",
+  "btn_resume": "RESUME",
+  "btn_save": "SAVE",
+  "btn_load": "LOAD",
+  "btn_main_menu": "BACK TO MAIN MENU",
+  "msg_game_saved": "Game saved!",
+  "msg_game_loaded": "Game loaded!",
+  "msg_no_save": "No savegame found!",
+  "manual_ctrl_pause_menu": "Pause Menu (Save / Load)",
+  "manual_ctrl_pause_menu_value": "ESC",
+  "manual_feat_saveload": "<strong>Save & Load:</strong> Press <strong>ESC</strong> during gameplay to open the pause menu. Here you can save the current level state to browser storage, load a saved game, or return to the main menu. Loading saved games is also available directly from the main menu."
 }

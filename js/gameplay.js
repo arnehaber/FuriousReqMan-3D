@@ -1326,7 +1326,442 @@ function initLoadingScreen() {
     }
     
     displayHighscores(); 
+    updateLoadButtonsState();
 }
+
+// --- SAVE & LOAD SYSTEM ---
+const SAVEGAME_KEY = 'furious_reqman_savegame';
+
+function hasSaveGame() {
+    try {
+        return !!localStorage.getItem(SAVEGAME_KEY);
+    } catch(e) {
+        return false;
+    }
+}
+
+function getSaveGameData() {
+    try {
+        const raw = localStorage.getItem(SAVEGAME_KEY);
+        if (!raw) return null;
+        try {
+            return JSON.parse(decodeURIComponent(atob(raw)));
+        } catch(e) {
+            return JSON.parse(raw);
+        }
+    } catch(e) {
+        return null;
+    }
+}
+
+function setSaveGameData(data) {
+    try {
+        const json = JSON.stringify(data);
+        localStorage.setItem(SAVEGAME_KEY, btoa(encodeURIComponent(json)));
+        return true;
+    } catch(e) {
+        console.error("Failed to save game", e);
+        return false;
+    }
+}
+
+function updateLoadButtonsState() {
+    const canLoad = hasSaveGame();
+    const loadButtons = document.querySelectorAll('.btn-load-game');
+    loadButtons.forEach(btn => {
+        btn.disabled = !canLoad;
+        if (!canLoad) {
+            btn.classList.add('disabled-btn');
+        } else {
+            btn.classList.remove('disabled-btn');
+        }
+    });
+}
+
+function showPauseMenu() {
+    const pauseMenu = document.getElementById('pause-menu');
+    if (!pauseMenu) return;
+
+    if (pauseMenu.style.display === 'flex') {
+        resumeGameFromPauseMenu();
+        return;
+    }
+
+    if (isGameOver || (loadingScreen && loadingScreen.style.display !== 'none') || (gameOverScreen && gameOverScreen.style.display === 'flex') || (instructionsOverlay && instructionsOverlay.style.display === 'flex')) return;
+    const editorOverlay = document.getElementById('editor-overlay');
+    if (editorOverlay && editorOverlay.style.display === 'flex') return;
+    if (typeof isAtLevelEnd !== 'undefined' && isAtLevelEnd) return;
+
+    isPaused = true;
+    closeMap();
+    document.exitPointerLock();
+
+    const now = performance.now();
+    if (coffeeEndTime > now) coffeeEndTime = coffeeEndTime - now; else coffeeEndTime = 0;
+    if (infiniteAmmoEndTime > now) infiniteAmmoEndTime = infiniteAmmoEndTime - now; else infiniteAmmoEndTime = 0;
+    if (freezeEndTime > now) freezeEndTime = freezeEndTime - now; else freezeEndTime = 0;
+
+    if (isReloading) clearInterval(reloadInterval);
+    if (typeof gameInterval !== 'undefined') clearInterval(gameInterval);
+    if (typeof spawnInterval !== 'undefined') clearInterval(spawnInterval);
+    if (typeof powerupInterval !== 'undefined') clearInterval(powerupInterval);
+    if (typeof heartbeatTimeout !== 'undefined') clearTimeout(heartbeatTimeout);
+
+    keysPressed.w = false; keysPressed.a = false; keysPressed.s = false; keysPressed.d = false;
+
+    pauseMenu.style.display = 'flex';
+    const feedback = document.getElementById('pause-feedback');
+    if (feedback) feedback.style.display = 'none';
+
+    updateLoadButtonsState();
+}
+
+function resumeGameFromPauseMenu() {
+    const pauseMenu = document.getElementById('pause-menu');
+    if (pauseMenu) pauseMenu.style.display = 'none';
+
+    isPaused = false;
+    if (!isTouchDevice) {
+        document.body.requestPointerLock();
+    } else {
+        const mobileUi = document.getElementById('mobile-ui');
+        if (mobileUi) mobileUi.style.display = 'block';
+    }
+
+    gameInterval = setInterval(updateTimer, 1000);
+    if (currentGameMode === 'FREE') spawnInterval = setInterval(spawnSchwein, 1000);
+    powerupInterval = setInterval(spawnPowerUpPair, POWERUP_SPAWN_INTERVAL);
+
+    const now = performance.now();
+    if (coffeeEndTime > 0) coffeeEndTime = now + coffeeEndTime;
+    if (infiniteAmmoEndTime > 0) infiniteAmmoEndTime = now + infiniteAmmoEndTime;
+    if (freezeEndTime > 0) freezeEndTime = now + freezeEndTime;
+
+    if (hp <= 90 && hp > 0) heartbeatLoop();
+    if (isReloading) { isReloading = false; reload(); }
+}
+
+function saveCurrentGame() {
+    if (isGameOver || (loadingScreen && loadingScreen.style.display !== 'none')) return;
+
+    const remainingCoffee = isPaused ? coffeeEndTime : Math.max(0, coffeeEndTime - performance.now());
+    const remainingInfiniteAmmo = isPaused ? infiniteAmmoEndTime : Math.max(0, infiniteAmmoEndTime - performance.now());
+    const remainingFreeze = isPaused ? freezeEndTime : Math.max(0, freezeEndTime - performance.now());
+
+    let customEpData = null;
+    if (episodes[activeEpisodeIndex] && episodes[activeEpisodeIndex].name && episodes[activeEpisodeIndex].name.startsWith("[TEST]")) {
+        customEpData = JSON.parse(JSON.stringify(episodes[activeEpisodeIndex]));
+    }
+
+    const saveData = {
+        version: 1,
+        timestamp: Date.now(),
+        gameMode: currentGameMode,
+        activeEpisodeIndex: activeEpisodeIndex,
+        activeLevelIndex: activeLevelIndex,
+        customEpisode: customEpData,
+        discoveredMaps: discoveredMaps,
+        currentMapLevelHash: currentMapLevelHash,
+        player: {
+            x: camera.position.x,
+            y: camera.position.y,
+            z: camera.position.z,
+            rotX: camera.rotation.x,
+            rotY: camera.rotation.y,
+            rotZ: camera.rotation.z,
+            playerCurrentGroundY: playerCurrentGroundY,
+            hp: hp,
+            score: score,
+            currentAmmo: currentAmmo,
+            timeLeft: timeLeft,
+            isJumping: isJumping,
+            jumpVelocity: jumpVelocity,
+            collectedHp: collectedHp,
+            collectedTime: collectedTime,
+            collectedCoffee: collectedCoffee,
+            collectedLightning: collectedLightning,
+            collectedFreeze: collectedFreeze,
+            collectedTreasure: collectedTreasure,
+            coffeeRemaining: remainingCoffee,
+            infiniteAmmoRemaining: remainingInfiniteAmmo,
+            freezeRemaining: remainingFreeze,
+            currentSpeedMultiplier: currentSpeedMultiplier
+        },
+        levelStats: {
+            totalPigs: levelStats.totalPigs,
+            killedPigs: levelStats.killedPigs,
+            totalSecrets: levelStats.totalSecrets,
+            foundSecrets: levelStats.foundSecrets,
+            totalTreasures: levelStats.totalTreasures,
+            collectedTreasures: levelStats.collectedTreasures
+        },
+        doors: levelDoors.map(d => ({
+            x: d.x,
+            y: d.y,
+            z: d.z,
+            state: d.state,
+            slideAmount: d.slideAmount,
+            isRotated: d.isRotated,
+            isSecret: d.isSecret
+        })),
+        powerups: powerups3D.map(p => ({
+            x: p.mesh.position.x,
+            y: p.mesh.position.y,
+            z: p.mesh.position.z,
+            type: p.type
+        })),
+        pigs: pigs3D.map(p => ({
+            type: p.type,
+            isShooter: Boolean(p.isShooter || p.type === 5),
+            x: p.mesh.position.x,
+            y: p.mesh.position.y,
+            z: p.mesh.position.z,
+            rotY: p.mesh.rotation.y,
+            speed: p.speed,
+            hasSeenPlayer: Boolean(p.hasSeenPlayer),
+            isFleeing: Boolean(p.isFleeing),
+            fleeTarget: p.fleeTarget ? { x: p.fleeTarget.x, y: p.fleeTarget.y, z: p.fleeTarget.z } : null,
+            lastKnownPos: p.lastKnownPos ? { x: p.lastKnownPos.x, y: p.lastKnownPos.y, z: p.lastKnownPos.z } : null,
+            attackState: p.attackState || 'idle'
+        }))
+    };
+
+    setSaveGameData(saveData);
+    updateLoadButtonsState();
+
+    const fb = document.getElementById('pause-feedback');
+    if (fb) {
+        fb.innerText = t('msg_game_saved');
+        fb.style.color = '#5cb85c';
+        fb.style.display = 'block';
+        setTimeout(() => { if (fb) fb.style.display = 'none'; }, 2000);
+    }
+}
+
+function loadSavedGame(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    const saveData = getSaveGameData();
+    if (!saveData) return;
+
+    initAudio();
+
+    if (typeof heartbeatTimeout !== 'undefined') clearTimeout(heartbeatTimeout);
+    if (typeof gameInterval !== 'undefined') clearInterval(gameInterval);
+    if (typeof spawnInterval !== 'undefined') clearInterval(spawnInterval);
+    if (typeof reloadInterval !== 'undefined') clearInterval(reloadInterval);
+    if (typeof powerupInterval !== 'undefined') clearInterval(powerupInterval);
+
+    currentGameMode = saveData.gameMode || 'LEVEL';
+
+    if (saveData.customEpisode) {
+        const existingIdx = episodes.findIndex(ep => ep.name === saveData.customEpisode.name);
+        if (existingIdx !== -1) {
+            episodes[existingIdx] = saveData.customEpisode;
+            activeEpisodeIndex = existingIdx;
+        } else {
+            activeEpisodeIndex = episodes.length;
+            episodes.push(saveData.customEpisode);
+        }
+    } else {
+        activeEpisodeIndex = (saveData.activeEpisodeIndex !== undefined && episodes[saveData.activeEpisodeIndex]) ? saveData.activeEpisodeIndex : 0;
+    }
+    activeLevelIndex = saveData.activeLevelIndex !== undefined ? saveData.activeLevelIndex : 0;
+
+    applyGameConfiguration();
+
+    if (currentGameMode === 'FREE') {
+        buildFreeModeEnvironment();
+        pigs3D.forEach(p => { dispose3dObject(p.mesh); scene.remove(p.mesh); });
+        pigs3D = [];
+        powerups3D.forEach(pup => { dispose3dObject(pup.mesh); scene.remove(pup.mesh); });
+        powerups3D = [];
+    } else {
+        const ep = episodes[activeEpisodeIndex];
+        if (ep && ep.levels && ep.levels[activeLevelIndex]) {
+            buildLevelFromData(ep.levels[activeLevelIndex]);
+            pigs3D.forEach(p => { dispose3dObject(p.mesh); scene.remove(p.mesh); });
+            pigs3D = [];
+            powerups3D.forEach(pup => { dispose3dObject(pup.mesh); scene.remove(pup.mesh); });
+            powerups3D = [];
+        }
+    }
+
+    if (Array.isArray(saveData.pigs)) {
+        saveData.pigs.forEach(pSaved => {
+            const pig = createPigByType(pSaved.type, pSaved.isShooter);
+            if (pig) {
+                pig.mesh.position.set(pSaved.x, pSaved.y, pSaved.z);
+                pig.mesh.rotation.y = pSaved.rotY || 0;
+                pig.speed = pSaved.speed;
+                pig.hasSeenPlayer = pSaved.hasSeenPlayer;
+                pig.isFleeing = pSaved.isFleeing;
+                if (pSaved.fleeTarget) pig.fleeTarget = new THREE.Vector3(pSaved.fleeTarget.x, pSaved.fleeTarget.y, pSaved.fleeTarget.z);
+                if (pSaved.lastKnownPos) pig.lastKnownPos = new THREE.Vector3(pSaved.lastKnownPos.x, pSaved.lastKnownPos.y, pSaved.lastKnownPos.z);
+                if (pSaved.attackState) pig.attackState = pSaved.attackState;
+                scene.add(pig.mesh);
+                pigs3D.push(pig);
+            }
+        });
+    }
+
+    if (Array.isArray(saveData.powerups)) {
+        saveData.powerups.forEach(pupSaved => {
+            spawnSpecificPowerUp(pupSaved.x, pupSaved.y, pupSaved.z, pupSaved.type);
+        });
+    }
+
+    if (Array.isArray(saveData.doors) && levelDoors.length > 0) {
+        saveData.doors.forEach((savedDoor, index) => {
+            let door = levelDoors[index];
+            if (!door || Math.abs(door.x - savedDoor.x) > 0.5 || Math.abs(door.z - savedDoor.z) > 0.5) {
+                door = levelDoors.find(d => Math.abs(d.x - savedDoor.x) < 0.5 && Math.abs(d.z - savedDoor.z) < 0.5);
+            }
+            if (door) {
+                door.state = savedDoor.state;
+                door.slideAmount = savedDoor.slideAmount || 0;
+                if (door.isRotated) {
+                    door.mesh.position.z = door.slideAmount;
+                } else {
+                    door.mesh.position.x = door.slideAmount;
+                }
+            }
+        });
+    }
+
+    if (saveData.levelStats) {
+        levelStats.totalPigs = saveData.levelStats.totalPigs;
+        levelStats.killedPigs = saveData.levelStats.killedPigs;
+        levelStats.totalSecrets = saveData.levelStats.totalSecrets;
+        levelStats.foundSecrets = saveData.levelStats.foundSecrets;
+        levelStats.totalTreasures = saveData.levelStats.totalTreasures;
+        levelStats.collectedTreasures = saveData.levelStats.collectedTreasures;
+    }
+
+    discoveredMaps = saveData.discoveredMaps || [];
+    currentMapLevelHash = saveData.currentMapLevelHash || "";
+
+    const pl = saveData.player;
+    camera.position.set(pl.x, pl.y, pl.z);
+    camera.rotation.set(pl.rotX || 0, pl.rotY || 0, pl.rotZ || 0, "YXZ");
+    playerCurrentGroundY = pl.playerCurrentGroundY || 0;
+    hp = pl.hp;
+    score = pl.score;
+    currentAmmo = pl.currentAmmo;
+    timeLeft = pl.timeLeft;
+    isJumping = pl.isJumping || false;
+    jumpVelocity = pl.jumpVelocity || 0;
+    collectedHp = pl.collectedHp || 0;
+    collectedTime = pl.collectedTime || 0;
+    collectedCoffee = pl.collectedCoffee || 0;
+    collectedLightning = pl.collectedLightning || 0;
+    collectedFreeze = pl.collectedFreeze || 0;
+    collectedTreasure = pl.collectedTreasure || 0;
+
+    const now = performance.now();
+    coffeeEndTime = pl.coffeeRemaining > 0 ? (now + pl.coffeeRemaining) : 0;
+    infiniteAmmoEndTime = pl.infiniteAmmoRemaining > 0 ? (now + pl.infiniteAmmoRemaining) : 0;
+    freezeEndTime = pl.freezeRemaining > 0 ? (now + pl.freezeRemaining) : 0;
+    currentSpeedMultiplier = pl.currentSpeedMultiplier || window.baseSpeedMultiplier || 1.0;
+    camera.fov = (coffeeEndTime > now) ? 90 : 75;
+    camera.updateProjectionMatrix();
+
+    scoreDisplay.innerText = t('hud_score', { score: score });
+    timerDisplay.innerText = t('hud_time', { time: timeLeft });
+    healthValueDisplay.innerText = t('hud_hp', { hp: hp });
+    updateAmmoUI();
+
+    const crosshairElem = document.getElementById('crosshair');
+    if (crosshairElem) {
+        if (infiniteAmmoEndTime > now) crosshairElem.classList.add('infinite-ammo');
+        else crosshairElem.classList.remove('infinite-ammo');
+    }
+
+    let alphaValue = Math.max(0, (1 - (hp / 100)) * RED_FILTER_MAX_OPACITY);
+    damageVignette.style.backgroundColor = `rgba(255, 0, 0, ${alphaValue})`;
+
+    isGameOver = false;
+    isPaused = false;
+    isReloading = false;
+    isTransitioningLevel = false;
+    keysPressed.w = false; keysPressed.a = false; keysPressed.s = false; keysPressed.d = false;
+
+    if (loadingScreen) {
+        loadingScreen.style.display = 'none';
+        loadingScreen.style.opacity = 0;
+    }
+    if (gameOverScreen) gameOverScreen.style.display = 'none';
+    if (instructionsOverlay) instructionsOverlay.style.display = 'none';
+    const pauseMenu = document.getElementById('pause-menu');
+    if (pauseMenu) pauseMenu.style.display = 'none';
+
+    const startSelect = document.getElementById('episode-select');
+    if (startSelect) {
+        startSelect.value = (currentGameMode === 'FREE') ? 'FREE' : String(activeEpisodeIndex);
+    }
+
+    if (isTouchDevice) {
+        const mobileUi = document.getElementById('mobile-ui');
+        if (mobileUi) mobileUi.style.display = 'block';
+    } else {
+        document.body.requestPointerLock();
+    }
+
+    gameInterval = setInterval(updateTimer, 1000);
+    if (currentGameMode === 'FREE') {
+        spawnInterval = setInterval(spawnSchwein, 1000);
+        powerupInterval = setInterval(spawnPowerUpPair, POWERUP_SPAWN_INTERVAL);
+    }
+    if (hp <= 90 && hp > 0) heartbeatLoop();
+    if (clock.reset) clock.reset(); else if (clock.getDelta) clock.getDelta();
+
+    const currentLevelName = (currentGameMode === 'FREE') 
+        ? t('mode_free') 
+        : t(episodes[activeEpisodeIndex]?.levels?.[activeLevelIndex]?.name || 'Level');
+    showLevelBanner(currentLevelName, t('msg_game_loaded'));
+}
+
+function returnToMainMenu() {
+    const pauseMenu = document.getElementById('pause-menu');
+    if (pauseMenu) pauseMenu.style.display = 'none';
+
+    isGameOver = true;
+    isPaused = false;
+    isReloading = false;
+
+    if (typeof heartbeatTimeout !== 'undefined') clearTimeout(heartbeatTimeout);
+    if (typeof gameInterval !== 'undefined') clearInterval(gameInterval);
+    if (typeof spawnInterval !== 'undefined') clearInterval(spawnInterval);
+    if (typeof reloadInterval !== 'undefined') clearInterval(reloadInterval);
+    if (typeof powerupInterval !== 'undefined') clearInterval(powerupInterval);
+
+    closeMap();
+    document.exitPointerLock();
+
+    if (isTouchDevice) {
+        const mobileUi = document.getElementById('mobile-ui');
+        if (mobileUi) mobileUi.style.display = 'none';
+    }
+
+    if (loadingScreen) {
+        loadingScreen.style.display = 'flex';
+        loadingScreen.style.opacity = 1;
+    }
+    if (gameOverScreen) gameOverScreen.style.display = 'none';
+    if (instructionsOverlay) instructionsOverlay.style.display = 'none';
+
+    updateLoadButtonsState();
+    displayHighscores();
+}
+
+window.saveCurrentGame = saveCurrentGame;
+window.loadSavedGame = loadSavedGame;
+window.resumeGameFromPauseMenu = resumeGameFromPauseMenu;
+window.returnToMainMenu = returnToMainMenu;
+window.showPauseMenu = showPauseMenu;
+window.updateLoadButtonsState = updateLoadButtonsState;
 
 function pressStartButton(e) { 
     if(e) { e.stopPropagation(); e.preventDefault(); } 
@@ -1389,10 +1824,39 @@ function init3D() {
     document.body.addEventListener('contextmenu', e => e.preventDefault()); 
     document.addEventListener('mousemove', onMouseMove);
 
+    document.addEventListener('pointerlockchange', () => {
+        if (document.pointerLockElement !== document.body) {
+            const pauseMenu = document.getElementById('pause-menu');
+            const isPauseOpen = pauseMenu && pauseMenu.style.display === 'flex';
+            if (!isGameOver && !isPaused && !isPauseOpen && (!loadingScreen || loadingScreen.style.display === 'none') && (!gameOverScreen || gameOverScreen.style.display === 'none') && (!instructionsOverlay || instructionsOverlay.style.display !== 'flex')) {
+                showPauseMenu();
+            }
+        }
+    });
+
 	window.addEventListener('keydown', (e) => {
 	    const editorOverlay = document.getElementById('editor-overlay');
 	    if (editorOverlay && editorOverlay.style.display === 'flex') return;
 	    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+
+        if (e.key === "Escape" || e.key === "Esc") {
+            const pauseMenu = document.getElementById('pause-menu');
+            if (pauseMenu && pauseMenu.style.display === 'flex') {
+                e.preventDefault();
+                resumeGameFromPauseMenu();
+                return;
+            }
+            if (instructionsOverlay && instructionsOverlay.style.display === 'flex') {
+                e.preventDefault();
+                toggleHelp();
+                return;
+            }
+            if (!isGameOver && (!loadingScreen || loadingScreen.style.display === 'none') && (!gameOverScreen || gameOverScreen.style.display === 'none')) {
+                e.preventDefault();
+                showPauseMenu();
+                return;
+            }
+        }
 
 	    const key = e.key.toLowerCase();
         if (key in keysPressed) keysPressed[key] = true;
@@ -1510,7 +1974,7 @@ function endGame(diedFromHp) {
     } else {
         gameOverTitle.innerText = t('go_title_success'); gameOverTitle.style.textShadow = "4px 4px 4px #000, 0 0 25px #5cb85c";
     }
-    gameOverScreen.style.display = 'flex'; displayHighscores(); 
+    gameOverScreen.style.display = 'flex'; displayHighscores(); updateLoadButtonsState(); 
     if (finalCalculatedScore > 0 && checkHighscoreEligibility(finalCalculatedScore)) {
         highscoreForm.style.display = 'block'; playerNameInput.focus();
         window.submitHighscore = function(event) {

@@ -53,7 +53,10 @@ function openEditor() {
     buildPalette();
 }
 
-function closeEditor() { document.getElementById('editor-overlay').style.display = 'none'; }
+function closeEditor() { 
+    document.getElementById('editor-overlay').style.display = 'none'; 
+    if (typeof updateLoadButtonsState === 'function') updateLoadButtonsState(); 
+}
 
 function initNewEpisode() {
     editData = { name: t('editor_default_ep_name'), description: t('editor_default_ep_desc'), configuration: Object.assign({}, DEFAULT_CONFIG), levels: [] };
